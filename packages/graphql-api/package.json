@@ -49,6 +49,7 @@
     "lodash": "^4.17.21",
     "lru-cache": "^7.14.0",
     "lunr": "^2.3.9",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "mapshaper": "^0.6.98",
     "markdown-it": "^12.3.2",
     "markdown-it-anchor": "^8.6.7",
@@ -75,7 +76,7 @@
     "wkt": "^0.1.1",
     "xml2js": "^0.4.23",
     "yaml": "^1.10.0",
-    "zod": "^3.22.4",
+    "zod": "^3.25.0",
     "zod-express-middleware": "^1.4.0"
   },
   "devDependencies": {
