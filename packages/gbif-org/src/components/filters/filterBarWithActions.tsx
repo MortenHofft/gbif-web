@@ -14,6 +14,8 @@ interface FilterBarWithActionsProps {
   filters: Filters;
   groups?: string[];
   additionalActions?: React.ReactNode;
+  /** Optional inline content rendered before the filter buttons (e.g. an omni-search input). */
+  leadingContent?: React.ReactNode;
   className?: string;
 }
 
@@ -21,6 +23,7 @@ export function FilterBarWithActions({
   filters,
   groups,
   additionalActions,
+  leadingContent,
   className,
 }: FilterBarWithActionsProps) {
   const filterContext = useContext(FilterContext);
@@ -38,6 +41,9 @@ export function FilterBarWithActions({
 
   return (
     <FilterBar className={cn('g-flex f-flex-nowrap g-items-start g-gap-2', className)}>
+      {leadingContent && (
+        <div className="g-flex-none g-mb-1 g-mx-1 g-min-w-0">{leadingContent}</div>
+      )}
       <div className={cn(shouldShowMobileFilters && 'g-hidden sm:g-block')}>
         <FilterButtons filters={filters} searchContext={searchContext} groups={groups} />
       </div>

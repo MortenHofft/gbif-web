@@ -3,6 +3,7 @@ import DynamicHeightDiv from '@/components/DynamicHeightDiv';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ChecklistSelector } from '@/components/filters/checklistSelector';
 import { FilterBarWithActions } from '@/components/filters/filterBarWithActions';
+import { OmniFilter } from '@/components/filters/omniFilter/OmniFilter';
 import { Tabs } from '@/components/tabs';
 import { Card } from '@/components/ui/smallCard';
 import { useConfig } from '@/config/config';
@@ -100,6 +101,19 @@ export function OccurrenceSearchPageInner(): React.ReactElement {
           filters={filters}
           groups={groups}
           additionalActions={<ChecklistSelector />}
+          leadingContent={
+            <OmniFilter
+              filters={filters}
+              rootEntities={[
+                'taxonKey',
+                'basisOfRecord',
+                'country',
+                'datasetKey',
+                { handle: 'gadmGid', minChars: 2 },
+                { handle: 'year', minChars: 2 },
+              ]}
+            />
+          }
         />
       </section>
 
@@ -129,7 +143,23 @@ export function OccurrenceSearchInner(): React.ReactElement {
             tabs={searchContext.tabs}
             className="g-border-b"
           />
-          <FilterBarWithActions filters={filters} groups={groups} />
+          <FilterBarWithActions
+            filters={filters}
+            groups={groups}
+            leadingContent={
+              <OmniFilter
+                filters={filters}
+                rootEntities={[
+                  'taxonKey',
+                  'basisOfRecord',
+                  'country',
+                  'datasetKey',
+                  { handle: 'gadmGid', minChars: 2 },
+                  { handle: 'year', minChars: 2 },
+                ]}
+              />
+            }
+          />
         </Card>
       </section>
 
