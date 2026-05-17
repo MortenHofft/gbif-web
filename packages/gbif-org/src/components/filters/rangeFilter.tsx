@@ -17,6 +17,7 @@ import {
 } from './filterTools';
 import { Option } from './option';
 import { AddInput } from '../addInput';
+import { rangeOrTerm } from './rangeOrTerm';
 
 type RangeProps = Omit<filterRangeConfig, 'filterType' | 'filterTranslation'> &
   AdditionalFilterProps & {
@@ -284,62 +285,4 @@ export const RangeFilter = React.forwardRef<HTMLInputElement, RangeProps>(
   }
 );
 
-/**
- * Generate a range or a terms predicate. This is useful for years,
- * that can both be queried as a range or as a term.
- * E.g. year=1950,2000
- * @param {string} value
- * @param {string} upperBound
- * @param {string} lowerBound
- */
-export function rangeOrTerm(
-  value?: string | number | null,
-  lowerBound = 'gte',
-  upperBound = 'lte',
-  expectNumbers?: boolean
-) {
-  if (value === undefined || value === null) {
-    return;
-  }
-  if (typeof value === 'number') {
-    return {
-      type: 'equals',
-      value: value + '',
-    };
-  }
-  // has a comma in the string
-  let delimter = value.indexOf(',') > -1 ? ',' : null;
-  if (expectNumbers && !delimter && value.trim().indexOf('-') > 0) {
-    delimter = '-';
-  }
-
-  if (typeof value !== 'string' || !delimter) {
-    return {
-      type: 'equals',
-      value: value,
-    };
-  } else {
-    const values = value.split(delimter);
-    const cleanedValues = values
-      .map((s) => s.trim())
-      .map((s) => (s === '*' || s === '' ? undefined : s));
-
-    if (expectNumbers && !cleanedValues.some((x) => x === undefined || isNaN(parseFloat(x)))) {
-      const sortedValues = cleanedValues.map((x) => parseFloat(x)).sort((a, b) => a - b);
-      return {
-        type: 'range',
-        value: {
-          [lowerBound]: sortedValues[0],
-          [upperBound]: sortedValues[1],
-        },
-      };
-    }
-    return {
-      type: 'range',
-      value: {
-        [lowerBound]: cleanedValues[0],
-        [upperBound]: cleanedValues[1],
-      },
-    };
-  }
-}
+export { rangeOrTerm };

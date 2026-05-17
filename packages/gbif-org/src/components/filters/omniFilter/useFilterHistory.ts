@@ -12,10 +12,10 @@ export type HistoryEntry = {
   negated: boolean;
 };
 
-const keyOf = (e: { handle: string; value: unknown; negated: boolean }) =>
+export const keyOf = (e: { handle: string; value: unknown; negated: boolean }) =>
   `${e.negated ? '!' : ''}${e.handle}=${stableJSON(e.value)}`;
 
-function stableJSON(value: unknown): string {
+export function stableJSON(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(stableJSON).join(',')}]`;
   const keys = Object.keys(value as object).sort();

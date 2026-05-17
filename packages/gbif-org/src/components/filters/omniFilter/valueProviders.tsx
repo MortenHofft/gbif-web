@@ -3,8 +3,8 @@ import { LanguageOption, Config } from '@/config/config';
 import { SearchMetadata } from '@/contexts/search';
 import { SuggestionItem } from '@/components/filters/suggest';
 import { SuggestConfig } from '@/utils/suggestEndpoints';
-import { OmniFieldConfig } from './omniFilterConfig';
-import { rangeOrTerm } from '@/components/filters/rangeFilter';
+import type { OmniFieldConfig } from './omniFilterConfig';
+import { rangeOrTerm } from '@/components/filters/rangeOrTerm';
 import { GraphQLService } from '@/services/graphQLService';
 import { CANCEL_REQUEST } from '@/utils/fetchWithCancel';
 
