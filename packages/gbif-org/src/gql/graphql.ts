@@ -5360,8 +5360,11 @@ export type OccurrenceCardinality = {
   datasetId: Scalars['Long']['output'];
   datasetKey: Scalars['Long']['output'];
   datasetName: Scalars['Long']['output'];
+  datasetPublishingCountry: Scalars['Long']['output'];
   degreeOfEstablishment: Scalars['Long']['output'];
   dwcaExtension: Scalars['Long']['output'];
+  endDayOfYear: Scalars['Long']['output'];
+  endorsingNodeKey: Scalars['Long']['output'];
   establishmentMeans: Scalars['Long']['output'];
   eventId: Scalars['Long']['output'];
   familyKey: Scalars['Long']['output'];
@@ -5373,8 +5376,10 @@ export type OccurrenceCardinality = {
   higherGeography: Scalars['Long']['output'];
   hostingOrganizationKey: Scalars['Long']['output'];
   identifiedBy: Scalars['Long']['output'];
+  installationKey: Scalars['Long']['output'];
   institutionCode: Scalars['Long']['output'];
   institutionKey: Scalars['Long']['output'];
+  isInCluster: Scalars['Long']['output'];
   isSequenced: Scalars['Long']['output'];
   island: Scalars['Long']['output'];
   islandGroup: Scalars['Long']['output'];
@@ -5385,12 +5390,16 @@ export type OccurrenceCardinality = {
   lifeStage: Scalars['Long']['output'];
   lithostratigraphy: Scalars['Long']['output'];
   locality: Scalars['Long']['output'];
+  mediaLicenses: Scalars['Long']['output'];
   mediaType: Scalars['Long']['output'];
   month: Scalars['Long']['output'];
   networkKey: Scalars['Long']['output'];
+  occurrenceId: Scalars['Long']['output'];
+  occurrenceStatus: Scalars['Long']['output'];
   orderKey: Scalars['Long']['output'];
   organismId: Scalars['Long']['output'];
   organismQuantityType: Scalars['Long']['output'];
+  parentEventId: Scalars['Long']['output'];
   pathway: Scalars['Long']['output'];
   phylumKey: Scalars['Long']['output'];
   preparations: Scalars['Long']['output'];
@@ -5400,16 +5409,19 @@ export type OccurrenceCardinality = {
   publishedByGbifRegion: Scalars['Long']['output'];
   publishingCountry: Scalars['Long']['output'];
   publishingOrg: Scalars['Long']['output'];
+  recordNumber: Scalars['Long']['output'];
   recordedBy: Scalars['Long']['output'];
   repatriated: Scalars['Long']['output'];
   sampleSizeUnit: Scalars['Long']['output'];
   samplingProtocol: Scalars['Long']['output'];
   sex: Scalars['Long']['output'];
   speciesKey: Scalars['Long']['output'];
+  startDayOfYear: Scalars['Long']['output'];
   stateProvince: Scalars['Long']['output'];
   taxonKey: Scalars['Long']['output'];
   taxonomicIssue: Scalars['Long']['output'];
   typeStatus: Scalars['Long']['output'];
+  typifiedName: Scalars['Long']['output'];
   usageKey: Scalars['Long']['output'];
   verbatimScientificName: Scalars['Long']['output'];
   waterBody: Scalars['Long']['output'];
@@ -7005,12 +7017,27 @@ export enum OccurrenceSortBy {
 
 export type OccurrenceStats = {
   __typename?: 'OccurrenceStats';
+  coordinatePrecision: Stats;
+  coordinateUncertaintyInMeters: Stats;
+  day: Stats;
   decimalLatitude: Stats;
   decimalLongitude: Stats;
   depth: Stats;
+  depthAccuracy: Stats;
   elevation: Stats;
+  elevationAccuracy: Stats;
   endDayOfYear: Stats;
   eventDate: Stats;
+  individualCount: Stats;
+  maximumDepthInMeters: Stats;
+  maximumDistanceAboveSurfaceInMeters: Stats;
+  maximumElevationInMeters: Stats;
+  minimumDepthInMeters: Stats;
+  minimumDistanceAboveSurfaceInMeters: Stats;
+  minimumElevationInMeters: Stats;
+  organismQuantity: Stats;
+  relativeOrganismQuantity: Stats;
+  sampleSizeValue: Stats;
   startDayOfYear: Stats;
   year: Stats;
 };
@@ -9461,6 +9488,14 @@ export type GeoTimeConceptsQueryVariables = Exact<{
 
 export type GeoTimeConceptsQuery = { __typename?: 'Query', vocabularyConceptSearch: { __typename?: 'ConceptSearchResult', results: Array<{ __typename?: 'VocabularyConcept', name: string, uiLabel: string, uiDefinition?: string | null, parents?: Array<{ __typename?: 'VocabularyConcept', uiLabel: string, name: string }> | null, tags: Array<{ __typename?: 'VocabularyTag', name: string } | null> }> } };
 
+export type OmniGeoTimeSuggestQueryVariables = Exact<{
+  language?: InputMaybe<Scalars['String']['input']>;
+  q?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type OmniGeoTimeSuggestQuery = { __typename?: 'Query', vocabularyConceptSearch: { __typename?: 'ConceptSearchResult', results: Array<{ __typename?: 'VocabularyConcept', name: string, uiLabel: string }> } };
+
 export type GlobeQueryVariables = Exact<{
   lat: Scalars['Float']['input'];
   lon: Scalars['Float']['input'];
@@ -11668,6 +11703,7 @@ export const ValidationResultFragmentDoc = {"kind":"Document","definitions":[{"k
 export const VocabularyConceptDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"vocabularyConcept"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"language"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"vocabulary"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"concept"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","alias":{"kind":"Name","value":"concept"},"name":{"kind":"Name","value":"vocabularyConcept"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"vocabulary"},"value":{"kind":"Variable","name":{"kind":"Name","value":"vocabulary"}}},{"kind":"Argument","name":{"kind":"Name","value":"concept"},"value":{"kind":"Variable","name":{"kind":"Name","value":"concept"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"uiLabel"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"language"},"value":{"kind":"Variable","name":{"kind":"Name","value":"language"}}}]},{"kind":"Field","name":{"kind":"Name","value":"uiDefinition"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"language"},"value":{"kind":"Variable","name":{"kind":"Name","value":"language"}}}]},{"kind":"Field","name":{"kind":"Name","value":"parents"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"uiLabel"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"language"},"value":{"kind":"Variable","name":{"kind":"Name","value":"language"}}}]}]}}]}}]}}]} as unknown as DocumentNode<VocabularyConceptQuery, VocabularyConceptQueryVariables>;
 export const ContactImageDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ContactImage"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"personId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"directoryContact"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"personId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"profilePicture"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"surname"}}]}}]}}]} as unknown as DocumentNode<ContactImageQuery, ContactImageQueryVariables>;
 export const GeoTimeConceptsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"geoTimeConcepts"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"language"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"vocabularyConceptSearch"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"vocabulary"},"value":{"kind":"StringValue","value":"GeoTime","block":false}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"200"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"results"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"parents"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"uiLabel"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}},{"kind":"Field","name":{"kind":"Name","value":"uiLabel"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"language"},"value":{"kind":"Variable","name":{"kind":"Name","value":"language"}}}]},{"kind":"Field","name":{"kind":"Name","value":"uiDefinition"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"language"},"value":{"kind":"Variable","name":{"kind":"Name","value":"language"}}}]},{"kind":"Field","name":{"kind":"Name","value":"tags"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]}}]}}]} as unknown as DocumentNode<GeoTimeConceptsQuery, GeoTimeConceptsQueryVariables>;
+export const OmniGeoTimeSuggestDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"OmniGeoTimeSuggest"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"language"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"q"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"vocabularyConceptSearch"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"vocabulary"},"value":{"kind":"StringValue","value":"GeoTime","block":false}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"20"}},{"kind":"Argument","name":{"kind":"Name","value":"q"},"value":{"kind":"Variable","name":{"kind":"Name","value":"q"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"results"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"uiLabel"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"language"},"value":{"kind":"Variable","name":{"kind":"Name","value":"language"}}}]}]}}]}}]}}]} as unknown as DocumentNode<OmniGeoTimeSuggestQuery, OmniGeoTimeSuggestQueryVariables>;
 export const GlobeDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"globe"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"lat"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Float"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"lon"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Float"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"globe"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"cLat"},"value":{"kind":"Variable","name":{"kind":"Name","value":"lat"}}},{"kind":"Argument","name":{"kind":"Name","value":"cLon"},"value":{"kind":"Variable","name":{"kind":"Name","value":"lon"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"svg"}}]}}]}}]} as unknown as DocumentNode<GlobeQuery, GlobeQueryVariables>;
 export const HelpTextDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"HelpText"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"identifier"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"locale"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"help"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"identifier"},"value":{"kind":"Variable","name":{"kind":"Name","value":"identifier"}}},{"kind":"Argument","name":{"kind":"Name","value":"locale"},"value":{"kind":"Variable","name":{"kind":"Name","value":"locale"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"identifier"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"body"}}]}}]}}]} as unknown as DocumentNode<HelpTextQuery, HelpTextQueryVariables>;
 export const HelpTitleDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"HelpTitle"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"identifier"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"locale"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"help"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"identifier"},"value":{"kind":"Variable","name":{"kind":"Name","value":"identifier"}}},{"kind":"Argument","name":{"kind":"Name","value":"locale"},"value":{"kind":"Variable","name":{"kind":"Name","value":"locale"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"identifier"}},{"kind":"Field","name":{"kind":"Name","value":"title"}}]}}]}}]} as unknown as DocumentNode<HelpTitleQuery, HelpTitleQueryVariables>;

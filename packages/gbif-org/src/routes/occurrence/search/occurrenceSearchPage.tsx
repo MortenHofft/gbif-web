@@ -4,7 +4,6 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ChecklistSelector } from '@/components/filters/checklistSelector';
 import { FilterBarWithActions } from '@/components/filters/filterBarWithActions';
 import { OmniFilter } from '@/components/filters/omniFilter/OmniFilter';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Tabs } from '@/components/tabs';
 import { Card } from '@/components/ui/smallCard';
 import { useConfig } from '@/config/config';
