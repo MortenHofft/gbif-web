@@ -28,7 +28,7 @@ function buildServer(): McpServer {
   // the zod shape; under strict mode that conditional gets deep enough
   // to trip TS2589, so we cast the shape to bypass inference here and
   // narrow the args ourselves inside the handler.
-  const inputShape = {
+  const inputSchema = {
     name: z
       .string()
       .min(1)
@@ -37,11 +37,14 @@ function buildServer(): McpServer {
       .describe('Optional name to greet'),
   };
 
-  server.tool(
+  server.registerTool(
     'hello',
-    'Returns a friendly greeting. Provide a name to be greeted by name.',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    inputShape as any,
+    {
+      description:
+        'Returns a friendly greeting. Provide a name to be greeted by name.',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      inputSchema: inputSchema as any,
+    },
     async (args: unknown) => {
       const name = (args as { name?: string }).name;
       return {
