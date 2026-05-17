@@ -1,5 +1,4 @@
 import { Command as CommandPrimitive } from 'cmdk';
-import { matchSorter } from 'match-sorter';
 import {
   Fragment,
   useCallback,
@@ -21,33 +20,15 @@ import { CANCEL_REQUEST } from '@/utils/fetchWithCancel';
 import { Filters } from '../filterTools';
 import { parseInput } from './parseInput';
 import { OMNI_FILTER_CONFIG } from './omniFilterConfig';
-import { useFilterHistory, MAX_SHORTCUTS, HistoryEntry } from './useFilterHistory';
+import { useFilterHistory } from './useFilterHistory';
 import { fetchValueSuggestions, ValueSuggestion } from './valueProviders';
-
-// Items rendered in the dropdown. Three shapes flow through one list:
-//   - filter-name suggestion ({ kind: 'filterName' })
-//   - value suggestion       ({ kind: 'value' })
-//   - shortcut from history  ({ kind: 'shortcut' })
-type DropdownItem =
-  | {
-      kind: 'filterName';
-      id: string;
-      handle: string;
-      label: string;
-    }
-  | {
-      kind: 'value';
-      id: string;
-      handle: string;
-      value: ValueSuggestion;
-      sectionKey?: string;
-    }
-  | {
-      kind: 'shortcut';
-      id: string;
-      entry: HistoryEntry;
-    }
-  | { kind: 'section'; id: string; label: string };
+import {
+  DropdownItem,
+  buildFilterNameItems,
+  collapseToGroups,
+  getOmniFilters,
+  mergeRootEntitySections,
+} from './omniFilterItems';
 
 type Props = {
   filters: Filters;
@@ -89,15 +70,7 @@ export function OmniFilter({ filters, rootEntities = [], className, placeholder 
   // Build the filter-name list once per filters map; this is the searchable
   // catalogue. We exclude entries we don't have an omni-value-provider for
   // and exclude inherently dialog-based ones (geometry, customPredicate, …).
-  const omniFilters = useMemo(() => {
-    return Object.values(filters)
-      .filter((f) => !!OMNI_FILTER_CONFIG[f.handle])
-      .map((f) => ({
-        handle: f.handle,
-        label: f.translatedFilterName,
-        group: f.group,
-      }));
-  }, [filters]);
+  const omniFilters = useMemo(() => getOmniFilters(filters, OMNI_FILTER_CONFIG), [filters]);
 
   // Apply a single value to FilterContext. The existing FilterButton picks it
   // up and renders the chip — this component never holds chips itself.
@@ -131,77 +104,23 @@ export function OmniFilter({ filters, rootEntities = [], className, placeholder 
 
     if (parsed.mode === 'filter_name') {
       const q = parsed.valueQuery;
-      const nameMatches = q
-        ? matchSorter(omniFilters, q, { keys: ['label', 'handle'] })
-        : omniFilters;
-
-      const filterNameItems: DropdownItem[] = nameMatches.map((f) => ({
-        kind: 'filterName',
-        id: `name-${f.handle}`,
-        handle: f.handle,
-        label: f.label,
-      }));
-
-      // shortcuts (recent filters) — show top N, optionally filtered by query
-      const shortcutItems: DropdownItem[] = history
-        .filter((h) => {
-          if (!q) return true;
-          const ql = q.toLowerCase();
-          return (
-            h.filterLabel.toLowerCase().includes(ql) ||
-            h.valueLabel.toLowerCase().includes(ql) ||
-            h.handle.toLowerCase().includes(ql)
-          );
-        })
-        .slice(0, MAX_SHORTCUTS)
-        .map((h, i) => ({ kind: 'shortcut', id: `sc-${i}`, entry: h }));
-
-      // free-text fallback when nothing matches and the user has typed something
-      const fallback: DropdownItem[] =
-        q && nameMatches.length === 0
-          ? [
-              {
-                kind: 'value',
-                id: 'q-fallback',
-                handle: 'q',
-                value: {
-                  key: q,
-                  label: `"${q}"`,
-                  meta: intl.formatMessage({
-                    id: 'filters.q.name',
-                    defaultMessage: 'Free-text search',
-                  }),
-                  predicate: q,
-                  chipLabel: `"${q}"`,
-                },
-              },
-            ]
-          : [];
-
-      const sections: DropdownItem[] = [];
-      if (shortcutItems.length) {
-        sections.push({
-          kind: 'section',
-          id: 'sec-recent',
-          label: intl.formatMessage({
-            id: 'filterSupport.recent',
-            defaultMessage: 'Recent',
-          }),
-        });
-        sections.push(...shortcutItems);
-      }
-      if (filterNameItems.length) {
-        sections.push({
-          kind: 'section',
-          id: 'sec-filters',
-          label: intl.formatMessage({
-            id: 'filterSupport.filters',
-            defaultMessage: 'Filters',
-          }),
-        });
-        sections.push(...filterNameItems);
-      }
-      sections.push(...fallback);
+      const sections = buildFilterNameItems({
+        parsed,
+        omniFilters,
+        history,
+        freeTextFallbackMeta: intl.formatMessage({
+          id: 'filters.q.name',
+          defaultMessage: 'Free-text search',
+        }),
+        recentHeading: intl.formatMessage({
+          id: 'filterSupport.recent',
+          defaultMessage: 'Recent',
+        }),
+        filtersHeading: intl.formatMessage({
+          id: 'filterSupport.filters',
+          defaultMessage: 'Filters',
+        }),
+      });
       setItems(sections);
       setLoading(false);
 
@@ -209,18 +128,15 @@ export function OmniFilter({ filters, rootEntities = [], className, placeholder 
       // Each entity's results are merged into the dropdown as it resolves.
       if (q && stableRootEntities.length) {
         rootQueryRef.current = q;
-        const sectionsByHandle: Record<string, DropdownItem[]> = {};
+        const resultsByHandle: Record<string, ValueSuggestion[]> = {};
         const rebuild = () => {
-          const extras: DropdownItem[] = [];
-          for (const entry of stableRootEntities) {
-            const handle = typeof entry === 'string' ? entry : entry.handle;
-            const itemsForHandle = sectionsByHandle[handle];
-            if (!itemsForHandle?.length) continue;
-            const label = filters[handle]?.translatedFilterName ?? handle;
-            extras.push({ kind: 'section', id: `sec-root-${handle}`, label });
-            extras.push(...itemsForHandle);
-          }
-          if (extras.length) setItems([...sections, ...extras]);
+          const merged = mergeRootEntitySections({
+            baseItems: sections,
+            rootEntities: stableRootEntities,
+            sectionsByHandle: resultsByHandle,
+            filters,
+          });
+          if (merged !== sections) setItems(merged);
         };
 
         for (const entry of stableRootEntities) {
@@ -234,13 +150,7 @@ export function OmniFilter({ filters, rootEntities = [], className, placeholder 
           promise
             .then((results) => {
               if (rootQueryRef.current !== q) return;
-              sectionsByHandle[handle] = (results ?? []).slice(0, 5).map((v, i) => ({
-                kind: 'value',
-                id: `root-${handle}-${i}`,
-                handle,
-                value: v,
-                sectionKey: `root-${handle}`,
-              }));
+              resultsByHandle[handle] = results ?? [];
               rebuild();
             })
             .catch((err) => {
@@ -341,20 +251,7 @@ export function OmniFilter({ filters, rootEntities = [], className, placeholder 
 
   // Build cmdk groups. We collapse adjacent sections so a section with no
   // children doesn't render an empty header.
-  const groups = useMemo(() => {
-    const out: Array<{ heading: string | null; items: DropdownItem[] }> = [];
-    let current: { heading: string | null; items: DropdownItem[] } = { heading: null, items: [] };
-    for (const it of items) {
-      if (it.kind === 'section') {
-        if (current.items.length) out.push(current);
-        current = { heading: it.label, items: [] };
-      } else {
-        current.items.push(it);
-      }
-    }
-    if (current.items.length) out.push(current);
-    return out;
-  }, [items]);
+  const groups = useMemo(() => collapseToGroups(items), [items]);
 
   const commandRef = useRef<HTMLDivElement>(null);
 
