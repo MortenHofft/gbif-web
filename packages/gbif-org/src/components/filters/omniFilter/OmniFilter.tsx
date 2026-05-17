@@ -322,54 +322,65 @@ export function OmniFilter({ filters, rootEntities = [], className, placeholder 
           )}
         </div>
 
-        {open && items.length > 0 && (
-          // The dropdown is wider than the input on larger screens so long
-          // suggestions (e.g. dataset titles) aren't cramped, but it never
-          // overflows the viewport — `max-w-[calc(100vw-...)]` clamps it.
-          <CommandPrimitive.List
-            className="g-absolute g-top-full g-left-0 g-mt-1 g-bg-white g-border g-border-solid g-border-slate-200 g-rounded g-shadow-lg g-z-50 g-max-h-[60vh] g-overflow-auto g-w-[800px] g-max-w-[calc(100vw-2rem)]"
-            style={{ minWidth: '100%' }}
-          >
-            <div className="g-px-3 g-py-1.5 g-text-[11px] g-font-semibold g-text-slate-500 g-uppercase g-tracking-wide g-bg-slate-50 g-border-b g-border-slate-100">
-              {parsed.mode === 'filter_name'
-                ? parsed.negated
-                  ? '(NOT) filter fields'
-                  : 'Filter fields'
-                : `${parsed.negated ? 'NOT ' : ''}${
-                    filters[parsed.filterName ?? '']?.translatedFilterName ?? parsed.filterName
-                  }`}
-            </div>
-            {groups.map((group, gi) => {
-              const rows = group.items.map((it) => (
-                <CommandPrimitive.Item
-                  key={it.id}
-                  value={it.id}
-                  onSelect={() => selectItem(it)}
-                  className={cn(
-                    'g-flex g-justify-between g-items-center g-px-3 g-py-2 g-text-sm g-cursor-pointer',
-                    'aria-selected:g-bg-slate-100'
-                  )}
-                >
-                  <ItemLabel item={it} parsed={parsed} />
-                </CommandPrimitive.Item>
-              ));
-              return group.heading ? (
-                <CommandPrimitive.Group
-                  key={`${gi}-${group.heading}`}
-                  heading={group.heading}
-                  className="[&_[cmdk-group-heading]]:g-px-3 [&_[cmdk-group-heading]]:g-py-1 [&_[cmdk-group-heading]]:g-text-[10px] [&_[cmdk-group-heading]]:g-font-semibold [&_[cmdk-group-heading]]:g-uppercase [&_[cmdk-group-heading]]:g-text-slate-400 [&_[cmdk-group-heading]]:g-tracking-wide"
-                >
-                  {rows}
-                </CommandPrimitive.Group>
-              ) : (
-                <Fragment key={`grp-${gi}`}>{rows}</Fragment>
-              );
-            })}
-            {loading && (
-              <div className="g-px-3 g-py-2 g-text-xs g-italic g-text-slate-400">Loading…</div>
-            )}
-          </CommandPrimitive.List>
-        )}
+        {/*
+          Keep the List mounted unconditionally so cmdk's internal
+          listInnerRef is always populated. cmdk schedules a layout effect
+          on every input change that runs `Array.from(listInnerRef.current
+          ?.querySelectorAll(...))` — if the List has unmounted (e.g. the
+          provider returned zero suggestions for the current query), the
+          ref is null and `Array.from(undefined)` throws. Visibility of the
+          dropdown chrome is gated below instead.
+        */}
+        <CommandPrimitive.List
+          className={cn(
+            // The dropdown is wider than the input on larger screens so
+            // long suggestions (e.g. dataset titles) aren't cramped, but
+            // it never overflows the viewport — `max-w-[calc(100vw-...)]`
+            // clamps it.
+            'g-absolute g-top-full g-left-0 g-mt-1 g-bg-white g-border g-border-solid g-border-slate-200 g-rounded g-shadow-lg g-z-50 g-max-h-[60vh] g-overflow-auto g-w-[800px] g-max-w-[calc(100vw-2rem)]',
+            !(open && items.length > 0) && 'g-hidden'
+          )}
+          style={{ minWidth: '100%' }}
+        >
+          <div className="g-px-3 g-py-1.5 g-text-[11px] g-font-semibold g-text-slate-500 g-uppercase g-tracking-wide g-bg-slate-50 g-border-b g-border-slate-100">
+            {parsed.mode === 'filter_name'
+              ? parsed.negated
+                ? '(NOT) filter fields'
+                : 'Filter fields'
+              : `${parsed.negated ? 'NOT ' : ''}${
+                  filters[parsed.filterName ?? '']?.translatedFilterName ?? parsed.filterName
+                }`}
+          </div>
+          {groups.map((group, gi) => {
+            const rows = group.items.map((it) => (
+              <CommandPrimitive.Item
+                key={it.id}
+                value={it.id}
+                onSelect={() => selectItem(it)}
+                className={cn(
+                  'g-flex g-justify-between g-items-center g-px-3 g-py-2 g-text-sm g-cursor-pointer',
+                  'aria-selected:g-bg-slate-100'
+                )}
+              >
+                <ItemLabel item={it} parsed={parsed} />
+              </CommandPrimitive.Item>
+            ));
+            return group.heading ? (
+              <CommandPrimitive.Group
+                key={`${gi}-${group.heading}`}
+                heading={group.heading}
+                className="[&_[cmdk-group-heading]]:g-px-3 [&_[cmdk-group-heading]]:g-py-1 [&_[cmdk-group-heading]]:g-text-[10px] [&_[cmdk-group-heading]]:g-font-semibold [&_[cmdk-group-heading]]:g-uppercase [&_[cmdk-group-heading]]:g-text-slate-400 [&_[cmdk-group-heading]]:g-tracking-wide"
+              >
+                {rows}
+              </CommandPrimitive.Group>
+            ) : (
+              <Fragment key={`grp-${gi}`}>{rows}</Fragment>
+            );
+          })}
+          {loading && (
+            <div className="g-px-3 g-py-2 g-text-xs g-italic g-text-slate-400">Loading…</div>
+          )}
+        </CommandPrimitive.List>
       </CommandPrimitive>
     </div>
   );
