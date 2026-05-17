@@ -5,6 +5,8 @@ import { SuggestionItem } from '@/components/filters/suggest';
 import { SuggestConfig } from '@/utils/suggestEndpoints';
 import { OmniFieldConfig } from './omniFilterConfig';
 import { rangeOrTerm } from '@/components/filters/rangeFilter';
+import { GraphQLService } from '@/services/graphQLService';
+import { CANCEL_REQUEST } from '@/utils/fetchWithCancel';
 
 // A suggestion item shown in the dropdown when the user is choosing a value.
 // `predicate` is what gets added to FilterContext via `add(handle, predicate, negated)`.
@@ -28,7 +30,25 @@ export type ValueProviderCtx = {
 
 // Fetch value suggestions for a given filter, debounced by the caller.
 // Returns a cancel function so callers can abort in-flight requests.
+// Any thrown error is caught and surfaced as a rejected promise so callers
+// can handle it uniformly via .catch instead of needing try/catch.
 export function fetchValueSuggestions(
+  field: OmniFieldConfig,
+  query: string,
+  ctx: ValueProviderCtx
+): { promise: Promise<ValueSuggestion[]>; cancel: () => void } {
+  try {
+    const result = fetchValueSuggestionsInner(field, query, ctx);
+    return {
+      promise: result.promise.then((items) => items ?? []),
+      cancel: result.cancel,
+    };
+  } catch (err) {
+    return { promise: Promise.reject(err), cancel: () => {} };
+  }
+}
+
+function fetchValueSuggestionsInner(
   field: OmniFieldConfig,
   query: string,
   ctx: ValueProviderCtx
@@ -180,6 +200,8 @@ export function fetchValueSuggestions(
   }
 
   if (kind.kind === 'suggest' || kind.kind === 'taxon') {
+    // Most suggest endpoints reject empty q with a 400; bail out early.
+    if (!q) return { promise: Promise.resolve([]), cancel: () => {} };
     const fn = kind.suggestConfig?.getSuggestions;
     if (!fn) return { promise: Promise.resolve([]), cancel: () => {} };
     const result = fn({
@@ -207,38 +229,48 @@ export function fetchValueSuggestions(
   }
 
   if (kind.kind === 'geologicalTime') {
-    // Use the vocabulary endpoint to suggest geological periods. Range syntax
-    // ("Triassic,Jurassic") not supported here — the dedicated geoTimeFilter
-    // panel handles that. A single value just becomes an equals predicate.
-    const fn = (siteConfig: Config) =>
-      fetch(
-        `${siteConfig.v1Endpoint}/vocabularies/GeoTime/concepts?limit=20&q=${encodeURIComponent(q)}&lang=${
-          ctx.currentLocale?.vocabularyLocale ?? ctx.currentLocale?.localeCode ?? 'en'
-        }`
-      ).then((res) => res.json());
-    const controller = new AbortController();
-    const promise = fn(ctx.siteConfig).then((response: any) => {
-      const results = response?.results ?? [];
-      return results.slice(0, 20).map((item: any) => {
-        const labels: Record<string, string> = (item.label ?? []).reduce(
-          (acc: Record<string, string>, l: any) => {
-            acc[l.language] = l.value;
-            return acc;
-          },
-          {}
-        );
-        const locale = ctx.currentLocale?.vocabularyLocale ?? ctx.currentLocale?.localeCode ?? 'en';
-        const title = labels[locale] || labels.en || item.name;
-        return {
-          key: item.name,
-          label: title,
-          meta: item.name !== title ? item.name : null,
-          predicate: { type: 'equals', value: item.name },
-          chipLabel: title,
-        } as ValueSuggestion;
-      });
+    // Query the GraphQL geological-time vocabulary, matching the approach used
+    // by gbif-web's existing geoTimeFilter. Range syntax ("Triassic,Jurassic")
+    // isn't handled here — the dedicated geoTimeFilter panel covers that.
+    // A picked value becomes an equals predicate.
+    if (!q) return { promise: Promise.resolve([]), cancel: () => {} };
+    const abortController = new AbortController();
+    const graphqlService = new GraphQLService({
+      endpoint: ctx.siteConfig.graphqlEndpoint,
+      abortSignal: abortController.signal,
+      locale: ctx.intl.locale,
     });
-    return { promise, cancel: () => controller.abort() };
+    const SEARCH = /* GraphQL */ `
+      query OmniGeoTimeSuggest($language: String, $q: String) {
+        vocabularyConceptSearch(vocabulary: "GeoTime", limit: 20, q: $q) {
+          results {
+            name
+            uiLabel(language: $language)
+          }
+        }
+      }
+    `;
+    const language = ctx.currentLocale?.vocabularyLocale ?? ctx.currentLocale?.localeCode ?? 'en';
+    const promise = graphqlService
+      .query<
+        { vocabularyConceptSearch: { results: Array<{ name: string; uiLabel?: string }> } },
+        { language: string; q: string }
+      >(SEARCH, { language, q })
+      .then((res) => res.json())
+      .then((response): ValueSuggestion[] => {
+        const results = response?.data?.vocabularyConceptSearch?.results ?? [];
+        return results.map((item) => {
+          const title = item.uiLabel || item.name;
+          return {
+            key: item.name,
+            label: title,
+            meta: item.name !== title ? item.name : null,
+            predicate: { type: 'equals', value: item.name },
+            chipLabel: title,
+          };
+        });
+      });
+    return { promise, cancel: () => abortController.abort(CANCEL_REQUEST) };
   }
 
   return { promise: Promise.resolve([]), cancel: () => {} };

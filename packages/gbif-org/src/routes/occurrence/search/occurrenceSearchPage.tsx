@@ -4,6 +4,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ChecklistSelector } from '@/components/filters/checklistSelector';
 import { FilterBarWithActions } from '@/components/filters/filterBarWithActions';
 import { OmniFilter } from '@/components/filters/omniFilter/OmniFilter';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Tabs } from '@/components/tabs';
 import { Card } from '@/components/ui/smallCard';
 import { useConfig } from '@/config/config';
@@ -58,6 +59,16 @@ export function OccurrenceSearchPage(): React.ReactElement {
   );
 }
 
+// Stable reference so OmniFilter's internal effect doesn't re-fire each render.
+const OMNI_ROOT_ENTITIES = [
+  'taxonKey',
+  'basisOfRecord',
+  'country',
+  'datasetKey',
+  { handle: 'gadmGid', minChars: 2 },
+  { handle: 'year', minChars: 2 },
+] as const;
+
 const groups = [
   'record',
   'occurrence',
@@ -102,17 +113,12 @@ export function OccurrenceSearchPageInner(): React.ReactElement {
           groups={groups}
           additionalActions={<ChecklistSelector />}
           leadingContent={
-            <OmniFilter
-              filters={filters}
-              rootEntities={[
-                'taxonKey',
-                'basisOfRecord',
-                'country',
-                'datasetKey',
-                { handle: 'gadmGid', minChars: 2 },
-                { handle: 'year', minChars: 2 },
-              ]}
-            />
+            <ErrorBoundary type="BLOCK" fallback={null}>
+              <OmniFilter
+                filters={filters}
+                rootEntities={OMNI_ROOT_ENTITIES as unknown as string[]}
+              />
+            </ErrorBoundary>
           }
         />
       </section>
@@ -147,17 +153,12 @@ export function OccurrenceSearchInner(): React.ReactElement {
             filters={filters}
             groups={groups}
             leadingContent={
-              <OmniFilter
-                filters={filters}
-                rootEntities={[
-                  'taxonKey',
-                  'basisOfRecord',
-                  'country',
-                  'datasetKey',
-                  { handle: 'gadmGid', minChars: 2 },
-                  { handle: 'year', minChars: 2 },
-                ]}
-              />
+              <ErrorBoundary type="BLOCK" fallback={null}>
+                <OmniFilter
+                  filters={filters}
+                  rootEntities={OMNI_ROOT_ENTITIES as unknown as string[]}
+                />
+              </ErrorBoundary>
             }
           />
         </Card>

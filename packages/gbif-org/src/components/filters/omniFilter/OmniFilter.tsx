@@ -80,6 +80,12 @@ export function OmniFilter({ filters, rootEntities = [], className, placeholder 
 
   const parsed = useMemo(() => parseInput(inputText), [inputText]);
 
+  // Stabilize the rootEntities prop so it doesn't trigger the suggestion
+  // effect on every render when the caller passes an inline array literal.
+  const rootEntitiesKey = JSON.stringify(rootEntities);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stableRootEntities = useMemo(() => rootEntities, [rootEntitiesKey]);
+
   // Build the filter-name list once per filters map; this is the searchable
   // catalogue. We exclude entries we don't have an omni-value-provider for
   // and exclude inherently dialog-based ones (geometry, customPredicate, …).
@@ -148,7 +154,7 @@ export function OmniFilter({ filters, rootEntities = [], className, placeholder 
           );
         })
         .slice(0, MAX_SHORTCUTS)
-        .map((h, i) => ({ kind: 'shortcut', id: `sc-${i}-${h.handle}-${h.valueLabel}`, entry: h }));
+        .map((h, i) => ({ kind: 'shortcut', id: `sc-${i}`, entry: h }));
 
       // free-text fallback when nothing matches and the user has typed something
       const fallback: DropdownItem[] =
@@ -156,7 +162,7 @@ export function OmniFilter({ filters, rootEntities = [], className, placeholder 
           ? [
               {
                 kind: 'value',
-                id: `q-${q}`,
+                id: 'q-fallback',
                 handle: 'q',
                 value: {
                   key: q,
@@ -201,12 +207,12 @@ export function OmniFilter({ filters, rootEntities = [], className, placeholder 
 
       // Inline root-entity value suggestions, fired in parallel per entity.
       // Each entity's results are merged into the dropdown as it resolves.
-      if (q && rootEntities.length) {
+      if (q && stableRootEntities.length) {
         rootQueryRef.current = q;
         const sectionsByHandle: Record<string, DropdownItem[]> = {};
         const rebuild = () => {
           const extras: DropdownItem[] = [];
-          for (const entry of rootEntities) {
+          for (const entry of stableRootEntities) {
             const handle = typeof entry === 'string' ? entry : entry.handle;
             const itemsForHandle = sectionsByHandle[handle];
             if (!itemsForHandle?.length) continue;
@@ -217,7 +223,7 @@ export function OmniFilter({ filters, rootEntities = [], className, placeholder 
           if (extras.length) setItems([...sections, ...extras]);
         };
 
-        for (const entry of rootEntities) {
+        for (const entry of stableRootEntities) {
           const handle = typeof entry === 'string' ? entry : entry.handle;
           const minChars = typeof entry === 'string' ? 1 : entry.minChars ?? 1;
           if (q.length < minChars) continue;
@@ -228,9 +234,9 @@ export function OmniFilter({ filters, rootEntities = [], className, placeholder 
           promise
             .then((results) => {
               if (rootQueryRef.current !== q) return;
-              sectionsByHandle[handle] = results.slice(0, 5).map((v, i) => ({
+              sectionsByHandle[handle] = (results ?? []).slice(0, 5).map((v, i) => ({
                 kind: 'value',
-                id: `root-${handle}-${v.key}-${i}`,
+                id: `root-${handle}-${i}`,
                 handle,
                 value: v,
                 sectionKey: `root-${handle}`,
@@ -240,6 +246,7 @@ export function OmniFilter({ filters, rootEntities = [], className, placeholder 
             .catch((err) => {
               if (err === CANCEL_REQUEST) return;
               // Silent — a slow or failing root entity shouldn't block the rest.
+              console.warn(`OmniFilter root entity '${handle}' fetch failed`, err);
             });
         }
       }
@@ -264,9 +271,9 @@ export function OmniFilter({ filters, rootEntities = [], className, placeholder 
         cancelRef.current = cancel;
         promise
           .then((results) => {
-            const valueItems: DropdownItem[] = results.map((v, i) => ({
+            const valueItems: DropdownItem[] = (results ?? []).map((v, i) => ({
               kind: 'value',
-              id: `val-${cfg.handle}-${v.key}-${i}`,
+              id: `val-${cfg.handle}-${i}`,
               handle: cfg.handle,
               value: v,
             }));
@@ -275,6 +282,8 @@ export function OmniFilter({ filters, rootEntities = [], className, placeholder 
           })
           .catch((err) => {
             if (err === CANCEL_REQUEST) return;
+            // Don't let API failures bubble up — silently show no values.
+            console.warn('OmniFilter value fetch failed', err);
             setItems([]);
             setLoading(false);
           });
@@ -285,7 +294,7 @@ export function OmniFilter({ filters, rootEntities = [], className, placeholder 
     inputText,
     omniFilters,
     history,
-    rootEntities,
+    stableRootEntities,
     intl,
     siteConfig,
     searchContext,
@@ -417,7 +426,13 @@ export function OmniFilter({ filters, rootEntities = [], className, placeholder 
         </div>
 
         {open && items.length > 0 && (
-          <CommandPrimitive.List className="g-absolute g-top-full g-left-0 g-right-0 g-mt-1 g-bg-white g-border g-border-solid g-border-slate-200 g-rounded g-shadow-lg g-z-50 g-max-h-[60vh] g-overflow-auto">
+          // The dropdown is wider than the input on larger screens so long
+          // suggestions (e.g. dataset titles) aren't cramped, but it never
+          // overflows the viewport — `max-w-[calc(100vw-...)]` clamps it.
+          <CommandPrimitive.List
+            className="g-absolute g-top-full g-left-0 g-mt-1 g-bg-white g-border g-border-solid g-border-slate-200 g-rounded g-shadow-lg g-z-50 g-max-h-[60vh] g-overflow-auto g-w-[800px] g-max-w-[calc(100vw-2rem)]"
+            style={{ minWidth: '100%' }}
+          >
             <div className="g-px-3 g-py-1.5 g-text-[11px] g-font-semibold g-text-slate-500 g-uppercase g-tracking-wide g-bg-slate-50 g-border-b g-border-slate-100">
               {parsed.mode === 'filter_name'
                 ? parsed.negated
