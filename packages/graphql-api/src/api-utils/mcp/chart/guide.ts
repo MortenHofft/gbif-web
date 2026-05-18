@@ -34,6 +34,7 @@ query OccurrenceSearch($predicate: Predicate) { # The users current filters will
       countryCode(size: 10) {# facet sizes can be controlled.
         key
         count
+        label
         occurrences {
           cardinality {
             month
