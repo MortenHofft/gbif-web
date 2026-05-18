@@ -1,72 +1,46 @@
-import { ApolloServer } from 'apollo-server-express';
-import { ExpressContext } from 'apollo-server-express/dist/ApolloServer';
-import { executeChart } from './executeChart';
+import rawConfig from '@/config';
+import { mistralAgent } from './agents/mistral';
+import { mockAgent } from './agents/mock';
+import { Agent, AgentArgs, AgentResult } from './agents/types';
 
-const FAKE_GRAPH_QUERY = `query BasisOfRecordBreakdown($predicate: Predicate) {
-  occurrenceSearch(predicate: $predicate) {
-    facet {
-      basisOfRecord(size: 20) {
-        key
-        count
-      }
-    }
+const config = rawConfig as typeof rawConfig & {
+  chartAgent?: string;
+};
+
+// Add new agents here when experimenting with additional providers.
+const agents: Record<string, Agent> = {
+  mock: mockAgent,
+  mistral: mistralAgent,
+};
+
+// Default when nothing is configured. Override per environment by setting
+// `chartAgent: <name>` in packages/graphql-api/.env, or change this constant
+// in code. If the requested agent isn't available (e.g. no API key), the
+// dispatcher logs a warning and falls back to the mock so the server still
+// boots.
+const DEFAULT_AGENT = 'mock';
+
+function selectAgent(): Agent {
+  const requested = config.chartAgent ?? DEFAULT_AGENT;
+  const agent = agents[requested];
+  if (!agent) {
+    const available = Object.keys(agents).join(', ');
+    throw new Error(
+      `Unknown chartAgent '${requested}'. Available: ${available}`,
+    );
   }
-}`;
-
-// jq program that turns the GraphQL response into a Highcharts options object
-// for a pie chart of the basisOfRecord facet.
-const FAKE_JQ_QUERY = `{
-  chart: { type: "pie" },
-  title: { text: "Breakdown by basis of record" },
-  credits: { enabled: false },
-  tooltip: { pointFormat: "<b>{point.y}</b> ({point.percentage:.1f}%)" },
-  plotOptions: {
-    pie: {
-      innerSize: "50%",
-      dataLabels: { enabled: true, format: "{point.name}" }
-    }
-  },
-  series: [
-    {
-      type: "pie",
-      name: "Occurrences",
-      colorByPoint: true,
-      data: [.data.occurrenceSearch.facet.basisOfRecord[] | { name: .key, y: .count }]
-    }
-  ]
-}`;
-
-interface AskArgs {
-  query: string;
-  queryId: string;
-  apolloServer: ApolloServer<ExpressContext>;
-}
-
-export interface AskResult {
-  stub: true;
-  query: string;
-  chartId: string;
-}
-
-// Stand-in for the real LLM agent. Always produces the same chart (basis-of-
-// record pie chart) regardless of the user's query. The signature matches what
-// a real agent integration would look like, so swapping this out later is a
-// drop-in change.
-export default async function ask({
-  query,
-  queryId,
-  apolloServer,
-}: AskArgs): Promise<AskResult> {
-  if (typeof query !== 'string' || query.length === 0) {
-    throw new Error('Query must be a non-empty string');
+  if (!agent.isAvailable()) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `chartAgent '${requested}' not available (missing config); falling back to 'mock'.`,
+    );
+    return mockAgent;
   }
-
-  const { chartId } = await executeChart({
-    graphQuery: FAKE_GRAPH_QUERY,
-    jqQuery: FAKE_JQ_QUERY,
-    queryId,
-    apolloServer,
-  });
-
-  return { stub: true, query, chartId };
+  return agent;
 }
+
+export default async function ask(args: AgentArgs): Promise<AgentResult> {
+  return selectAgent().run(args);
+}
+
+export type { AgentArgs, AgentResult } from './agents/types';
