@@ -7,11 +7,22 @@ import { Agent } from './types';
 const config = rawConfig as typeof rawConfig & {
   geminiApiKey?: string;
   geminiModel?: string;
+  // Output cap for the Gemini response. Defaults generous because Gemini's
+  // silent reasoning is included in this budget on thinking-capable models —
+  // a 2000-token cap got eaten before the visible response could complete.
+  geminiMaxOutputTokens?: number;
+  // 0 disables Gemini's silent reasoning (default — our task is structured
+  // enough that reasoning rarely improves output and just burns budget). Set
+  // to -1 for dynamic, or a positive integer to allow up to N thinking
+  // tokens. Only relevant for thinking-capable models (Gemini 2.5+, Gemini 3+).
+  geminiThinkingBudget?: number;
   chartAgentMaxAttempts?: number;
 };
 
 const PROVIDER = 'gemini';
 const DEFAULT_MODEL = 'gemini-flash-latest';
+const DEFAULT_MAX_OUTPUT_TOKENS = 8000;
+const DEFAULT_THINKING_BUDGET = 0;
 
 function endpointFor(model: string): string {
   return `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
@@ -33,6 +44,8 @@ function toGeminiBody(messages: ChatMessage[]) {
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
+  const thinkingBudget =
+    config.geminiThinkingBudget ?? DEFAULT_THINKING_BUDGET;
   return {
     ...(systemInstruction
       ? { systemInstruction: { parts: [{ text: systemInstruction }] } }
@@ -43,7 +56,9 @@ function toGeminiBody(messages: ChatMessage[]) {
       // response_format: { type: 'json_object' }.
       responseMimeType: 'application/json',
       temperature: 0.2,
-      maxOutputTokens: 2000,
+      maxOutputTokens:
+        config.geminiMaxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+      thinkingConfig: { thinkingBudget },
     },
   };
 }
@@ -95,18 +110,47 @@ export const geminiAgent: Agent = {
 
         const data = (await response.json()) as {
           modelVersion?: string;
-          usageMetadata?: unknown;
+          usageMetadata?: {
+            thoughtsTokenCount?: number;
+            candidatesTokenCount?: number;
+            promptTokenCount?: number;
+            totalTokenCount?: number;
+          };
           candidates?: Array<{
             content?: { parts?: Array<{ text?: string }> };
+            finishReason?: string;
           }>;
         };
+
+        const candidate = data?.candidates?.[0];
         // Gemini may emit multiple text parts (thought summaries + answer);
         // concatenate them.
         const text =
-          data?.candidates?.[0]?.content?.parts
+          candidate?.content?.parts
             ?.map((p) => p?.text)
             .filter((t): t is string => typeof t === 'string')
             .join('') ?? '';
+
+        // Truncation is the silent killer for thinking-capable models: the
+        // thinking tokens count against maxOutputTokens and the visible
+        // response gets cut mid-string. Detect it and throw a useful error
+        // instead of letting JSON.parse downstream fail with no context.
+        if (candidate?.finishReason === 'MAX_TOKENS') {
+          const thoughts = data.usageMetadata?.thoughtsTokenCount;
+          const visible = data.usageMetadata?.candidatesTokenCount;
+          throw new McpError(
+            `${PROVIDER} hit MAX_TOKENS before completing the response (thoughts: ${thoughts ?? '?'}, visible: ${visible ?? '?'}). Increase geminiMaxOutputTokens in .env, or lower geminiThinkingBudget.`,
+            502,
+            {
+              provider: PROVIDER,
+              model,
+              finishReason: candidate.finishReason,
+              usage: data.usageMetadata,
+              content: text,
+            },
+          );
+        }
+
         return {
           text,
           rawModel: data?.modelVersion,
