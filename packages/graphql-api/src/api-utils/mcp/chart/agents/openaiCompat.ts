@@ -1,6 +1,11 @@
+import rawConfig from '@/config';
 import { McpError } from '../errors';
-import { runChartFromAgentJson } from './runChartFromJson';
+import { ChatMessage, LlmCaller, runWithRetry } from './llmCall';
 import { AgentArgs, AgentResult } from './types';
+
+const config = rawConfig as typeof rawConfig & {
+  chartAgentMaxAttempts?: number;
+};
 
 export interface ChatAgentArgs extends AgentArgs {
   // Identifier used in logs and AgentResult.provider.
@@ -18,8 +23,8 @@ export interface ChatAgentArgs extends AgentArgs {
 }
 
 // Shared implementation for any OpenAI-compatible chat provider used as the
-// chart agent. Posts the system + user messages, then hands the model's text
-// off to runChartFromAgentJson for the parse + executeChart step.
+// chart agent. Wraps the provider behind an LlmCaller so runWithRetry can
+// drive the call+parse+self-correct loop.
 export async function runChatAgent({
   provider,
   endpoint,
@@ -33,55 +38,67 @@ export async function runChatAgent({
   queryId,
   apolloServer,
 }: ChatAgentArgs): Promise<AgentResult> {
-  let response: Response;
-  try {
-    response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: query },
-        ],
-        ...(jsonObject ? { response_format: { type: 'json_object' } } : {}),
-        temperature,
-        max_tokens: maxTokens,
-      }),
-    });
-  } catch (error) {
-    throw new McpError(
-      `${provider} API request failed: ${(error as Error).message}`,
-      502,
-      { provider, model, stage: 'network' },
-    );
-  }
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => '');
-    throw new McpError(
-      `${provider} API ${response.status}: ${body.slice(0, 500)}`,
-      502,
-      { provider, model, status: response.status, body: body.slice(0, 2000) },
-    );
-  }
-
-  const data = (await response.json()) as {
-    model?: string;
-    usage?: unknown;
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const text = data?.choices?.[0]?.message?.content ?? '';
-
-  return runChartFromAgentJson({
+  const caller: LlmCaller = {
     provider,
-    model: data?.model,
-    usage: data?.usage,
-    text,
+    model,
+    async call(messages: ChatMessage[]) {
+      let response: Response;
+      try {
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages,
+            ...(jsonObject ? { response_format: { type: 'json_object' } } : {}),
+            temperature,
+            max_tokens: maxTokens,
+          }),
+        });
+      } catch (error) {
+        throw new McpError(
+          `${provider} API request failed: ${(error as Error).message}`,
+          502,
+          { provider, model, stage: 'network' },
+        );
+      }
+
+      if (!response.ok) {
+        const body = await response.text().catch(() => '');
+        throw new McpError(
+          `${provider} API ${response.status}: ${body.slice(0, 500)}`,
+          502,
+          {
+            provider,
+            model,
+            status: response.status,
+            body: body.slice(0, 2000),
+          },
+        );
+      }
+
+      const data = (await response.json()) as {
+        model?: string;
+        usage?: unknown;
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      return {
+        text: data?.choices?.[0]?.message?.content ?? '',
+        rawModel: data?.model,
+        usage: data?.usage,
+      };
+    },
+  };
+
+  return runWithRetry({
+    caller,
+    systemPrompt,
+    userQuery: query,
     queryId,
     apolloServer,
+    maxAttempts: config.chartAgentMaxAttempts ?? 2,
   });
 }
