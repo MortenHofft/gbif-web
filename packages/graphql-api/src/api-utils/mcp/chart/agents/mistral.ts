@@ -111,8 +111,18 @@ export const mistralAgent: Agent = {
       choices?: Array<{ message?: { content?: string } }>;
     };
     const text = data?.choices?.[0]?.message?.content;
+    // eslint-disable-next-line no-console
+    console.log('[chart] mistral raw response', {
+      model: data?.model,
+      usage: data?.usage,
+      content: text,
+    });
+
     if (typeof text !== 'string' || text.length === 0) {
-      throw new McpError('Mistral returned no message content', 502);
+      throw new McpError('Mistral returned no message content', 502, {
+        provider: 'mistral',
+        model: data?.model,
+      });
     }
 
     let parsed: unknown;
@@ -122,6 +132,7 @@ export const mistralAgent: Agent = {
       throw new McpError(
         `Mistral output is not valid JSON: ${text.slice(0, 300)}`,
         502,
+        { provider: 'mistral', model: data?.model, content: text },
       );
     }
 
@@ -130,25 +141,45 @@ export const mistralAgent: Agent = {
       throw new McpError(
         'Mistral response missing string graphQuery or jqQuery',
         502,
+        { provider: 'mistral', model: data?.model, parsed },
       );
     }
 
-    const { chartId } = await executeChart({
-      graphQuery: obj.graphQuery,
-      jqQuery: obj.jqQuery,
-      queryId,
-      apolloServer,
-    });
-
-    return {
-      provider: 'mistral',
-      chartId,
-      raw: {
-        model: data.model,
-        usage: data.usage,
+    // Wrap executeChart errors so the model output is visible alongside the
+    // pipeline failure (graphql/jq/highcharts).
+    try {
+      const { chartId } = await executeChart({
         graphQuery: obj.graphQuery,
         jqQuery: obj.jqQuery,
-      },
-    };
+        queryId,
+        apolloServer,
+      });
+      return {
+        provider: 'mistral',
+        chartId,
+        raw: {
+          model: data.model,
+          usage: data.usage,
+          graphQuery: obj.graphQuery,
+          jqQuery: obj.jqQuery,
+        },
+      };
+    } catch (err) {
+      const inner = err instanceof McpError ? err : undefined;
+      throw new McpError(
+        err instanceof Error ? err.message : String(err),
+        inner?.status ?? 500,
+        {
+          provider: 'mistral',
+          model: data.model,
+          usage: data.usage,
+          // The agent's own output, alongside the pipeline-stage details
+          // executeChart already attached.
+          graphQuery: obj.graphQuery,
+          jqQuery: obj.jqQuery,
+          pipeline: inner?.details,
+        },
+      );
+    }
   },
 };

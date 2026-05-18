@@ -201,7 +201,8 @@ export default function mcpChartController(
       const status = error instanceof McpError ? error.status : 500;
       const message =
         error instanceof Error ? error.message : 'Internal Server Error';
-      return res.status(status).json({ message });
+      const details = error instanceof McpError ? error.details : undefined;
+      return res.status(status).json({ message, details });
     }
   });
 
@@ -225,7 +226,8 @@ export default function mcpChartController(
       const status = error instanceof McpError ? error.status : 500;
       const message =
         error instanceof Error ? error.message : 'Internal Server Error';
-      return res.status(status).json({ message });
+      const details = error instanceof McpError ? error.details : undefined;
+      return res.status(status).json({ message, details });
     }
   });
 
