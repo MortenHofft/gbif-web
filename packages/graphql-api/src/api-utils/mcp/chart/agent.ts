@@ -1,4 +1,5 @@
 import rawConfig from '@/config';
+import { geminiAgent } from './agents/gemini';
 import { groqAgent } from './agents/groq';
 import { mistralAgent } from './agents/mistral';
 import { mockAgent } from './agents/mock';
@@ -13,6 +14,7 @@ const agents: Record<string, Agent> = {
   mock: mockAgent,
   mistral: mistralAgent,
   groq: groqAgent,
+  gemini: geminiAgent,
 };
 
 // Default when nothing is configured. Override per environment by setting

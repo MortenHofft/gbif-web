@@ -1,5 +1,5 @@
 import { McpError } from '../errors';
-import { executeChart } from '../executeChart';
+import { runChartFromAgentJson } from './runChartFromJson';
 import { AgentArgs, AgentResult } from './types';
 
 export interface ChatAgentArgs extends AgentArgs {
@@ -18,10 +18,8 @@ export interface ChatAgentArgs extends AgentArgs {
 }
 
 // Shared implementation for any OpenAI-compatible chat provider used as the
-// chart agent. Posts the system + user messages, parses the JSON response
-// into { graphQuery, jqQuery }, hands them to executeChart, and packages the
-// result. All failures are thrown as McpError with `details` populated so the
-// HTTP error surfaces the provider's raw response and the agent's output.
+// chart agent. Posts the system + user messages, then hands the model's text
+// off to runChartFromAgentJson for the parse + executeChart step.
 export async function runChatAgent({
   provider,
   endpoint,
@@ -76,73 +74,14 @@ export async function runChatAgent({
     usage?: unknown;
     choices?: Array<{ message?: { content?: string } }>;
   };
-  const text = data?.choices?.[0]?.message?.content;
-  // eslint-disable-next-line no-console
-  console.log(`[chart] ${provider} raw response`, {
+  const text = data?.choices?.[0]?.message?.content ?? '';
+
+  return runChartFromAgentJson({
+    provider,
     model: data?.model,
     usage: data?.usage,
-    content: text,
+    text,
+    queryId,
+    apolloServer,
   });
-
-  if (typeof text !== 'string' || text.length === 0) {
-    throw new McpError(`${provider} returned no message content`, 502, {
-      provider,
-      model: data?.model,
-    });
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new McpError(
-      `${provider} output is not valid JSON: ${text.slice(0, 300)}`,
-      502,
-      { provider, model: data?.model, content: text },
-    );
-  }
-
-  const obj = parsed as { graphQuery?: unknown; jqQuery?: unknown };
-  if (typeof obj.graphQuery !== 'string' || typeof obj.jqQuery !== 'string') {
-    throw new McpError(
-      `${provider} response missing string graphQuery or jqQuery`,
-      502,
-      { provider, model: data?.model, parsed },
-    );
-  }
-
-  // Wrap executeChart errors so the model output is visible alongside the
-  // pipeline failure (graphql/jq/highcharts).
-  try {
-    const { chartId } = await executeChart({
-      graphQuery: obj.graphQuery,
-      jqQuery: obj.jqQuery,
-      queryId,
-      apolloServer,
-    });
-    return {
-      provider,
-      chartId,
-      raw: {
-        model: data.model,
-        usage: data.usage,
-        graphQuery: obj.graphQuery,
-        jqQuery: obj.jqQuery,
-      },
-    };
-  } catch (err) {
-    const inner = err instanceof McpError ? err : undefined;
-    throw new McpError(
-      err instanceof Error ? err.message : String(err),
-      inner?.status ?? 500,
-      {
-        provider,
-        model: data.model,
-        usage: data.usage,
-        graphQuery: obj.graphQuery,
-        jqQuery: obj.jqQuery,
-        pipeline: inner?.details,
-      },
-    );
-  }
 }
