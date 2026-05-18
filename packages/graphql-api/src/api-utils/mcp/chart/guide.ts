@@ -1,91 +1,26 @@
+import { CHART_KNOWLEDGE } from './agents/sharedPrompt';
+
 export const USAGE_TOKEN = 'I_HAVE_READ_THE_GUIDELINES';
 
-export const SEARCH_GUIDE = `# GBIF Search Guide
+// Returned by the MCP `gbif_usage_guidelines` tool. Same schema/example
+// knowledge as the direct-call system prompt (see ./agents/sharedPrompt.ts),
+// wrapped with instructions for calling the `create_visualization` MCP tool
+// instead of "respond with JSON".
+export const SEARCH_GUIDE = `# GBIF Chart Guide
 
-## Quick Start
-To query the occurrence data use the following GraphQL query as a starting point. You can modify the query to add filters, facets, and other parameters as needed.
-There is facet support for these fields:
-- collectionCode
-- continent
-- institutionCode
-- issue
-- lifeStage
-- countryCode
-- speciesKey
-- datasetKey
-- kingdomKey
-- year (also supports stats)
-- basisOfRecord
-- mediaType
-- typeStatus
+Read this before calling \`create_visualization\`. It explains how to build a chart for the GBIF occurrence dashboard: the GraphQL schema, the jq transform, and the expected Highcharts output shape.
 
-query OccurrenceSearch($predicate: Predicate) { # The users current filters will be passed as a predicate variable. Unless otherwise asked this should also be included in the graphql query.
-  occurrenceSearch(predicate: $predicate) {
-    documents(size: 20, shuffle: 41) { # It is a good idea to shuffle for a random sample. The number is the seed.
-      results {
-        decimalLatitude # Float
-        decimalLongitude # Float
-        countryCode # String
-        year # Int
-        month # Int
-      }
-    }
-    facet {
-      countryCode(size: 10) {# facet sizes can be controlled.
-        key
-        count
-        label
-        occurrences {
-          cardinality {
-            lifeStage
-          }
-          facet {
-            month(size: 12) {
-              key
-              count
-              label
-            }
-          }
-        }
-      }
-    }
-    stats {
-      year {
-        min
-        max
-        avg
-        sum
-        count
-      }
-    }
-    cardinality {
-      speciesKey # number
-    }
-  }
-}
+${CHART_KNOWLEDGE}
 
-Data from graphql is returned as {data: {...}}.
+# Calling create_visualization
 
-It is also possible to use jq to filter and transform the data returned.
+After preparing your graphQuery and jqQuery, call the \`create_visualization\` tool with:
+- usageToken: "${USAGE_TOKEN}"
+- queryId: the conversation/chart-store id from your system message
+- graphQuery: your GraphQL query string
+- jqQuery: your jq program string
 
-### Chart
-Visualizations are rendered with Highcharts. The jq output must be a Highcharts options object (https://api.highcharts.com/highcharts/) with at least a "series" array. The website applies its own theme and colour palette, so you do NOT need to set "colors" — just leave styling to the host.
+# Usage token
 
-Example pie chart shape:
-{
-  "chart": { "type": "pie" },
-  "title": { "text": "..." },
-  "series": [
-    {
-      "type": "pie",
-      "name": "Occurrences",
-      "data": [ { "name": "...", "y": 123 } ]
-    }
-  ]
-}
-
-You cannot do maps currently, but you can generate a scatter plot with lat/long — make sure to include axis titles for lat/long.
-
-## Usage token
-To use the other tools you need this token: ${USAGE_TOKEN}
+The usageToken value you need: ${USAGE_TOKEN}
 `;
