@@ -38,8 +38,8 @@ query OccurrenceSearch($predicate: Predicate) { # The user's current filters are
       countryCode(size: 10) { # facet sizes can be controlled.
         key
         count
-        label # the translated display name for enum-valued facets
-        occurrences {
+        label # all facets support a "label" field with the human-readable name; prefer it over "key" for display purposes when available.
+        occurrences { # drill down into nested aggregations for this bucket
           cardinality {
             lifeStage
           }
