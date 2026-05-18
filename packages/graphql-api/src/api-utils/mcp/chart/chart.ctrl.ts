@@ -3,11 +3,19 @@
  * transport at /mcp/chart. Two tools: gbif_usage_guidelines + create_visualization.
  *
  * Companion REST routes:
- *   POST /mcp/chart/query        — server-driven flow: run the chart agent
- *                                  (currently a deterministic stub that always
- *                                  produces a basisOfRecord pie chart) and
- *                                  return the saved chart configs.
- *   GET  /mcp/chart/key/:key     — fetch a saved chart config (or "_list" for keys).
+ *   POST /mcp/chart/query              — server-driven flow: run the chart
+ *                                        agent (currently a deterministic stub
+ *                                        that always produces a basisOfRecord
+ *                                        pie chart) and return the saved
+ *                                        chart configs.
+ *   GET  /mcp/chart/key/:key           — fetch a saved chart config (or
+ *                                        "_list" for keys).
+ *   POST /mcp/chart/key/:key/refresh   — re-run the stored graphQuery +
+ *                                        jqQuery against a new predicate
+ *                                        (passed in the body). The original
+ *                                        predicate on the ChartConfig is not
+ *                                        mutated, so the client can still
+ *                                        offer "restore original".
  *
  * Auth: when config.mcpApiToken is set, the MCP endpoint requires
  * Authorization: Bearer <token>. The conversation/chart-store id flows through
@@ -25,6 +33,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import rawConfig from '@/config';
 import ask from './agent';
 import { McpError } from './errors';
+import { refreshChart } from './executeChart';
 import { registerChartTools } from './tools';
 import {
   createChartConfig,
@@ -39,6 +48,7 @@ const config = rawConfig as typeof rawConfig & {
 const MCP_PATH = '/mcp/chart';
 const QUERY_PATH = '/mcp/chart/query';
 const KEY_PATH = '/mcp/chart/key/:key';
+const REFRESH_PATH = '/mcp/chart/key/:key/refresh';
 
 function buildServer(apolloServer: ApolloServer<ExpressContext>): McpServer {
   const server = new McpServer({
@@ -188,6 +198,30 @@ export default function mcpChartController(
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Chart query error:', error);
+      const status = error instanceof McpError ? error.status : 500;
+      const message =
+        error instanceof Error ? error.message : 'Internal Server Error';
+      return res.status(status).json({ message });
+    }
+  });
+
+  // Frontend re-runs a saved chart against a new predicate (e.g. the current
+  // dashboard filters, or the original predicate to "restore"). Only the
+  // rendered chart entry is replaced — the ChartConfig's original predicate
+  // is untouched so subsequent restores still work.
+  app.post(REFRESH_PATH, async (req, res) => {
+    try {
+      const { key } = req.params;
+      const { predicate } = req.body ?? {};
+      const updated = await refreshChart({
+        queryId: key,
+        predicate,
+        apolloServer,
+      });
+      return res.json(updated);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Chart refresh error:', error);
       const status = error instanceof McpError ? error.status : 500;
       const message =
         error instanceof Error ? error.message : 'Internal Server Error';

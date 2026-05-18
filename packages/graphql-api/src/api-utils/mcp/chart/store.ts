@@ -39,6 +39,20 @@ export function addChart(queryId: string, chart: ChartEntry): string {
   return queryId;
 }
 
+export function setChartEntry(
+  queryId: string,
+  index: number,
+  chart: ChartEntry,
+): void {
+  const existing = chartCache.get<ChartConfig>(queryId);
+  if (!existing) {
+    throw new Error(`No chart config for queryId ${queryId}`);
+  }
+  existing.charts = existing.charts ?? [];
+  existing.charts[index] = chart;
+  chartCache.set(queryId, existing);
+}
+
 // Minimal shape check for a Highcharts options object. Doesn't validate every
 // nested option (Highcharts has hundreds), just that the basic structure looks
 // plausible.
