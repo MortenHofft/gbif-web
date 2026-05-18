@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import isEqual from 'fast-deep-equal';
+import { parse, print } from 'graphql';
 import HighchartsReact from 'highcharts-react-official';
 import { FormattedMessage } from 'react-intl';
 import { MdInfoOutline, MdRefresh, MdRestore, MdWarning } from 'react-icons/md';
@@ -118,6 +119,17 @@ export default function CustomChart({ queryId, predicate }: Props) {
   const options = firstChart?.chartOptions;
   const originalPredicate = chartData?.predicate;
   const renderedPredicate = firstChart?.variables?.predicate;
+  // Pretty-print the agent's GraphQL query. Falls back to the raw string if
+  // it doesn't parse (e.g. a broken agent output we kept around for
+  // debugging).
+  const formattedGraphQuery = useMemo(() => {
+    if (!firstChart?.graphQuery) return '';
+    try {
+      return print(parse(firstChart.graphQuery));
+    } catch {
+      return firstChart.graphQuery;
+    }
+  }, [firstChart?.graphQuery]);
   // Compare current dashboard predicate against the predicate that was used to
   // render the chart we're currently showing. After a refresh, this is the
   // refreshed predicate; before any refresh, it equals the original predicate.
@@ -190,8 +202,8 @@ export default function CustomChart({ queryId, predicate }: Props) {
               <summary className="g-cursor-pointer g-text-slate-500 g-mb-1">
                 GraphQL
               </summary>
-              <pre className="g-bg-slate-50 g-border g-border-solid g-border-slate-200 g-rounded g-p-2 g-font-mono g-overflow-x-auto g-whitespace-pre-wrap g-break-words">
-                {firstChart.graphQuery}
+              <pre className="g-bg-slate-50 g-border g-border-solid g-border-slate-200 g-rounded g-p-2 g-font-mono g-overflow-x-auto">
+                {formattedGraphQuery}
               </pre>
             </details>
             <details className="g-mt-1">
