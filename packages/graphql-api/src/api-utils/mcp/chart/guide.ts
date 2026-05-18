@@ -23,21 +23,28 @@ query OccurrenceSearch($predicate: Predicate) { # The users current filters will
   occurrenceSearch(predicate: $predicate) {
     documents(size: 20, shuffle: 41) { # It is a good idea to shuffle for a random sample. The number is the seed.
       results {
-        decimalLatitude: Float
-        decimalLongitude: Float
-        countryCode: String
-        year: Int
-        month: Int
+        decimalLatitude # Float
+        decimalLongitude # Float
+        countryCode # String
+        year # Int
+        month # Int
       }
     }
-    facet
+    facet {
       countryCode(size: 10) {# facet sizes can be controlled.
         key
         count
         label
         occurrences {
           cardinality {
-            month
+            lifeStage
+          }
+          facet {
+            month(size: 12) {
+              key
+              count
+              label
+            }
           }
         }
       }
