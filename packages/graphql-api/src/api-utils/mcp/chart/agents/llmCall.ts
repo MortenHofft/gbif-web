@@ -122,6 +122,30 @@ function buildFeedback(err: McpError): string {
       )}`,
     );
   }
+
+  // Targeted hint for the single-quotes habit small models inherit from their
+  // Python/JS-flavoured training data. The jq error "Unix shell quoting
+  // issues?" is misleading; calling it out plainly tends to get the fix
+  // right on retry.
+  if (
+    stage === 'jq' &&
+    typeof jqQuery === 'string' &&
+    /'[^']*'/.test(jqQuery)
+  ) {
+    lines.push(
+      "\nIMPORTANT: your jq uses single quotes ('...'), which are NOT valid in jq. Replace EVERY single-quoted string with a double-quoted string (\"...\").",
+    );
+  }
+  if (
+    stage === 'jq' &&
+    typeof err.message === 'string' &&
+    /Unix shell quoting|INVALID_CHARACTER/.test(err.message) &&
+    !(typeof jqQuery === 'string' && /'[^']*'/.test(jqQuery))
+  ) {
+    lines.push(
+      '\nIMPORTANT: jq strings must use double quotes ("..."). If you used any other quote style, switch to double quotes.',
+    );
+  }
   if (stage === 'graphql' && pipeline.errors) {
     lines.push(
       `\nGraphQL errors:\n${truncate(

@@ -10,6 +10,8 @@ export const CHART_KNOWLEDGE = `# Hard rules
 - The jq output MUST be a single Highcharts options object containing at least a "series" array. Do NOT set "colors" — the host applies its own palette.
 - "occurrenceSearch" is an OBJECT, not an array. NEVER index it with [N]. Navigate with dotted paths: \`.data.occurrenceSearch.facet.<field>\`.
 - The jq program MUST produce exactly ONE output. Write the chart options as the OUTER expression and embed array sub-expressions inline to collect data points: \`data: [.data.occurrenceSearch.facet.<field>[] | { name: .key, y: .count }]\`. Do NOT pipe records through at the top level with \`|\` — that produces one output per input.
+- jq STRINGS MUST USE DOUBLE QUOTES. \`{ type: "pie" }\` is correct; \`{ type: 'pie' }\` is a syntax error. Single quotes are NEVER valid in jq, even though they're valid in JavaScript, Python, and shell.
+- Every \`data:\` slot must be wrapped in square brackets to produce an array: \`data: [<expr>[] | { name, y }]\`. Without the brackets you assign a stream of values to \`data\`, which is invalid.
 - Do NOT use jq's \`inputs\` builtin; it has no meaning here.
 - Keep facet sizes reasonable (<= 50).
 
@@ -157,6 +159,42 @@ For numeric time series (e.g. by year), use \`[x, y]\` pairs:
     }
   ]
 }
+
+For a multi-series chart driven by a nested facet (e.g. "top species per dataset"), produce ONE series per outer bucket; each series gets its own data array. CRITICAL: the inner extraction MUST be wrapped in \`[...]\` so each series's \`data\` is an array, not a stream.
+
+Example — "top 5 species in top 5 datasets":
+
+graphQuery:
+
+query GroupedByDataset($predicate: Predicate) {
+  occurrenceSearch(predicate: $predicate) {
+    facet {
+      datasetKey(size: 5) {
+        key
+        label
+        occurrences {
+          facet { speciesKey(size: 5) { key count } }
+        }
+      }
+    }
+  }
+}
+
+jqQuery:
+
+{
+  chart: { type: "column" },
+  title: { text: "Top 5 species in top 5 datasets" },
+  xAxis: { type: "category" },
+  yAxis: { title: { text: "Occurrences" } },
+  series: [.data.occurrenceSearch.facet.datasetKey[] | {
+    type: "column",
+    name: .label,
+    data: [(.occurrences.facet.speciesKey // [])[] | { name: .key, y: .count }]
+  }]
+}
+
+Note the brackets around \`data:\`'s contents — that's the difference between a stream of records (invalid) and an array (correct).
 
 # Notes
 
