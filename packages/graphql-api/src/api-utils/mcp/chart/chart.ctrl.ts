@@ -3,14 +3,15 @@
  * transport at /mcp/chart. Two tools: gbif_usage_guidelines + create_visualization.
  *
  * Companion REST routes:
- *   POST /mcp/chart/query        — server-driven flow: spin up the Anthropic agent
- *                                  with our own MCP server as its tool source,
+ *   POST /mcp/chart/query        — server-driven flow: run the chart agent
+ *                                  (currently a deterministic stub that always
+ *                                  produces a basisOfRecord pie chart) and
  *                                  return the saved chart configs.
  *   GET  /mcp/chart/key/:key     — fetch a saved chart config (or "_list" for keys).
  *
- * Auth: when config.mcpApiToken is set, the MCP endpoint and the agent endpoint
- * require Authorization: Bearer <token>. The conversation/chart-store id flows
- * through as the queryId tool argument (no Authorization-header smuggling).
+ * Auth: when config.mcpApiToken is set, the MCP endpoint requires
+ * Authorization: Bearer <token>. The conversation/chart-store id flows through
+ * as the queryId tool argument (no Authorization-header smuggling).
  *
  * Security: same Origin/Host DNS-rebinding guard as helloWorld.
  */
@@ -181,7 +182,7 @@ export default function mcpChartController(
       }
       const queryId = hash({ query, predicate }).replace(/\s+/g, '_');
       createChartConfig(queryId, { predicate, query, charts: [] });
-      const llm = await ask({ query, queryId });
+      const llm = await ask({ query, queryId, apolloServer });
       const charts = getChartConfig(queryId);
       return res.json({ queryId, charts, llm });
     } catch (error) {

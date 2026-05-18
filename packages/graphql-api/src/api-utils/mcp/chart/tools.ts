@@ -49,13 +49,13 @@ export function registerChartTools(
       .string()
       .min(1)
       .describe(
-        'A required GraphQL query to fetch the data needed for the chart. The result is piped through jqQuery before being interpreted as Vega-Lite.',
+        'A required GraphQL query to fetch the data needed for the chart. The result is piped through jqQuery before being interpreted as a Highcharts options object.',
       ),
     jqQuery: z
       .string()
       .min(1)
       .describe(
-        'A required jq query that transforms the GraphQL response into a Vega-Lite spec (must include $schema).',
+        'A required jq query that transforms the GraphQL response into a Highcharts options object (must include a "series" array).',
       ),
   };
 
@@ -63,7 +63,7 @@ export function registerChartTools(
     'create_visualization',
     {
       description:
-        'Create a chart from species occurrence records. The jq result must be a valid Vega-Lite v5 spec. Read gbif_usage_guidelines first. Supports faceting for aggregated counts by dimension.',
+        'Create a chart from species occurrence records. The jq result must be a valid Highcharts options object. Read gbif_usage_guidelines first. Supports faceting for aggregated counts by dimension.',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       inputSchema: createVizInput as any,
     },

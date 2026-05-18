@@ -1,67 +1,72 @@
-import Anthropic from '@anthropic-ai/sdk';
-import rawConfig from '@/config';
+import { ApolloServer } from 'apollo-server-express';
+import { ExpressContext } from 'apollo-server-express/dist/ApolloServer';
+import { executeChart } from './executeChart';
 
-// config is loaded from .env YAML at runtime; the JS module's inferred type
-// only covers the few keys declared in config.js, so we widen here for the
-// MCP-specific settings we read from .env.
-const config = rawConfig as typeof rawConfig & {
-  claudeApiKey?: string;
-  claudeModel?: string;
-  mcpApiToken?: string;
-  mcpChartEndpoint?: string;
-};
+const FAKE_GRAPH_QUERY = `query BasisOfRecordBreakdown($predicate: Predicate) {
+  occurrenceSearch(predicate: $predicate) {
+    facet {
+      basisOfRecord(size: 20) {
+        key
+        count
+      }
+    }
+  }
+}`;
 
-const systemPromptTemplate = (queryId: string) =>
-  `This query is performed in context of a website dashboard for exploring GBIF mediated biodiversity data.
-The user has already applied filters and is now exploring the data.
-When the create_visualization tool is called the user will see the resulting chart.
-The user will only see the chart and not anything else you write. You are welcome to think out loud if that helps you, but keep it short as it will not be seen by anyone.
-
-You are working in conversation/chart-store id: "${queryId}". You MUST pass this exact value as the queryId argument on every call to create_visualization.`;
+// jq program that turns the GraphQL response into a Highcharts options object
+// for a pie chart of the basisOfRecord facet.
+const FAKE_JQ_QUERY = `{
+  chart: { type: "pie" },
+  title: { text: "Breakdown by basis of record" },
+  credits: { enabled: false },
+  tooltip: { pointFormat: "<b>{point.y}</b> ({point.percentage:.1f}%)" },
+  plotOptions: {
+    pie: {
+      innerSize: "50%",
+      dataLabels: { enabled: true, format: "{point.name}" }
+    }
+  },
+  series: [
+    {
+      type: "pie",
+      name: "Occurrences",
+      colorByPoint: true,
+      data: [.data.occurrenceSearch.facet.basisOfRecord[] | { name: .key, y: .count }]
+    }
+  ]
+}`;
 
 interface AskArgs {
   query: string;
   queryId: string;
+  apolloServer: ApolloServer<ExpressContext>;
 }
 
+export interface AskResult {
+  stub: true;
+  query: string;
+  chartId: string;
+}
+
+// Stand-in for the real LLM agent. Always produces the same chart (basis-of-
+// record pie chart) regardless of the user's query. The signature matches what
+// a real agent integration would look like, so swapping this out later is a
+// drop-in change.
 export default async function ask({
   query,
   queryId,
-}: AskArgs): Promise<unknown> {
+  apolloServer,
+}: AskArgs): Promise<AskResult> {
   if (typeof query !== 'string' || query.length === 0) {
     throw new Error('Query must be a non-empty string');
   }
-  if (!config.claudeApiKey) {
-    throw new Error(
-      'Missing claudeApiKey in config; cannot run the chart agent.',
-    );
-  }
 
-  const anthropic = new Anthropic({ apiKey: config.claudeApiKey });
+  const { chartId } = await executeChart({
+    graphQuery: FAKE_GRAPH_QUERY,
+    jqQuery: FAKE_JQ_QUERY,
+    queryId,
+    apolloServer,
+  });
 
-  const mcpUrl =
-    config.mcpChartEndpoint ?? `${config.origin ?? ''}/mcp/chart`;
-
-  // mcp_servers + betas are beta-only fields on the Anthropic SDK and aren't
-  // in its public TS types yet, so we cast through unknown.
-  const message = await anthropic.beta.messages.create({
-    model: config.claudeModel ?? 'claude-sonnet-4-5',
-    max_tokens: 1000,
-    system: systemPromptTemplate(queryId),
-    messages: [{ role: 'user', content: query }],
-    mcp_servers: [
-      {
-        type: 'url',
-        url: mcpUrl,
-        name: 'gbif-mcp',
-        ...(config.mcpApiToken
-          ? { authorization_token: config.mcpApiToken }
-          : {}),
-      },
-    ],
-    betas: ['mcp-client-2025-04-04'],
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any);
-
-  return message.content;
+  return { stub: true, query, chartId };
 }

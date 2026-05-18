@@ -15,6 +15,9 @@ There is facet support for these fields:
 - datasetKey
 - kingdomKey
 - year (also supports stats)
+- basisOfRecord
+- mediaType
+- typeStatus
 
 query OccurrenceSearch($predicate: Predicate) { # The users current filters will be passed as a predicate variable. Unless otherwise asked this should also be included in the graphql query.
   occurrenceSearch(predicate: $predicate) {
@@ -58,12 +61,22 @@ Data from graphql is returned as {data: {...}}.
 It is also possible to use jq to filter and transform the data returned.
 
 ### Chart
-Default color schema for visualizations:
-#4C9C2E, #E37C72, #D1628E, #ECAC7C, #00B7EE, #6885C0, #664192, #F2BF48, #0078B4
+Visualizations are rendered with Highcharts. The jq output must be a Highcharts options object (https://api.highcharts.com/highcharts/) with at least a "series" array. The website applies its own theme and colour palette, so you do NOT need to set "colors" — just leave styling to the host.
 
-It is essential to use the correct schema for vega lite charts. This one https://vega.github.io/schema/vega-lite/v5.json
-Always use the value "container" for width and height to make the ensure the chart is responsive.
-You cannot do maps currently, but you can generate a scatter plot with lat long - make sure to include axis for lat long.
+Example pie chart shape:
+{
+  "chart": { "type": "pie" },
+  "title": { "text": "..." },
+  "series": [
+    {
+      "type": "pie",
+      "name": "Occurrences",
+      "data": [ { "name": "...", "y": 123 } ]
+    }
+  ]
+}
+
+You cannot do maps currently, but you can generate a scatter plot with lat/long — make sure to include axis titles for lat/long.
 
 ## Usage token
 To use the other tools you need this token: ${USAGE_TOKEN}

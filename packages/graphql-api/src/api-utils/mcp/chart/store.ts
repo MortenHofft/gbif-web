@@ -1,10 +1,9 @@
 import NodeCache from 'node-cache';
-import Ajv, { ValidateFunction } from 'ajv';
 
 export type Predicate = unknown;
 
 export interface ChartEntry {
-  vegaspecs: Record<string, unknown>;
+  chartOptions: Record<string, unknown>;
   graphQuery: string;
   jqQuery: string;
   graphqlData: unknown;
@@ -18,20 +17,6 @@ export interface ChartConfig {
 }
 
 const chartCache = new NodeCache({ stdTTL: 1200, checkperiod: 40 });
-
-let schemaValidator: ValidateFunction | null = null;
-
-async function getSchemaValidator(): Promise<ValidateFunction> {
-  if (!schemaValidator) {
-    const response = await fetch(
-      'https://vega.github.io/schema/vega-lite/v5.json',
-    );
-    const schema = await response.json();
-    const ajv = new Ajv({ strict: false, allErrors: false });
-    schemaValidator = ajv.compile(schema);
-  }
-  return schemaValidator;
-}
 
 export function createChartConfig(queryId: string, value: ChartConfig): void {
   chartCache.set(queryId, value);
@@ -54,17 +39,24 @@ export function addChart(queryId: string, chart: ChartEntry): string {
   return queryId;
 }
 
-export async function validateVegaLiteSpec(
-  spec: unknown,
-): Promise<
-  { valid: true } | { valid: false; errors?: unknown; error?: string }
-> {
-  try {
-    const validate = await getSchemaValidator();
-    const valid = validate(spec);
-    if (!valid) return { valid: false, errors: validate.errors };
-    return { valid: true };
-  } catch (error) {
-    return { valid: false, error: (error as Error).message };
+// Minimal shape check for a Highcharts options object. Doesn't validate every
+// nested option (Highcharts has hundreds), just that the basic structure looks
+// plausible.
+export function validateHighchartsOptions(
+  value: unknown,
+): { valid: true } | { valid: false; error: string } {
+  if (!value || typeof value !== 'object') {
+    return { valid: false, error: 'Chart options must be an object' };
   }
+  const obj = value as Record<string, unknown>;
+  if (!('series' in obj) && !('chart' in obj)) {
+    return {
+      valid: false,
+      error: 'Chart options must include at least a "series" or "chart" field',
+    };
+  }
+  if ('series' in obj && !Array.isArray(obj.series)) {
+    return { valid: false, error: '"series" must be an array' };
+  }
+  return { valid: true };
 }

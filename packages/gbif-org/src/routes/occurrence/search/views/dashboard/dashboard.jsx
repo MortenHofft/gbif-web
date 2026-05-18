@@ -9,6 +9,7 @@ import useLocalStorage from 'use-local-storage';
 import { Map } from '../map';
 import { Media } from '../media';
 import { OccurrenceTable as Table } from '../table/occurrenceTable';
+import CustomChart from './Custom';
 const DashboardBuilder = React.lazy(() => import('./DashboardBuilder'));
 
 export function Dashboard({ predicate, q, chartsTypes: chartsTypesProp, ...props }) {
@@ -18,8 +19,11 @@ export function Dashboard({ predicate, q, chartsTypes: chartsTypesProp, ...props
 
   useEffect(() => {
     const charts = { ...preconfiguredCharts };
-    // delete charts that are not in the chartsTypesProp array
+    // delete charts that are not in the chartsTypesProp array, but always keep
+    // hidden entries (e.g. 'custom') since they're created by the search box,
+    // not the "Add new" dropdown.
     Object.keys(charts).forEach((key) => {
+      if (charts[key].hidden) return;
       if (!chartsTypesProp.includes(key)) {
         delete charts[key];
       }
@@ -73,6 +77,15 @@ export function Dashboard({ predicate, q, chartsTypes: chartsTypesProp, ...props
 }
 
 const preconfiguredCharts = {
+  custom: {
+    // Created by the natural-language search box on top of the dashboard, not
+    // from the "Add new" picker — so it's hidden from CreateOptions.
+    hidden: true,
+    translation: 'dashboard.customChart',
+    component: ({ queryId, ...props }) => {
+      return <CustomChart queryId={queryId} {...props} />;
+    },
+  },
   iucn: {
     translation: 'dashboard.iucnThreatStatus',
     component: ({ predicate, ...props }) => {
