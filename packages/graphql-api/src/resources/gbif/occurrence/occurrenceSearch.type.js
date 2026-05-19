@@ -90,6 +90,8 @@ const typeDef = gql`
     year
     iucnRedListCategoryCode
     stateProvince
+    decimalLatitude
+    decimalLongitude
   }
 
   type OccurrenceSearchResult {
