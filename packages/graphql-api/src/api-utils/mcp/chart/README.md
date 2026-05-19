@@ -1,26 +1,31 @@
 # Chart MCP
 
-Turns a natural-language question about GBIF occurrence data into a chart that
-renders on the occurrence dashboard. Used by the **"describe a chart"** search
-box at the top of the dashboard.
+Turns a natural-language question about GBIF occurrence data into either a
+chart or a map that renders on the occurrence dashboard. Used by the
+**"describe a chart"** search box at the top of the dashboard.
 
 ```
 user types  ─►  POST /mcp/chart/query  ─►  chart agent (LLM)
                                             │
-                                            │ emits { graphQuery, jqQuery }
+                                            │ emits { kind, graphQuery, jqQuery }
+                                            │   kind = "highcharts" | "geojson"
                                             ▼
                                           run GraphQL  ─►  pipe through jq
                                                               │
                                                               ▼
-                                                       Highcharts options
+                                                  validate output for kind:
+                                                  - Highcharts options object
+                                                  - GeoJSON FeatureCollection
+                                                    with simplestyle-spec
                                                               │
                                                               ▼
                                                     stored in chart cache
                                             │
-            ◄────────────  queryId + chart ◄┘
+            ◄──────────── queryId + entry  ◄┘
                           │
-GET /mcp/chart/key/:id  ─►│  used by the Custom.tsx panel to render and
-                          │  re-render on refresh / restore.
+GET /mcp/chart/key/:id  ─►│  used by Custom.tsx; renders either a
+                          │  HighchartsReact chart or a MapView (OpenLayers)
+                          │  based on entry.kind.
 ```
 
 ## Why this shape?
@@ -42,9 +47,11 @@ restore-original-filters controls on the Custom chart card.
 
 - `POST /mcp/chart` — Streamable HTTP MCP transport. Tools:
   - `gbif_usage_guidelines` — returns the GBIF schema reference + jq +
-    Highcharts examples. Read this first.
-  - `create_visualization` — accepts `{ queryId, graphQuery, jqQuery }`,
-    runs the pipeline, stores the chart.
+    Highcharts examples + GeoJSON / simplestyle map examples. Read this
+    first.
+  - `create_visualization` — accepts `{ queryId, kind, graphQuery, jqQuery }`
+    where `kind` is `"highcharts"` (default) or `"geojson"`. Runs the
+    pipeline, stores the result.
 
 **Companion REST** (used by the dashboard):
 
@@ -123,8 +130,8 @@ On any failure the controller returns:
 ```
 
 `stage` is one of `agent-empty`, `agent-json-parse`, `agent-shape`, `graphql`,
-`jq`, `parse-jq-output`, `highcharts`. The same payload is logged to the api
-server console so dev tails see what the agent actually produced.
+`jq`, `parse-jq-output`, `highcharts`, `geojson`. The same payload is logged
+to the api server console so dev tails see what the agent actually produced.
 
 The retry loop builds a corrective user message from these details — see
 `agents/llmCall.ts`'s `stageFeedbackers`. Per-stage hints live next to the

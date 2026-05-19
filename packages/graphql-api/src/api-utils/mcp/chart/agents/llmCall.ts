@@ -150,10 +150,19 @@ const stageFeedbackers: Record<string, (d: Details, err: McpError) => string[]> 
       ? [`Your jq produced this non-JSON output:\n${truncate(String(d.jqOutput), 1000)}`]
       : [],
   highcharts: (d) =>
-    d.chartOptions
+    d.output
       ? [
           `Your jq produced these Highcharts options:\n${truncate(
-            JSON.stringify(d.chartOptions, null, 2),
+            JSON.stringify(d.output, null, 2),
+            1000,
+          )}`,
+        ]
+      : [],
+  geojson: (d) =>
+    d.output
+      ? [
+          `Your jq produced this GeoJSON (must be a FeatureCollection with a "features" array; coordinates are [longitude, latitude]):\n${truncate(
+            JSON.stringify(d.output, null, 2),
             1000,
           )}`,
         ]

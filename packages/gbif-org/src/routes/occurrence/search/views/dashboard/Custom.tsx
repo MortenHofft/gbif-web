@@ -9,9 +9,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardTitle } from '@/components/ui/smallCard';
 import { CardHeader } from '@/components/dashboard/shared';
 import Highcharts from '@/components/dashboard/charts/highcharts';
+import MapView from './MapView';
+
+type OutputKind = 'highcharts' | 'geojson';
 
 type ChartEntry = {
-  chartOptions: Highcharts.Options;
+  kind?: OutputKind;
+  output: Record<string, unknown>;
   graphQuery: string;
   jqQuery: string;
   variables?: { predicate?: unknown };
@@ -112,7 +116,8 @@ export default function CustomChart({ queryId, predicate }: Props) {
   }
 
   const firstChart = chartData?.charts?.[0];
-  const options = firstChart?.chartOptions;
+  const output = firstChart?.output;
+  const kind: OutputKind = firstChart?.kind ?? 'highcharts';
   const originalPredicate = chartData?.predicate;
   const renderedPredicate = firstChart?.variables?.predicate;
   // Pretty-print the agent's GraphQL query. Falls back to the raw string if
@@ -218,7 +223,7 @@ export default function CustomChart({ queryId, predicate }: Props) {
           </div>
         )}
 
-        {!error && !loading && !options && (
+        {!error && !loading && !output && (
           <div className="g-text-sm g-text-slate-500">
             <FormattedMessage
               id="dashboard.customChartEmpty"
@@ -226,8 +231,14 @@ export default function CustomChart({ queryId, predicate }: Props) {
             />
           </div>
         )}
-        {!error && !loading && options && (
-          <HighchartsReact highcharts={Highcharts} options={options} />
+        {!error && !loading && output && kind === 'geojson' && (
+          <MapView geojson={output} />
+        )}
+        {!error && !loading && output && kind === 'highcharts' && (
+          <HighchartsReact
+            highcharts={Highcharts}
+            options={output as Highcharts.Options}
+          />
         )}
       </CardContent>
     </Card>

@@ -41,17 +41,23 @@ export function registerChartTools(
       .describe(
         'The conversation chart-store id provided to you in this session. Pass it unchanged on every call.',
       ),
+    kind: z
+      .enum(['highcharts', 'geojson'])
+      .default('highcharts')
+      .describe(
+        '"highcharts" for a chart (Highcharts options object); "geojson" for a map (GeoJSON FeatureCollection with simplestyle-spec properties).',
+      ),
     graphQuery: z
       .string()
       .min(1)
       .describe(
-        'A GraphQL query to fetch the data needed for the chart. The result is piped through jqQuery before being interpreted as a Highcharts options object.',
+        'A GraphQL query to fetch the data needed for the visualization. The result is piped through jqQuery before being interpreted according to `kind`.',
       ),
     jqQuery: z
       .string()
       .min(1)
       .describe(
-        'A jq program that transforms the GraphQL response into a Highcharts options object (must include a "series" array). Strings MUST use double quotes.',
+        'A jq program that transforms the GraphQL response into the output for the chosen kind. Strings MUST use double quotes.',
       ),
   };
 
@@ -59,24 +65,31 @@ export function registerChartTools(
     'create_visualization',
     {
       description:
-        'Create a chart from species occurrence records. The jq result must be a valid Highcharts options object. Read gbif_usage_guidelines first for the schema, jq rules, and worked examples.',
+        'Create a chart or map from species occurrence records. The jq result must be either a valid Highcharts options object (kind=highcharts) or a GeoJSON FeatureCollection with simplestyle-spec properties (kind=geojson). Read gbif_usage_guidelines first for the schema, jq rules, and worked examples.',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       inputSchema: createVizInput as any,
     },
     async (args: unknown) => {
-      const { queryId, graphQuery, jqQuery } = args as {
+      const { queryId, kind, graphQuery, jqQuery } = args as {
         queryId: string;
+        kind?: 'highcharts' | 'geojson';
         graphQuery: string;
         jqQuery: string;
       };
 
-      await executeChart({ graphQuery, jqQuery, queryId, apolloServer });
+      await executeChart({
+        graphQuery,
+        jqQuery,
+        kind: kind ?? 'highcharts',
+        queryId,
+        apolloServer,
+      });
 
       return {
         content: [
           {
             type: 'text' as const,
-            text: `Chart configuration saved with ID: ${queryId}`,
+            text: `${kind ?? 'highcharts'} configuration saved with ID: ${queryId}`,
           },
         ],
       };

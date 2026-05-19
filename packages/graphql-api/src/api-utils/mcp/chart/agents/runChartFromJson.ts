@@ -57,7 +57,11 @@ export async function runChartFromAgentJson({
     );
   }
 
-  const obj = parsed as { graphQuery?: unknown; jqQuery?: unknown };
+  const obj = parsed as {
+    kind?: unknown;
+    graphQuery?: unknown;
+    jqQuery?: unknown;
+  };
   if (typeof obj.graphQuery !== 'string' || typeof obj.jqQuery !== 'string') {
     throw new McpError(
       `${provider} response missing string graphQuery or jqQuery`,
@@ -65,6 +69,9 @@ export async function runChartFromAgentJson({
       { provider, model, stage: 'agent-shape', parsed },
     );
   }
+  // kind is optional for back-compat; defaults to highcharts.
+  const kind =
+    obj.kind === 'geojson' || obj.kind === 'highcharts' ? obj.kind : 'highcharts';
 
   // Wrap executeChart errors so the agent's provider/model context is
   // attached alongside the pipeline-stage details. Flatten the inner
@@ -75,12 +82,19 @@ export async function runChartFromAgentJson({
     await executeChart({
       graphQuery: obj.graphQuery,
       jqQuery: obj.jqQuery,
+      kind,
       queryId,
       apolloServer,
     });
     return {
       provider,
-      raw: { model, usage, graphQuery: obj.graphQuery, jqQuery: obj.jqQuery },
+      raw: {
+        model,
+        usage,
+        kind,
+        graphQuery: obj.graphQuery,
+        jqQuery: obj.jqQuery,
+      },
     };
   } catch (err) {
     const inner = err instanceof McpError ? err : undefined;
@@ -88,7 +102,7 @@ export async function runChartFromAgentJson({
     throw new McpError(
       err instanceof Error ? err.message : String(err),
       inner?.status ?? 500,
-      { provider, model, usage, ...innerDetails },
+      { provider, model, usage, kind, ...innerDetails },
     );
   }
 }

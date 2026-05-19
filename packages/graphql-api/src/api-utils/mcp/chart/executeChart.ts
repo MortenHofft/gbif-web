@@ -7,19 +7,21 @@ import {
   addChart,
   ChartEntry,
   getChartConfig,
+  OutputKind,
   setChartEntry,
-  validateHighchartsOptions,
+  validateOutput,
 } from './store';
 
 interface RunChartArgs {
   graphQuery: string;
   jqQuery: string;
+  kind: OutputKind;
   predicate: unknown;
   apolloServer: ApolloServer<ExpressContext>;
 }
 
 interface RunChartResult {
-  chartOptions: Record<string, unknown>;
+  output: Record<string, unknown>;
   graphqlData: unknown;
   variables: Record<string, unknown>;
 }
@@ -47,12 +49,14 @@ function pipelineError(
   });
 }
 
-// Shared core: run the GraphQL query, pipe through jq, validate the
-// Highcharts options. No store mutation — callers decide where the result
-// lands (executeChart appends a new entry; refreshChart replaces one).
+// Shared core: run the GraphQL query, pipe through jq, validate the output
+// (Highcharts options or GeoJSON, depending on `kind`). No store mutation —
+// callers decide where the result lands (executeChart appends a new entry;
+// refreshChart replaces one).
 async function runChart({
   graphQuery,
   jqQuery,
+  kind,
   predicate,
   apolloServer,
 }: RunChartArgs): Promise<RunChartResult> {
@@ -110,9 +114,9 @@ async function runChart({
     );
   }
 
-  let chartOptions: Record<string, unknown>;
+  let output: Record<string, unknown>;
   try {
-    chartOptions = JSON.parse(jqResult);
+    output = JSON.parse(jqResult);
   } catch (error) {
     throw pipelineError(
       `jq output is not valid JSON: ${(error as Error).message}`,
@@ -125,55 +129,62 @@ async function runChart({
     );
   }
 
-  const validation = validateHighchartsOptions(chartOptions);
+  const validation = validateOutput(kind, output);
   if (!validation.valid) {
     throw pipelineError(
-      `Invalid Highcharts options: ${validation.error}`,
+      `Invalid ${kind} output: ${validation.error}`,
       400,
-      'highcharts',
+      kind === 'geojson' ? 'geojson' : 'highcharts',
       graphQuery,
       jqQuery,
       variables,
-      { chartOptions, reason: validation.error },
+      { output, reason: validation.error },
     );
   }
 
-  return { chartOptions, graphqlData: response, variables };
+  return { output, graphqlData: response, variables };
 }
 
 interface ExecuteChartArgs {
   graphQuery: string;
   jqQuery: string;
+  // Defaults to 'highcharts' for callers (e.g. older agent flows) that don't
+  // emit a kind.
+  kind?: OutputKind;
   queryId: string;
   apolloServer: ApolloServer<ExpressContext>;
 }
 
 export interface ExecuteChartResult {
-  chartOptions: Record<string, unknown>;
+  kind: OutputKind;
+  output: Record<string, unknown>;
 }
 
 export async function executeChart({
   graphQuery,
   jqQuery,
+  kind = 'highcharts',
   queryId,
   apolloServer,
 }: ExecuteChartArgs): Promise<ExecuteChartResult> {
   const chartConfig = getChartConfig(queryId);
   const predicate = chartConfig?.predicate ?? null;
-  const { chartOptions, graphqlData, variables } = await runChart({
+  const { output, graphqlData, variables } = await runChart({
     graphQuery,
     jqQuery,
+    kind,
     predicate,
     apolloServer,
   });
   addChart(queryId, {
-    chartOptions,
+    kind,
+    output,
     graphQuery,
     jqQuery,
     graphqlData,
     variables,
   });
-  return { chartOptions };
+  return { kind, output };
 }
 
 interface RefreshChartArgs {
@@ -185,7 +196,7 @@ interface RefreshChartArgs {
 // Re-runs the stored graphQuery + jqQuery for a chart against a new predicate
 // and replaces `charts[0]`. The ChartConfig's top-level `predicate` (the
 // original) is intentionally left untouched so the UI can still offer
-// "restore original".
+// "restore original". Kind is read from the existing entry.
 export async function refreshChart({
   queryId,
   predicate,
@@ -199,15 +210,16 @@ export async function refreshChart({
   if (!existing) {
     throw new McpError(`No chart to refresh for queryId ${queryId}`, 400);
   }
-  const { chartOptions, graphqlData, variables } = await runChart({
+  const { output, graphqlData, variables } = await runChart({
     graphQuery: existing.graphQuery,
     jqQuery: existing.jqQuery,
+    kind: existing.kind,
     predicate,
     apolloServer,
   });
   const updated: ChartEntry = {
     ...existing,
-    chartOptions,
+    output,
     graphqlData,
     variables,
   };
