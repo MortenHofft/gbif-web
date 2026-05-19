@@ -84,6 +84,88 @@ query OccurrenceSearch($predicate: Predicate) { # The user's current filters are
 
 Data from GraphQL is returned as { "data": { "occurrenceSearch": { ... } } }. Navigate from there.
 
+# Sorting and top-N
+
+\`documents(size, sortBy, sortOrder, shuffle)\` supports server-side sorting. Prefer this over jq-side sorting whenever possible — it's faster, lets you ask for exactly N records, and avoids over-fetching.
+
+  sortBy:    a field name (string) — supports most occurrence fields, including
+             year, month, eventDate, individualCount, depth, elevation,
+             coordinatePrecision, coordinateUncertaintyInMeters,
+             distanceFromCentroidInMeters, gbifId, taxonKey,
+             decimalLatitude, decimalLongitude
+  sortOrder: ASC | DESC (uppercase)
+
+"Northernmost N" = \`sortBy: decimalLatitude, sortOrder: DESC, size: N\`.
+"Earliest occurrences" = \`sortBy: eventDate, sortOrder: ASC, size: N\`.
+"Largest individual counts" = \`sortBy: individualCount, sortOrder: DESC\`.
+
+For "top-N per outer group" (e.g. "2 northernmost occurrences per year"), use the nested-facet pattern: outer \`facet\` for the group, inner \`documents(size: N, sortBy: ..., sortOrder: ...)\` per bucket. No jq sort needed — the inner documents come back already sorted, sized exactly to N.
+
+If you need to rank by a value that's NOT a server field (e.g. something you computed in jq), fall back to jq:
+
+  sort_by(-.someField)   # descending; jq sort_by is ascending only, so negate the key
+  | .[0:N]               # take top N
+
+Worked example — "2 northernmost occurrences per year, coloured by decade":
+
+graphQuery (note size: 2 + sortBy: decimalLatitude DESC on the inner documents — the server returns exactly the two northernmost per year, already sorted):
+
+query NorthernMostPerYear($predicate: Predicate) {
+  occurrenceSearch(predicate: $predicate) {
+    facet {
+      year(size: 50) {
+        key
+        occurrences {
+          documents(size: 2, sortBy: decimalLatitude, sortOrder: DESC) {
+            results { decimalLatitude decimalLongitude }
+          }
+        }
+      }
+    }
+  }
+}
+
+jqQuery (no per-year sort needed; just emit features with a colour-by-decade band):
+
+{
+  type: "FeatureCollection",
+  features: [
+    .data.occurrenceSearch.facet.year[] as $y
+    | ($y.occurrences.documents.results
+        | map(select(.decimalLatitude != null and .decimalLongitude != null)))[]
+    | {
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [.decimalLongitude, .decimalLatitude] },
+        properties: {
+          title: ($y.key + " — lat " + (.decimalLatitude | tostring)),
+          "marker-color": (
+            if   ($y.key | tonumber) >= 2020 then "#003f5c"
+            elif ($y.key | tonumber) >= 2010 then "#665191"
+            elif ($y.key | tonumber) >= 2000 then "#d45087"
+            elif ($y.key | tonumber) >= 1990 then "#ff7c43"
+            else                                  "#ffa600"
+            end
+          )
+        }
+      }
+  ],
+  legend: {
+    title: "Year",
+    type: "gradient",
+    items: [
+      { label: "2020+",       color: "#003f5c" },
+      { label: "2010–2019",   color: "#665191" },
+      { label: "2000–2009",   color: "#d45087" },
+      { label: "1990–1999",   color: "#ff7c43" },
+      { label: "before 1990", color: "#ffa600" }
+    ]
+  }
+}
+
+Notes:
+- \`$y\` captures the outer year bucket so the inner expression can reach back for the key when building feature properties.
+- For "many groups × small N" (50 years × 2 = 100 features), bucket colour into ~5–7 decade bands rather than 50 distinct colours. Long legends are unreadable.
+
 # Complete worked example (chart)
 
 User asks: "breakdown by basis of record".
