@@ -2,6 +2,15 @@ import { useEffect, useState } from 'react';
 // TODO: this has been changed to a fork. Consider updating to https://atlassian.design/components/pragmatic-drag-and-drop/examples
 import { SimpleTooltip } from '@/components/simpleTooltip';
 import { Button } from '@/components/ui/button';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card } from '@/components/ui/smallCard';
 import { useToast } from '@/components/ui/use-toast';
 import useBelow from '@/hooks/useBelow';
@@ -57,8 +66,6 @@ const move = (source, destination, droppableSource, droppableDestination) => {
 const grid = 8;
 
 const getItemStyle = (isDragging, draggableStyle, index) => ({
-  // some basic styles to make the items look a bit nicer
-  userSelect: 'none',
   margin: `0 0 ${grid * 2}px 0`,
   position: 'relative',
   zindex: 1,
@@ -640,7 +647,7 @@ const chartGroups = {
 function CreateOptions({ onAdd, chartsTypes }) {
   const intl = useIntl();
   const messageNew = intl.formatMessage({ id: 'dashboard.addNew' });
-  const [selectedOption, setSelectedOption] = useState('');
+  const [open, setOpen] = useState(false);
   // get translations for all the dashboard names
   const dashboardTitles = Object.keys(chartsTypes).reduce((acc, type) => {
     acc[type] = intl.formatMessage({
@@ -649,12 +656,6 @@ function CreateOptions({ onAdd, chartsTypes }) {
     });
     return acc;
   }, {});
-
-  const handleSelectChange = (event) => {
-    const selectedValue = event.target.value;
-    if (selectedValue === '') return;
-    onAdd(selectedValue);
-  };
 
   const groupOrdering = {
     views: [],
@@ -693,24 +694,47 @@ function CreateOptions({ onAdd, chartsTypes }) {
   });
 
   return (
-    <Button asChild>
-      <select
-        value={selectedOption}
-        onChange={handleSelectChange}
-        className="g-border-e-8 g-border-transparent"
-      >
-        <option value="">{messageNew}</option>
-        {Object.keys(groupedCharts).map((group) => (
-          <optgroup label={intl.formatMessage({ id: `dashboard.group.${group}` })} key={group}>
-            {groupedCharts[group].map((option) => (
-              <option value={option.value} key={option.value}>
-                {option.label}
-              </option>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button role="combobox" aria-expanded={open}>
+          {messageNew}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="g-p-0 g-w-72" align="start">
+        <Command>
+          <CommandInput
+            placeholder={intl.formatMessage({
+              id: 'dashboard.searchCharts',
+              defaultMessage: 'Search charts…',
+            })}
+          />
+          <CommandList>
+            <CommandEmpty>
+              <FormattedMessage id="dashboard.noChartsFound" defaultMessage="No charts found." />
+            </CommandEmpty>
+            {Object.keys(groupedCharts).map((group) => (
+              <CommandGroup
+                key={group}
+                heading={intl.formatMessage({ id: `dashboard.group.${group}` })}
+              >
+                {groupedCharts[group].map((option) => (
+                  <CommandItem
+                    key={option.value}
+                    value={`${option.label} ${option.value}`}
+                    onSelect={() => {
+                      onAdd(option.value);
+                      setOpen(false);
+                    }}
+                  >
+                    {option.label}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
             ))}
-          </optgroup>
-        ))}
-      </select>
-    </Button>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 

@@ -27,6 +27,8 @@ const allowedSortBy = {
   collectionCode: 'collectionCode',
   collectionKey: 'collectionKey',
   continent: 'continent',
+  decimalLatitude: 'decimalLatitude',
+  decimalLongitude: 'decimalLongitude',
   coordinatePrecision: 'coordinatePrecision',
   coordinateUncertaintyInMeters: 'coordinateUncertaintyInMeters',
   countryCode: 'countryCode',
