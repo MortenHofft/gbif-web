@@ -50,11 +50,32 @@ export async function runChartFromAgentJson({
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw new McpError(
-      `${provider} output is not valid JSON: ${text.slice(0, 300)}`,
-      502,
-      { provider, model, stage: 'agent-json-parse', content: text },
-    );
+    // Fallback: scan for the first balanced { ... } and parse that.
+    // Tolerates trailing junk like an accidental extra closing brace
+    // (Gemini's constrained JSON decoding occasionally trips when the
+    // inner jqQuery string ends in `}` and the model loses brace depth),
+    // explanatory text after the JSON, or stray code fences.
+    const extracted = extractFirstJsonObject(text);
+    if (extracted) {
+      try {
+        parsed = JSON.parse(extracted);
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[chart] ${provider} JSON parse recovered via balanced-brace extraction (${
+            text.length - extracted.length
+          } extraneous chars)`,
+        );
+      } catch {
+        // fall through to the throw below
+      }
+    }
+    if (parsed === undefined) {
+      throw new McpError(
+        `${provider} output is not valid JSON: ${text.slice(0, 300)}`,
+        502,
+        { provider, model, stage: 'agent-json-parse', content: text },
+      );
+    }
   }
 
   const obj = parsed as {
@@ -108,4 +129,43 @@ export async function runChartFromAgentJson({
       { provider, model, usage, kind, ...innerDetails },
     );
   }
+}
+
+// Finds the first balanced { ... } in text, respecting JSON string literals
+// (so a { or } inside a string doesn't shift the depth count). Returns the
+// substring including the outer braces, or null if no balanced object is
+// found. Used as a JSON.parse fallback when the model emits valid JSON but
+// also some trailing garbage.
+function extractFirstJsonObject(text: string): string | null {
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (c === '\\') {
+      escape = true;
+      continue;
+    }
+    if (c === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (c === '{') {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (c === '}') {
+      depth--;
+      if (depth === 0 && start !== -1) {
+        return text.slice(start, i + 1);
+      }
+      if (depth < 0) return null;
+    }
+  }
+  return null;
 }
