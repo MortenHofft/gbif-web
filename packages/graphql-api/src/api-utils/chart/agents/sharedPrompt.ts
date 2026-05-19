@@ -108,7 +108,7 @@ If you need to rank by a value that's NOT a server field (e.g. something you com
   sort_by(-.someField)   # descending; jq sort_by is ascending only, so negate the key
   | .[0:N]               # take top N
 
-Worked example — "2 northernmost occurrences per year, coloured by decade":
+Worked example — "2 northernmost occurrences per year, coloured by year":
 
 graphQuery (note size: 2 + sortBy: decimalLatitude DESC on the inner documents — the server returns exactly the two northernmost per year, already sorted):
 
@@ -127,12 +127,17 @@ query NorthernMostPerYear($predicate: Predicate) {
   }
 }
 
-jqQuery (no per-year sort needed; just emit features with a colour-by-decade band):
+jqQuery — derives the year range from the data so the gradient doesn't collapse when the user's filter narrows it (see "Gradient ranges: derive from the data" below). 4 buckets across whatever min..max the actual data covers:
 
+[.data.occurrenceSearch.facet.year[].key | tonumber] as $vs |
+($vs | min) as $vmin |
+($vs | max) as $vmax |
+(($vmax - $vmin) / 4) as $step |
 {
   type: "FeatureCollection",
   features: [
     .data.occurrenceSearch.facet.year[] as $y
+    | ($y.key | tonumber) as $v
     | ($y.occurrences.documents.results
         | map(select(.decimalLatitude != null and .decimalLongitude != null)))[]
     | {
@@ -141,11 +146,10 @@ jqQuery (no per-year sort needed; just emit features with a colour-by-decade ban
         properties: {
           title: ($y.key + " — lat " + (.decimalLatitude | tostring)),
           "marker-color": (
-            if   ($y.key | tonumber) >= 2020 then "#003f5c"
-            elif ($y.key | tonumber) >= 2010 then "#665191"
-            elif ($y.key | tonumber) >= 2000 then "#d45087"
-            elif ($y.key | tonumber) >= 1990 then "#ff7c43"
-            else                                  "#ffa600"
+            if   $v >= $vmin + 3 * $step then "#003f5c"
+            elif $v >= $vmin + 2 * $step then "#665191"
+            elif $v >= $vmin + 1 * $step then "#d45087"
+            else                              "#ff7c43"
             end
           )
         }
@@ -155,11 +159,10 @@ jqQuery (no per-year sort needed; just emit features with a colour-by-decade ban
     title: "Year",
     type: "gradient",
     items: [
-      { label: "2020+",       color: "#003f5c" },
-      { label: "2010–2019",   color: "#665191" },
-      { label: "2000–2009",   color: "#d45087" },
-      { label: "1990–1999",   color: "#ff7c43" },
-      { label: "before 1990", color: "#ffa600" }
+      { label: "\\($vmin + 3 * $step | floor)+",                              color: "#003f5c" },
+      { label: "\\($vmin + 2 * $step | floor)–\\($vmin + 3 * $step | floor)", color: "#665191" },
+      { label: "\\($vmin + 1 * $step | floor)–\\($vmin + 2 * $step | floor)", color: "#d45087" },
+      { label: "below \\($vmin + 1 * $step | floor)",                         color: "#ff7c43" }
     ]
   }
 }
@@ -418,6 +421,35 @@ Use the dashboard's site palettes for both \`marker-color\` and \`legend.items[]
   #ff7c43  #ffa600  #cea400  #a19f08  #789523  #558935
 
 Use the same hex strings in both the features' \`marker-color\` and the matching \`legend.items[].color\` so the legend lines up with the map. NEVER use the gradient palette for categorical data (the hues encode order; categorical data has none) and NEVER use the categorical palette for ordered data (the hues are unordered).
+
+### Gradient ranges: derive from the data, don't hardcode
+
+For \`type: "gradient"\` colouring of an unbounded numeric attribute (year, count, individualCount, decimal latitude/longitude bands within a country, etc.), the bucket boundaries MUST be derived from the actual data range. Hardcoded boundaries (e.g. fixed decade bands 1990, 2000, 2010, ...) silently collapse to a single colour when the user's filter narrows the data — every point gets the same hex and the gradient becomes meaningless.
+
+Pattern: gather the values you're colouring by into an array, bind \`min\` and \`max\`, compute a step, then use the step both in the \`if/elif\` comparisons AND in the legend labels via jq string interpolation \`\\(...)\`. Example template (years; 4 buckets):
+
+[.data.occurrenceSearch.facet.year[].key | tonumber] as $vs |
+($vs | min) as $vmin |
+($vs | max) as $vmax |
+(($vmax - $vmin) / 4) as $step |
+{
+  type: "FeatureCollection",
+  features: [ ... features that compute \`marker-color\` from \`$vmin\`, \`$vmax\`, \`$step\` ... ],
+  legend: {
+    title: "Year",
+    type: "gradient",
+    items: [
+      { label: "\\($vmin + 3 * $step | floor)+",                              color: "#003f5c" },
+      { label: "\\($vmin + 2 * $step | floor)–\\($vmin + 3 * $step | floor)", color: "#665191" },
+      { label: "\\($vmin + 1 * $step | floor)–\\($vmin + 2 * $step | floor)", color: "#d45087" },
+      { label: "below \\($vmin + 1 * $step | floor)",                         color: "#ff7c43" }
+    ]
+  }
+}
+
+Generalise: replace the gather expression and the title; everything else is mechanical. Use 4–6 buckets (4 is plenty for most maps; 5–7 if the eye really needs the resolution).
+
+Exception: dimensions with a known, meaningful, fixed range — latitude (-90 to 90 with the tropics / temperate / polar bands at -60/-30/0/30/60), longitude, day-of-year (1-365), month (1-12). These have natural boundaries that the user expects to see; use them directly.
 
 Plain map (no styling, no legend needed):
 {
