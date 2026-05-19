@@ -5,31 +5,26 @@ chart or a map that renders on the occurrence dashboard. Used by the
 **"Custom chart"** card the user picks from the dashboard's "Add new"
 dropdown.
 
-The folder is still named `mcp/chart/` and the routes still live under
-`/mcp/chart/...` for compatibility, but the MCP server surface
-(`gbif_usage_guidelines` / `create_visualization` tools over Streamable HTTP)
-has been removed — the direct-call agents in `./agents` bypass it entirely.
-
 ```
-user types  ─►  POST /mcp/chart/query  ─►  chart agent (LLM)
-                                            │
-                                            │ emits { kind, graphQuery, jqQuery }
-                                            │   kind = "highcharts" | "geojson"
-                                            ▼
-                                          run GraphQL  ─►  pipe through jq
-                                                              │
-                                                              ▼
-                                                  validate output for kind:
-                                                  - Highcharts options object
-                                                  - GeoJSON FeatureCollection
-                                                    with simplestyle-spec
-                                                              │
-                                                              ▼
-                                                    stored in chart cache
-                                            │
-            ◄──────────── queryId + entry  ◄┘
+user types  ─►  POST /chart/query  ─►  chart agent (LLM)
+                                        │
+                                        │ emits { kind, graphQuery, jqQuery }
+                                        │   kind = "highcharts" | "geojson"
+                                        ▼
+                                      run GraphQL  ─►  pipe through jq
+                                                          │
+                                                          ▼
+                                              validate output for kind:
+                                              - Highcharts options object
+                                              - GeoJSON FeatureCollection
+                                                with simplestyle-spec
+                                                          │
+                                                          ▼
+                                                stored in chart cache
+                                        │
+            ◄────────── queryId + entry◄┘
                           │
-GET /mcp/chart/key/:id  ─►│  used by Custom.tsx; renders either a
+GET /chart/key/:id  ─────►│  used by Custom.tsx; renders either a
                           │  HighchartsReact chart or a MapView (OpenLayers)
                           │  based on entry.kind.
 ```
@@ -51,12 +46,12 @@ restore-original-filters controls on the Custom chart card.
 
 All three routes are open (the dashboard is the only intended caller):
 
-- `POST /mcp/chart/query` — body `{ q, predicate }`. Runs the configured
-  chart agent and returns `{ queryId, charts, llm }`.
-- `GET /mcp/chart/key/:key` — returns the saved chart config. `:key=_list`
+- `POST /chart/query` — body `{ q, predicate }`. Runs the configured chart
+  agent and returns `{ queryId, charts, llm }`.
+- `GET /chart/key/:key` — returns the saved chart config. `:key=_list`
   returns all known keys.
-- `POST /mcp/chart/key/:key/refresh` — body `{ predicate }`. Re-runs the
-  stored `graphQuery + jqQuery` against the new predicate and replaces the
+- `POST /chart/key/:key/refresh` — body `{ predicate }`. Re-runs the stored
+  `graphQuery + jqQuery` against the new predicate and replaces the
   rendered chart. The ChartConfig's original predicate is preserved so the
   client can offer "restore original".
 
@@ -169,7 +164,7 @@ Right now everything lives in an in-memory `NodeCache` (`./store.ts`) with a
 graphQuery, jqQuery, graphqlData, variables }] }`. That's the *measurement
 instrument* version. Two things to do with it before moving to templates:
 
-1. **Persist queries.** Append each `POST /mcp/chart/query` to a small log
+1. **Persist queries.** Append each `POST /chart/query` to a small log
    (Elasticsearch index, append-only JSONL, whatever fits the deployment).
    Fields: timestamp, user agent (or user id when available), `q`, `predicate`,
    the agent's `graphQuery` + `jqQuery`, success/failure stage, any error.

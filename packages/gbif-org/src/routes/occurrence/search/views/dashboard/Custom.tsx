@@ -55,7 +55,7 @@ export default function CustomChart({ queryId, predicate, setProps }: Props) {
 }
 
 // In-place form shown until the user has submitted a query. Posts to
-// /mcp/chart/query, then hands the returned queryId back via setProps so the
+// /chart/query, then hands the returned queryId back via setProps so the
 // parent re-renders this component with queryId set — which switches to
 // CustomChartView and fetches the chart.
 function CustomChartForm({
@@ -86,7 +86,7 @@ function CustomChartForm({
     setHasError(false);
     try {
       const url = new URL(
-        '/mcp/chart/query',
+        '/chart/query',
         config.graphqlEndpoint,
       ).toString();
       const response = await fetch(url, {
@@ -184,7 +184,7 @@ function CustomChartView({
   useEffect(() => {
     let cancelled = false;
     const url = new URL(
-      `/mcp/chart/key/${encodeURIComponent(queryId)}`,
+      `/chart/key/${encodeURIComponent(queryId)}`,
       config.graphqlEndpoint,
     ).toString();
 
@@ -223,7 +223,7 @@ function CustomChartView({
     setError(null);
     try {
       const url = new URL(
-        `/mcp/chart/key/${encodeURIComponent(queryId)}/refresh`,
+        `/chart/key/${encodeURIComponent(queryId)}/refresh`,
         config.graphqlEndpoint,
       ).toString();
       const response = await fetch(url, {

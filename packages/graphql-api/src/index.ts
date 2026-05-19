@@ -28,8 +28,7 @@ import geometryController from './api-utils/geometry/index.ctrl.js';
 import helperController from './api-utils/helpers.ctrl.js';
 import ipController from './api-utils/ip2country.ctrl.js';
 import mapController from './api-utils/maps/index.ctrl.js';
-import mcpHelloWorldController from './api-utils/mcp/helloWorld.ctrl';
-import mcpChartController from './api-utils/mcp/chart/chart.ctrl';
+import chartController from './api-utils/chart/chart.ctrl';
 import polygonName from './api-utils/polygonName.ctrl.js';
 import sourceArchiveCtrl from './api-utils/sourceArchive.ctrl.js';
 import extractUser from './helpers/auth/extractUser';
@@ -145,8 +144,7 @@ async function initializeServer() {
   helperController(app, server);
   sourceArchiveCtrl(app);
   citesController(app);
-  mcpHelloWorldController(app);
-  mcpChartController(app, server);
+  chartController(app, server);
   app.listen({ port: config.port }, () =>
     console.log(
       `🚀 Server ready at http://localhost:${config.port}${server.graphqlPath}`,

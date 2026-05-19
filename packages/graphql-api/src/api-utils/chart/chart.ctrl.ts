@@ -1,23 +1,18 @@
 /*
  * REST routes that drive the custom-chart card on the occurrence dashboard.
  *
- *   POST /mcp/chart/query              — run the configured chart agent (see
- *                                        ./agents) against a natural-language
- *                                        query, store the resulting chart,
- *                                        and return the saved config.
- *   GET  /mcp/chart/key/:key           — fetch a saved chart config (or
- *                                        "_list" for keys).
- *   POST /mcp/chart/key/:key/refresh   — re-run the stored graphQuery +
- *                                        jqQuery against a new predicate
- *                                        (body: { predicate }). The original
- *                                        predicate on the ChartConfig is not
- *                                        mutated, so the client can still
- *                                        offer "restore original".
- *
- * The earlier MCP server surface (gbif_usage_guidelines / create_visualization
- * tools over Streamable HTTP) has been removed — the direct-call agents in
- * ./agents bypass it. The /mcp/ URL prefix is retained for compatibility with
- * the existing frontend; consider renaming to /chart/ in a future cleanup.
+ *   POST /chart/query              — run the configured chart agent (see
+ *                                    ./agents) against a natural-language
+ *                                    query, store the resulting chart, and
+ *                                    return the saved config.
+ *   GET  /chart/key/:key           — fetch a saved chart config (or "_list"
+ *                                    for keys).
+ *   POST /chart/key/:key/refresh   — re-run the stored graphQuery + jqQuery
+ *                                    against a new predicate (body:
+ *                                    { predicate }). The original predicate
+ *                                    on the ChartConfig is not mutated, so
+ *                                    the client can still offer
+ *                                    "restore original".
  */
 import { Application, Response } from 'express';
 import { ApolloServer } from 'apollo-server-express';
@@ -28,9 +23,9 @@ import { McpError } from './errors';
 import { refreshChart } from './executeChart';
 import { createChartConfig, getAllKeys, getChartConfig } from './store';
 
-const QUERY_PATH = '/mcp/chart/query';
-const KEY_PATH = '/mcp/chart/key/:key';
-const REFRESH_PATH = '/mcp/chart/key/:key/refresh';
+const QUERY_PATH = '/chart/query';
+const KEY_PATH = '/chart/key/:key';
+const REFRESH_PATH = '/chart/key/:key/refresh';
 
 // Shared error responder. McpError adds a status code and structured details
 // (set by executeChart / agents) that we pass through verbatim so the client
@@ -49,7 +44,7 @@ function respondWithError(
   return res.status(status).json({ message, details });
 }
 
-export default function mcpChartController(
+export default function chartController(
   app: Application,
   apolloServer: ApolloServer<ExpressContext>,
 ) {

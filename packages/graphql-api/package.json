@@ -49,7 +49,6 @@
     "lodash": "^4.17.21",
     "lru-cache": "^7.14.0",
     "lunr": "^2.3.9",
-    "@modelcontextprotocol/sdk": "^1.29.0",
     "node-jq": "^6.0.2",
     "mapshaper": "^0.6.98",
     "markdown-it": "^12.3.2",
