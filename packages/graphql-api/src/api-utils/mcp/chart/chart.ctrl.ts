@@ -225,12 +225,12 @@ export default function mcpChartController(
     try {
       const { key } = req.params;
       const { predicate } = req.body ?? {};
-      const updated = await refreshChart({
+      const { entry, timings } = await refreshChart({
         queryId: key,
         predicate,
         apolloServer,
       });
-      return res.json(updated);
+      return res.json({ ...entry, timings });
     } catch (error) {
       return respondWithError(res, 'Chart refresh error', error);
     }

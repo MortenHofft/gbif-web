@@ -48,6 +48,11 @@ interface RunWithRetryArgs {
 // Orchestrates the call-and-parse loop with self-correction. On the first
 // failure the model's previous output plus the pipeline error are appended
 // to the message history and we try again, up to chartAgentMaxAttempts total.
+//
+// Wraps each caller.call with timing and accumulates llmMs across attempts.
+// On success, merges llm + total + attempts numbers into the AgentResult's
+// raw.timings (which already carries graphqlMs / jqMs from executeChart) so
+// the client sees one combined timings object.
 export async function runWithRetry({
   caller,
   systemPrompt,
@@ -61,11 +66,15 @@ export async function runWithRetry({
     { role: 'user', content: userQuery },
   ];
   let lastError: McpError | undefined;
+  let llmTotalMs = 0;
+  const startMs = Date.now();
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const llmStart = Date.now();
     const { text, rawModel, usage } = await caller.call(messages);
+    llmTotalMs += Date.now() - llmStart;
     try {
-      return await runChartFromAgentJson({
+      const result = await runChartFromAgentJson({
         provider: caller.provider,
         model: rawModel ?? caller.model,
         usage,
@@ -73,6 +82,21 @@ export async function runWithRetry({
         queryId,
         apolloServer,
       });
+      const existingTimings =
+        ((result.raw as { timings?: Record<string, unknown> } | undefined)
+          ?.timings ?? {}) as Record<string, unknown>;
+      return {
+        ...result,
+        raw: {
+          ...(result.raw as Record<string, unknown>),
+          timings: {
+            ...existingTimings,
+            llmMs: llmTotalMs,
+            attempts: attempt,
+            totalMs: Date.now() - startMs,
+          },
+        },
+      };
     } catch (err) {
       lastError =
         err instanceof McpError

@@ -20,10 +20,19 @@ interface RunChartArgs {
   apolloServer: ApolloServer<ExpressContext>;
 }
 
+// Pipeline-stage timings in milliseconds. Surfaced through ExecuteChartResult
+// and refreshChart, then merged into AgentResult.raw.timings by runWithRetry
+// so the HTTP client can see "where did the slow seconds go".
+export interface PipelineTimings {
+  graphqlMs: number;
+  jqMs: number;
+}
+
 interface RunChartResult {
   output: Record<string, unknown>;
   graphqlData: unknown;
   variables: Record<string, unknown>;
+  timings: PipelineTimings;
 }
 
 // Each McpError thrown from this module carries the same details shape so
@@ -68,6 +77,7 @@ async function runChart({
   };
 
   let response: { data?: unknown; errors?: ReadonlyArray<{ message: string }> };
+  const graphqlStart = Date.now();
   try {
     response = await apolloServer.executeOperation({
       query: graphQuery,
@@ -84,6 +94,7 @@ async function runChart({
       { reason: (error as Error).message },
     );
   }
+  const graphqlMs = Date.now() - graphqlStart;
 
   if (response.errors && response.errors.length > 0) {
     const messages = response.errors.map((e) => e.message).join(', ');
@@ -99,6 +110,7 @@ async function runChart({
   }
 
   let jqResult: string;
+  const jqStart = Date.now();
   try {
     const clean = JSON.parse(JSON.stringify(response));
     jqResult = await jq.run(jqQuery, clean, { input: 'json' });
@@ -113,6 +125,7 @@ async function runChart({
       { reason: (error as Error).message, graphqlData: response },
     );
   }
+  const jqMs = Date.now() - jqStart;
 
   let output: Record<string, unknown>;
   try {
@@ -142,7 +155,12 @@ async function runChart({
     );
   }
 
-  return { output, graphqlData: response, variables };
+  return {
+    output,
+    graphqlData: response,
+    variables,
+    timings: { graphqlMs, jqMs },
+  };
 }
 
 interface ExecuteChartArgs {
@@ -158,6 +176,7 @@ interface ExecuteChartArgs {
 export interface ExecuteChartResult {
   kind: OutputKind;
   output: Record<string, unknown>;
+  timings: PipelineTimings;
 }
 
 export async function executeChart({
@@ -169,7 +188,7 @@ export async function executeChart({
 }: ExecuteChartArgs): Promise<ExecuteChartResult> {
   const chartConfig = getChartConfig(queryId);
   const predicate = chartConfig?.predicate ?? null;
-  const { output, graphqlData, variables } = await runChart({
+  const { output, graphqlData, variables, timings } = await runChart({
     graphQuery,
     jqQuery,
     kind,
@@ -184,13 +203,18 @@ export async function executeChart({
     graphqlData,
     variables,
   });
-  return { kind, output };
+  return { kind, output, timings };
 }
 
 interface RefreshChartArgs {
   queryId: string;
   predicate: unknown;
   apolloServer: ApolloServer<ExpressContext>;
+}
+
+export interface RefreshChartResult {
+  entry: ChartEntry;
+  timings: PipelineTimings;
 }
 
 // Re-runs the stored graphQuery + jqQuery for a chart against a new predicate
@@ -201,7 +225,7 @@ export async function refreshChart({
   queryId,
   predicate,
   apolloServer,
-}: RefreshChartArgs): Promise<ChartEntry> {
+}: RefreshChartArgs): Promise<RefreshChartResult> {
   const config = getChartConfig(queryId);
   if (!config) {
     throw new McpError(`Chart config not found for queryId ${queryId}`, 404);
@@ -210,7 +234,7 @@ export async function refreshChart({
   if (!existing) {
     throw new McpError(`No chart to refresh for queryId ${queryId}`, 400);
   }
-  const { output, graphqlData, variables } = await runChart({
+  const { output, graphqlData, variables, timings } = await runChart({
     graphQuery: existing.graphQuery,
     jqQuery: existing.jqQuery,
     kind: existing.kind,
@@ -224,5 +248,5 @@ export async function refreshChart({
     variables,
   };
   setChartEntry(queryId, 0, updated);
-  return updated;
+  return { entry: updated, timings };
 }

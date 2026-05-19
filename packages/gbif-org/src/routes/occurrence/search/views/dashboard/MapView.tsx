@@ -118,12 +118,23 @@ export default function MapView({ geojson, className }: Props) {
     };
   }, [geojson]);
 
-  const legend = (geojson as FeatureCollectionLike)?.legend;
+  const fc = geojson as FeatureCollectionLike;
+  const legend = fc?.legend;
   const showLegend = isLegend(legend) && legend.items.length > 0;
+  // Count of features actually rendered after the LLM's select() filter.
+  // The LLM is instructed to use documents(size: N, shuffle: <seed>); this is
+  // the size of the random sample after dropping records with missing
+  // coordinates.
+  const renderedCount = Array.isArray(fc?.features) ? fc.features.length : 0;
 
   return (
     <div className={`g-relative ${className ?? 'g-w-full g-h-96'}`}>
       <div ref={containerRef} className="g-w-full g-h-full" />
+      {renderedCount > 0 && (
+        <div className="g-absolute g-top-2 g-left-2 g-bg-white/90 g-rounded g-shadow g-px-2 g-py-1 g-text-xs g-text-slate-600 g-pointer-events-none">
+          Random sample of {renderedCount.toLocaleString()} points
+        </div>
+      )}
       {showLegend && (
         <div className="g-absolute g-bottom-2 g-right-2 g-bg-white/90 g-rounded g-shadow g-p-2 g-text-xs g-max-w-[40%] g-pointer-events-none">
           {legend.title && (

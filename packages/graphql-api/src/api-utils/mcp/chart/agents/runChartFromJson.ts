@@ -79,7 +79,7 @@ export async function runChartFromAgentJson({
   // client, retry feedback builder) see one consistent shape:
   //   { provider, model, usage, stage, graphQuery, jqQuery, variables, ... }
   try {
-    await executeChart({
+    const { timings } = await executeChart({
       graphQuery: obj.graphQuery,
       jqQuery: obj.jqQuery,
       kind,
@@ -94,6 +94,9 @@ export async function runChartFromAgentJson({
         kind,
         graphQuery: obj.graphQuery,
         jqQuery: obj.jqQuery,
+        // Pipeline-stage timings. runWithRetry will add llmMs / attempts /
+        // totalMs alongside these before returning to the client.
+        timings,
       },
     };
   } catch (err) {
