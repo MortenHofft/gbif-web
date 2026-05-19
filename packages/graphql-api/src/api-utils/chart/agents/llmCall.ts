@@ -205,6 +205,23 @@ const stageFeedbackers: Record<string, (d: Details, err: McpError) => string[]> 
     typeof d.content === 'string'
       ? [`Your raw response (which we could not parse as JSON):\n${truncate(d.content, 1000)}`]
       : [],
+  // Fires when the model returned a JSON object but the shape is wrong —
+  // typically `jqQuery` came back as a nested JSON object instead of a string
+  // of jq source code (model confusion between "build the chart options" and
+  // "build a jq program that builds the chart options").
+  'agent-shape': (d) => {
+    const lines = [
+      'IMPORTANT: "graphQuery" and "jqQuery" MUST be STRING fields. "jqQuery" contains jq SOURCE CODE as text — not the Highcharts options object itself, and not nested JSON. For example: "jqQuery": "{ chart: { type: \\"pie\\" }, series: [{ ... }] }". The host runs your jq source against the GraphQL response to produce the actual chart/map output.',
+    ];
+    if (d.parsed !== undefined) {
+      const repr =
+        typeof d.parsed === 'string'
+          ? d.parsed
+          : JSON.stringify(d.parsed, null, 2);
+      lines.push(`Your previous response (truncated):\n${truncate(repr, 1000)}`);
+    }
+    return lines;
+  },
 };
 
 // Builds the corrective user message we feed back to the model. Includes the

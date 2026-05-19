@@ -29,18 +29,26 @@ const REFRESH_PATH = '/chart/key/:key/refresh';
 
 // Shared error responder. McpError adds a status code and structured details
 // (set by executeChart / agents) that we pass through verbatim so the client
-// and the api log see the same shape.
+// and the api log see the same shape. Optional `extra` is merged into
+// details — used by the query route to attach the original user query
+// alongside whatever provider/model/stage info the agent surfaced.
 function respondWithError(
   res: Response,
   context: string,
   error: unknown,
+  extra?: Record<string, unknown>,
 ): Response {
   // eslint-disable-next-line no-console
   console.error(`${context}:`, error);
   const status = error instanceof McpError ? error.status : 500;
   const message =
     error instanceof Error ? error.message : 'Internal Server Error';
-  const details = error instanceof McpError ? error.details : undefined;
+  const baseDetails = error instanceof McpError ? error.details : undefined;
+  const baseObj =
+    baseDetails && typeof baseDetails === 'object'
+      ? (baseDetails as Record<string, unknown>)
+      : {};
+  const details = extra ? { ...baseObj, ...extra } : baseDetails;
   return res.status(status).json({ message, details });
 }
 
@@ -65,7 +73,9 @@ export default function chartController(
       const charts = getChartConfig(queryId);
       return res.json({ queryId, charts, llm });
     } catch (error) {
-      return respondWithError(res, 'Chart query error', error);
+      const query =
+        typeof req.body?.q === 'string' ? req.body.q : undefined;
+      return respondWithError(res, 'Chart query error', error, { query });
     }
   });
 

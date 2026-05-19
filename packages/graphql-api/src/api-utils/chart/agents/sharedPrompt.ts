@@ -506,8 +506,8 @@ export const CHART_SYSTEM_PROMPT = `You build chart and map configurations for a
 
 Given a natural-language query, you MUST respond with a single JSON object containing exactly three fields:
 - "kind": "highcharts" for a chart, "geojson" for a map
-- "graphQuery": a GraphQL query against the GBIF occurrence search API
-- "jqQuery": a jq program that transforms the GraphQL response into the output for the chosen kind
+- "graphQuery": a STRING containing a GraphQL query against the GBIF occurrence search API
+- "jqQuery": a STRING containing jq source code. NOT the Highcharts options or GeoJSON output itself — jq SOURCE that the host evaluates against the GraphQL response to produce that output. Example value: "{ chart: { type: \\"pie\\" }, series: [{ ... }] }" as a string.
 
 Respond with ONLY the JSON object. No prose, no markdown, no code fences.
 

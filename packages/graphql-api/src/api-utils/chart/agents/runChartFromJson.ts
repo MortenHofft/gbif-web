@@ -73,7 +73,12 @@ export async function runChartFromAgentJson({
       throw new McpError(
         `${provider} output is not valid JSON: ${text.slice(0, 300)}`,
         502,
-        { provider, model, stage: 'agent-json-parse', content: text },
+        {
+          provider,
+          model,
+          stage: 'agent-json-parse',
+          content: truncateForDetails(text),
+        },
       );
     }
   }
@@ -87,7 +92,12 @@ export async function runChartFromAgentJson({
     throw new McpError(
       `${provider} response missing string graphQuery or jqQuery`,
       502,
-      { provider, model, stage: 'agent-shape', parsed },
+      {
+        provider,
+        model,
+        stage: 'agent-shape',
+        parsed: truncateForDetails(parsed),
+      },
     );
   }
   // kind is optional for back-compat; defaults to highcharts.
@@ -129,6 +139,23 @@ export async function runChartFromAgentJson({
       { provider, model, usage, kind, ...innerDetails },
     );
   }
+}
+
+// Trim potentially-huge model outputs (stuck-in-a-loop responses can be
+// tens of kilobytes of recursive garbage) before stuffing them into the
+// HTTP error response. Returns the value unchanged if small; otherwise
+// returns a truncated JSON-stringified preview tagged with the original
+// length so the consumer knows it was cut.
+const MAX_DETAIL_LEN = 2000;
+function truncateForDetails(value: unknown): unknown {
+  let s: string;
+  try {
+    s = typeof value === 'string' ? value : JSON.stringify(value);
+  } catch {
+    return '[unserialisable]';
+  }
+  if (!s || s.length <= MAX_DETAIL_LEN) return value;
+  return `${s.slice(0, MAX_DETAIL_LEN)}\n...[truncated, ${s.length} total chars]`;
 }
 
 // Finds the first balanced { ... } in text, respecting JSON string literals
