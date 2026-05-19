@@ -81,6 +81,19 @@ function pipelineError(
 ): McpError {
   // eslint-disable-next-line no-console
   console.error(`[chart] runChart failed at stage ${stage}: ${message}`);
+  // For the noisiest stages also dump the structured payload — schema
+  // validation errors, jq output, etc. — so dev tails see what the model
+  // actually produced and what apollo / node-jq said in response.
+  if (stage === 'graphql' && extras.errors) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[chart] graphql errors:\n${JSON.stringify(extras.errors, null, 2)}`,
+    );
+  }
+  if (stage === 'parse-jq-output' && extras.jqOutput) {
+    // eslint-disable-next-line no-console
+    console.error(`[chart] jq output:\n${String(extras.jqOutput).slice(0, 2000)}`);
+  }
   return new McpError(message, status, {
     stage,
     graphQuery,

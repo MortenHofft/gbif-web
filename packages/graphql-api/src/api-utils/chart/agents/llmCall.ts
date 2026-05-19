@@ -111,8 +111,21 @@ export async function runWithRetry({
         `[chart] ${caller.provider} attempt ${attempt}/${maxAttempts} failed, retrying:`,
         lastError.message,
       );
+      const feedback = buildFeedback(lastError);
+      // Log the corrective message we're about to send. This is what the
+      // model actually sees on the retry; if it's not landing the fix,
+      // grep here first to verify the GraphQL error / jq output / etc.
+      // is being forwarded.
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[chart] ${caller.provider} retry feedback:\n${
+          feedback.length > 2000
+            ? feedback.slice(0, 2000) + `\n...[truncated, ${feedback.length} total chars]`
+            : feedback
+        }`,
+      );
       messages.push({ role: 'assistant', content: text });
-      messages.push({ role: 'user', content: buildFeedback(lastError) });
+      messages.push({ role: 'user', content: feedback });
     }
   }
 
