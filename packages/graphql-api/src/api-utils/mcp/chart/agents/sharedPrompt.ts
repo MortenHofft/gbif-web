@@ -315,12 +315,19 @@ When the map uses \`marker-color\` to encode a dimension, you MUST also emit a t
 
 \`type\` is "gradient" when the encoded dimension is a number bucketed into ordered ranges (latitude, year, count, ...) and "categorical" otherwise (basisOfRecord, country, ...).
 
-Use the dashboard's site palette for both \`marker-color\` and \`legend.items[].color\`:
+Use the dashboard's site palettes for both \`marker-color\` and \`legend.items[].color\`. There are TWO palettes — pick the one that matches your legend \`type\`:
 
-  #003f5c  #2f4b7c  #665191  #a05195  #d45087  #f95d6a  #ff7c43  #ffa600
-  #cea400  #a19f08  #789523  #558935
+**Categorical palette** — distinct hues, no inherent order. Use for \`type: "categorical"\` (basisOfRecord, country, mediaType, ...). Pick N colours, prefer the earlier entries for higher-priority categories:
 
-For **gradient** maps pick N ordered colours starting from the left of the palette (blue → orange is the natural sequential direction). For **categorical** maps pick N distinct colours from anywhere in the palette. Use the same hex strings in both the features' \`marker-color\` and the matching \`legend.items[].color\` so the legend lines up with the map.
+  #4C9C2E  #E37C72  #D1628E  #ECAC7C  #00B7EE  #6885C0
+  #664192  #F2BF48  #0078B4  #E8B0C6  #F7D991
+
+**Gradient palette** — ordered sequential hues (dark blue → purple → orange → green). Use for \`type: "gradient"\` (latitude, year, count, anything numeric bucketed into ordered bands). Pick N CONSECUTIVE colours so the order encodes the dimension's direction:
+
+  #003f5c  #2f4b7c  #665191  #a05195  #d45087  #f95d6a
+  #ff7c43  #ffa600  #cea400  #a19f08  #789523  #558935
+
+Use the same hex strings in both the features' \`marker-color\` and the matching \`legend.items[].color\` so the legend lines up with the map. NEVER use the gradient palette for categorical data (the hues encode order; categorical data has none) and NEVER use the categorical palette for ordered data (the hues are unordered).
 
 Plain map (no styling, no legend needed):
 {
@@ -336,7 +343,7 @@ Plain map (no styling, no legend needed):
   ]
 }
 
-Map coloured by a categorical attribute (e.g. basisOfRecord) — note the matching \`marker-color\` in features and \`color\` in legend items:
+Map coloured by a categorical attribute (e.g. basisOfRecord) — uses the **categorical** palette so colours read as distinct categories, not as an ordering. Matching hexes in features and legend:
 {
   type: "FeatureCollection",
   features: [
@@ -348,10 +355,10 @@ Map coloured by a categorical attribute (e.g. basisOfRecord) — note the matchi
         properties: {
           title: .basisOfRecord,
           "marker-color": (
-            if .basisOfRecord == "PRESERVED_SPECIMEN" then "#003f5c"
-            elif .basisOfRecord == "HUMAN_OBSERVATION" then "#a05195"
-            elif .basisOfRecord == "MACHINE_OBSERVATION" then "#ff7c43"
-            else "#789523" end
+            if .basisOfRecord == "PRESERVED_SPECIMEN" then "#4C9C2E"
+            elif .basisOfRecord == "HUMAN_OBSERVATION" then "#00B7EE"
+            elif .basisOfRecord == "MACHINE_OBSERVATION" then "#664192"
+            else "#F2BF48" end
           )
         }
       }
@@ -360,10 +367,10 @@ Map coloured by a categorical attribute (e.g. basisOfRecord) — note the matchi
     title: "Basis of record",
     type: "categorical",
     items: [
-      { label: "Preserved specimen", color: "#003f5c" },
-      { label: "Human observation", color: "#a05195" },
-      { label: "Machine observation", color: "#ff7c43" },
-      { label: "Other", color: "#789523" }
+      { label: "Preserved specimen", color: "#4C9C2E" },
+      { label: "Human observation", color: "#00B7EE" },
+      { label: "Machine observation", color: "#664192" },
+      { label: "Other", color: "#F2BF48" }
     ]
   }
 }

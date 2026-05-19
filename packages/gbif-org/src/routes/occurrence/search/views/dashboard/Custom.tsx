@@ -3,7 +3,12 @@ import isEqual from 'fast-deep-equal';
 import { parse, print } from 'graphql';
 import HighchartsReact from 'highcharts-react-official';
 import { FormattedMessage } from 'react-intl';
-import { MdInfoOutline, MdRefresh, MdRestore, MdWarning } from 'react-icons/md';
+import {
+  BsArrowClockwise,
+  BsArrowCounterclockwise,
+  BsInfoCircleFill,
+} from 'react-icons/bs';
+import { MdWarning } from 'react-icons/md';
 import { useConfig } from '@/config/config';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardTitle } from '@/components/ui/smallCard';
@@ -157,7 +162,7 @@ export default function CustomChart({ queryId, predicate }: Props) {
         onClick={() => setShowSource((s) => !s)}
         title="Show source query"
       >
-        <MdInfoOutline />
+        <BsInfoCircleFill />
       </Button>
       <Button
         variant="link"
@@ -167,7 +172,7 @@ export default function CustomChart({ queryId, predicate }: Props) {
         onClick={() => refresh(predicate)}
         title="Refresh with current filters"
       >
-        <MdRefresh />
+        <BsArrowClockwise />
       </Button>
       <Button
         variant="link"
@@ -177,7 +182,7 @@ export default function CustomChart({ queryId, predicate }: Props) {
         onClick={() => refresh(originalPredicate)}
         title="Restore original filters"
       >
-        <MdRestore />
+        <BsArrowCounterclockwise />
       </Button>
     </div>
   );
