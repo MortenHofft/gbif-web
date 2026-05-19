@@ -1,5 +1,10 @@
 import { McpError } from '../errors';
-import { ChatMessage, LlmCaller, runWithRetry } from './llmCall';
+import {
+  ChatMessage,
+  LlmCaller,
+  runWithRetry,
+  wrapFetchError,
+} from './llmCall';
 import { AgentArgs, AgentResult } from './types';
 
 export interface ChatAgentArgs extends AgentArgs {
@@ -54,11 +59,7 @@ export async function runChatAgent({
           }),
         });
       } catch (error) {
-        throw new McpError(
-          `${provider} API request failed: ${(error as Error).message}`,
-          502,
-          { provider, model, stage: 'network' },
-        );
+        throw wrapFetchError(provider, model, error);
       }
 
       if (!response.ok) {

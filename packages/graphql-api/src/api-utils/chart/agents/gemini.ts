@@ -1,6 +1,11 @@
 import rawConfig from '@/config';
 import { McpError } from '../errors';
-import { ChatMessage, LlmCaller, runWithRetry } from './llmCall';
+import {
+  ChatMessage,
+  LlmCaller,
+  runWithRetry,
+  wrapFetchError,
+} from './llmCall';
 import { CHART_SYSTEM_PROMPT } from './sharedPrompt';
 import { Agent } from './types';
 
@@ -86,11 +91,7 @@ export const geminiAgent: Agent = {
             body: JSON.stringify(toGeminiBody(messages)),
           });
         } catch (error) {
-          throw new McpError(
-            `${PROVIDER} API request failed: ${(error as Error).message}`,
-            502,
-            { provider: PROVIDER, model, stage: 'network' },
-          );
+          throw wrapFetchError(PROVIDER, model, error);
         }
 
         if (!response.ok) {

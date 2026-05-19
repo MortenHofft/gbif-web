@@ -249,3 +249,32 @@ function buildFeedback(err: McpError): string {
   );
   return lines.join('\n');
 }
+
+// Node's fetch throws errors with the very terse message "fetch failed";
+// the actual reason (DNS lookup failure, ECONNREFUSED, expired cert,
+// timeout, etc.) lives in error.cause. Surface it so the api log and the
+// HTTP error response don't lose the diagnostic.
+export function wrapFetchError(
+  provider: string,
+  model: string,
+  error: unknown,
+): McpError {
+  const e = error as Error & {
+    cause?: { code?: string; message?: string; errno?: number };
+  };
+  const causeBits: string[] = [];
+  if (e?.cause?.code) causeBits.push(e.cause.code);
+  if (e?.cause?.message && e.cause.message !== e.message)
+    causeBits.push(e.cause.message);
+  const causeStr = causeBits.length > 0 ? ` (${causeBits.join(': ')})` : '';
+  return new McpError(
+    `${provider} API request failed: ${e?.message ?? String(error)}${causeStr}`,
+    502,
+    {
+      provider,
+      model,
+      stage: 'network',
+      cause: e?.cause,
+    },
+  );
+}
