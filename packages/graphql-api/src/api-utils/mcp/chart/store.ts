@@ -123,5 +123,28 @@ function validateGeoJson(value: unknown): ValidationResult {
       error: 'Each feature must have a "geometry" object',
     };
   }
+  // Optional legend: a foreign member describing what the marker colours
+  // encode. RFC 7946 §6.1 permits foreign members; the frontend renders this
+  // as an overlay when present.
+  if ('legend' in obj && obj.legend !== undefined && obj.legend !== null) {
+    const legend = obj.legend as Record<string, unknown>;
+    if (typeof legend !== 'object') {
+      return { valid: false, error: '"legend" must be an object' };
+    }
+    if (!Array.isArray(legend.items)) {
+      return { valid: false, error: '"legend.items" must be an array' };
+    }
+    const firstItem = legend.items[0] as Record<string, unknown> | undefined;
+    if (
+      firstItem &&
+      (typeof firstItem.label !== 'string' ||
+        typeof firstItem.color !== 'string')
+    ) {
+      return {
+        valid: false,
+        error: 'Each legend item must have string "label" and "color" fields',
+      };
+    }
+  }
   return { valid: true };
 }

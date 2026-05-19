@@ -5,7 +5,9 @@
 // Scope: smallest map that handles the simplestyle subset our jq snippets
 // produce — marker-color for points, stroke/stroke-width/stroke-opacity and
 // fill/fill-opacity for lines/polygons. OSM basemap. Auto-fits to the
-// feature extent.
+// feature extent. If the FeatureCollection carries a top-level `legend`
+// foreign member (RFC 7946 §6.1) we render it as a small overlay so users
+// can read what the colours encode.
 import { useEffect, useRef } from 'react';
 import Feature from 'ol/Feature';
 import Map from 'ol/Map';
@@ -18,8 +20,21 @@ import VectorSource from 'ol/source/Vector';
 import { Circle, Fill, Stroke, Style } from 'ol/style';
 import 'ol/ol.css';
 
+type LegendItem = { label: string; color: string };
+type Legend = {
+  title?: string;
+  type?: 'categorical' | 'gradient';
+  items: LegendItem[];
+};
+
+type FeatureCollectionLike = {
+  type: 'FeatureCollection';
+  features: unknown[];
+  legend?: Legend;
+};
+
 type Props = {
-  geojson: object;
+  geojson: FeatureCollectionLike | object;
   className?: string;
 };
 
@@ -50,6 +65,12 @@ function styleFor(feature: Feature): Style {
     stroke: new Stroke({ color: strokeColor, width: strokeWidth }),
     fill: new Fill({ color: fillColor }),
   });
+}
+
+function isLegend(value: unknown): value is Legend {
+  if (!value || typeof value !== 'object') return false;
+  const l = value as Record<string, unknown>;
+  return Array.isArray(l.items);
 }
 
 export default function MapView({ geojson, className }: Props) {
@@ -97,5 +118,30 @@ export default function MapView({ geojson, className }: Props) {
     };
   }, [geojson]);
 
-  return <div ref={containerRef} className={className ?? 'g-w-full g-h-96'} />;
+  const legend = (geojson as FeatureCollectionLike)?.legend;
+  const showLegend = isLegend(legend) && legend.items.length > 0;
+
+  return (
+    <div className={`g-relative ${className ?? 'g-w-full g-h-96'}`}>
+      <div ref={containerRef} className="g-w-full g-h-full" />
+      {showLegend && (
+        <div className="g-absolute g-bottom-2 g-right-2 g-bg-white/90 g-rounded g-shadow g-p-2 g-text-xs g-max-w-[40%] g-pointer-events-none">
+          {legend.title && (
+            <div className="g-font-semibold g-mb-1">{legend.title}</div>
+          )}
+          <ul className="g-space-y-0.5">
+            {legend.items.map((item, i) => (
+              <li key={i} className="g-flex g-items-center g-gap-1.5">
+                <span
+                  className="g-inline-block g-w-3 g-h-3 g-rounded g-flex-none g-border g-border-solid g-border-slate-200"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className="g-truncate">{item.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 }

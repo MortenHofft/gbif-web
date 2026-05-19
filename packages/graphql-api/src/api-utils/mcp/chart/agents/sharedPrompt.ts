@@ -162,7 +162,7 @@ query MapByLatitude($predicate: Predicate) {
   }
 }
 
-A correct jqQuery:
+A correct jqQuery (uses ordered site-palette colours for the gradient and emits a matching legend):
 
 {
   type: "FeatureCollection",
@@ -177,22 +177,34 @@ A correct jqQuery:
         },
         properties: {
           "marker-color": (
-            if   .decimalLatitude >  60 then "#0033cc"
-            elif .decimalLatitude >  30 then "#0099ff"
-            elif .decimalLatitude >   0 then "#33cc66"
-            elif .decimalLatitude > -30 then "#ffcc33"
-            else                              "#cc3300"
+            if   .decimalLatitude >  60 then "#003f5c"
+            elif .decimalLatitude >  30 then "#2f4b7c"
+            elif .decimalLatitude >   0 then "#665191"
+            elif .decimalLatitude > -30 then "#d45087"
+            else                              "#ff7c43"
             end
           )
         }
       }
-  ]
+  ],
+  legend: {
+    title: "Latitude",
+    type: "gradient",
+    items: [
+      { label: "> 60°",      color: "#003f5c" },
+      { label: "30° to 60°", color: "#2f4b7c" },
+      { label: "0° to 30°",  color: "#665191" },
+      { label: "-30° to 0°", color: "#d45087" },
+      { label: "< -30°",     color: "#ff7c43" }
+    ]
+  }
 }
 
 Note:
 - GeoJSON coordinates are [longitude, latitude] — NOT [latitude, longitude].
 - Always \`select(...)\` to drop features with null coordinates; GBIF records often have missing lat/long.
 - The jq if/elif/else/end syntax produces a single value.
+- Whenever \`marker-color\` encodes a dimension, also emit a top-level \`legend\` so the renderer can show it; see the "Colours and legend" section.
 
 # Chart shape catalogue (kind: highcharts)
 
@@ -289,7 +301,28 @@ Simplestyle-spec keys you can put in each feature's \`properties\`:
 
 The host renders points as circles coloured by \`marker-color\`. Don't worry about basemaps or projections — those are handled by the renderer.
 
-Plain map (no styling):
+## Colours and legend
+
+When the map uses \`marker-color\` to encode a dimension, you MUST also emit a top-level \`legend\` field on the FeatureCollection so the renderer can show it next to the map. \`legend\` is a foreign member of the FeatureCollection (allowed by RFC 7946 §6.1) with this shape:
+
+{
+  "title": "<short label for the encoded dimension>",
+  "type": "categorical" | "gradient",
+  "items": [
+    { "label": "<bucket label>", "color": "<hex used in marker-color>" }
+  ]
+}
+
+\`type\` is "gradient" when the encoded dimension is a number bucketed into ordered ranges (latitude, year, count, ...) and "categorical" otherwise (basisOfRecord, country, ...).
+
+Use the dashboard's site palette for both \`marker-color\` and \`legend.items[].color\`:
+
+  #003f5c  #2f4b7c  #665191  #a05195  #d45087  #f95d6a  #ff7c43  #ffa600
+  #cea400  #a19f08  #789523  #558935
+
+For **gradient** maps pick N ordered colours starting from the left of the palette (blue → orange is the natural sequential direction). For **categorical** maps pick N distinct colours from anywhere in the palette. Use the same hex strings in both the features' \`marker-color\` and the matching \`legend.items[].color\` so the legend lines up with the map.
+
+Plain map (no styling, no legend needed):
 {
   type: "FeatureCollection",
   features: [
@@ -303,7 +336,7 @@ Plain map (no styling):
   ]
 }
 
-Map coloured by a categorical attribute (e.g. basisOfRecord):
+Map coloured by a categorical attribute (e.g. basisOfRecord) — note the matching \`marker-color\` in features and \`color\` in legend items:
 {
   type: "FeatureCollection",
   features: [
@@ -315,14 +348,58 @@ Map coloured by a categorical attribute (e.g. basisOfRecord):
         properties: {
           title: .basisOfRecord,
           "marker-color": (
-            if .basisOfRecord == "PRESERVED_SPECIMEN" then "#4C9C2E"
-            elif .basisOfRecord == "HUMAN_OBSERVATION" then "#00B7EE"
-            elif .basisOfRecord == "MACHINE_OBSERVATION" then "#664192"
-            else "#888888" end
+            if .basisOfRecord == "PRESERVED_SPECIMEN" then "#003f5c"
+            elif .basisOfRecord == "HUMAN_OBSERVATION" then "#a05195"
+            elif .basisOfRecord == "MACHINE_OBSERVATION" then "#ff7c43"
+            else "#789523" end
           )
         }
       }
-  ]
+  ],
+  legend: {
+    title: "Basis of record",
+    type: "categorical",
+    items: [
+      { label: "Preserved specimen", color: "#003f5c" },
+      { label: "Human observation", color: "#a05195" },
+      { label: "Machine observation", color: "#ff7c43" },
+      { label: "Other", color: "#789523" }
+    ]
+  }
+}
+
+Map coloured by a numeric attribute (e.g. latitude bands) — gradient legend using ordered palette colours:
+{
+  type: "FeatureCollection",
+  features: [
+    .data.occurrenceSearch.documents.results[]
+    | select(.decimalLatitude != null and .decimalLongitude != null)
+    | {
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [.decimalLongitude, .decimalLatitude] },
+        properties: {
+          "marker-color": (
+            if   .decimalLatitude >  60 then "#003f5c"
+            elif .decimalLatitude >  30 then "#2f4b7c"
+            elif .decimalLatitude >   0 then "#665191"
+            elif .decimalLatitude > -30 then "#d45087"
+            else                              "#ff7c43"
+            end
+          )
+        }
+      }
+  ],
+  legend: {
+    title: "Latitude",
+    type: "gradient",
+    items: [
+      { label: "> 60°",      color: "#003f5c" },
+      { label: "30° to 60°", color: "#2f4b7c" },
+      { label: "0° to 30°",  color: "#665191" },
+      { label: "-30° to 0°", color: "#d45087" },
+      { label: "< -30°",     color: "#ff7c43" }
+    ]
+  }
 }
 
 # Notes
