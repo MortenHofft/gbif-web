@@ -1,11 +1,6 @@
-import rawConfig from '@/config';
 import { McpError } from '../errors';
 import { ChatMessage, LlmCaller, runWithRetry } from './llmCall';
 import { AgentArgs, AgentResult } from './types';
-
-const config = rawConfig as typeof rawConfig & {
-  chartAgentMaxAttempts?: number;
-};
 
 export interface ChatAgentArgs extends AgentArgs {
   // Identifier used in logs and AgentResult.provider.
@@ -99,6 +94,5 @@ export async function runChatAgent({
     userQuery: query,
     queryId,
     apolloServer,
-    maxAttempts: config.chartAgentMaxAttempts ?? 2,
   });
 }

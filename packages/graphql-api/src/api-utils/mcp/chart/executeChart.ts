@@ -24,15 +24,32 @@ interface RunChartResult {
   variables: Record<string, unknown>;
 }
 
+// Each McpError thrown from this module carries the same details shape so
+// downstream code (chart.ctrl.ts → HTTP response; llmCall.ts → corrective
+// retry feedback) can rely on it.
+function pipelineError(
+  message: string,
+  status: number,
+  stage: string,
+  graphQuery: string,
+  jqQuery: string,
+  variables: Record<string, unknown>,
+  extras: Record<string, unknown> = {},
+): McpError {
+  // eslint-disable-next-line no-console
+  console.error(`[chart] runChart failed at stage ${stage}: ${message}`);
+  return new McpError(message, status, {
+    stage,
+    graphQuery,
+    jqQuery,
+    variables,
+    ...extras,
+  });
+}
+
 // Shared core: run the GraphQL query, pipe through jq, validate the
 // Highcharts options. No store mutation — callers decide where the result
 // lands (executeChart appends a new entry; refreshChart replaces one).
-//
-// On any failure, the thrown McpError carries the inputs (graphQuery, jqQuery,
-// variables) and the most useful intermediate value (raw GraphQL response or
-// jq output) in `details`, and the same snapshot is logged to the server
-// console. That way both the client and the dev tail of the api log see what
-// the agent actually produced.
 async function runChart({
   graphQuery,
   jqQuery,
@@ -46,16 +63,6 @@ async function runChart({
     from: 0,
   };
 
-  const logFailure = (stage: string, extra: Record<string, unknown>) => {
-    // eslint-disable-next-line no-console
-    console.error(`[chart] ${stage} failed`, {
-      graphQuery,
-      jqQuery,
-      variables,
-      ...extra,
-    });
-  };
-
   let response: { data?: unknown; errors?: ReadonlyArray<{ message: string }> };
   try {
     response = await apolloServer.executeOperation({
@@ -63,29 +70,27 @@ async function runChart({
       variables,
     });
   } catch (error) {
-    const reason = (error as Error).message;
-    const stack = (error as Error).stack;
-    logFailure('graphql execute', { reason, stack });
-    throw new McpError(
-      `Failed to execute GraphQL query: ${reason}`,
+    throw pipelineError(
+      `Failed to execute GraphQL query: ${(error as Error).message}`,
       500,
-      { stage: 'graphql', graphQuery, jqQuery, variables, reason },
+      'graphql',
+      graphQuery,
+      jqQuery,
+      variables,
+      { reason: (error as Error).message },
     );
   }
 
   if (response.errors && response.errors.length > 0) {
     const messages = response.errors.map((e) => e.message).join(', ');
-    logFailure('graphql errors', { errors: response.errors });
-    throw new McpError(
+    throw pipelineError(
       `GraphQL query errors: ${messages}`,
       400,
-      {
-        stage: 'graphql',
-        graphQuery,
-        jqQuery,
-        variables,
-        errors: response.errors,
-      },
+      'graphql',
+      graphQuery,
+      jqQuery,
+      variables,
+      { errors: response.errors },
     );
   }
 
@@ -94,19 +99,14 @@ async function runChart({
     const clean = JSON.parse(JSON.stringify(response));
     jqResult = await jq.run(jqQuery, clean, { input: 'json' });
   } catch (error) {
-    const reason = (error as Error).message;
-    logFailure('jq', { reason, graphqlData: response });
-    throw new McpError(
-      `jq failed: ${reason}`,
+    throw pipelineError(
+      `jq failed: ${(error as Error).message}`,
       400,
-      {
-        stage: 'jq',
-        graphQuery,
-        jqQuery,
-        variables,
-        reason,
-        graphqlData: response,
-      },
+      'jq',
+      graphQuery,
+      jqQuery,
+      variables,
+      { reason: (error as Error).message, graphqlData: response },
     );
   }
 
@@ -114,28 +114,27 @@ async function runChart({
   try {
     chartOptions = JSON.parse(jqResult);
   } catch (error) {
-    logFailure('parse jq output', { jqOutput: jqResult });
-    throw new McpError(
+    throw pipelineError(
       `jq output is not valid JSON: ${(error as Error).message}`,
       400,
-      { stage: 'parse-jq-output', graphQuery, jqQuery, variables, jqOutput: jqResult },
+      'parse-jq-output',
+      graphQuery,
+      jqQuery,
+      variables,
+      { jqOutput: jqResult },
     );
   }
 
   const validation = validateHighchartsOptions(chartOptions);
   if (!validation.valid) {
-    logFailure('highcharts validation', { chartOptions });
-    throw new McpError(
+    throw pipelineError(
       `Invalid Highcharts options: ${validation.error}`,
       400,
-      {
-        stage: 'highcharts',
-        graphQuery,
-        jqQuery,
-        variables,
-        chartOptions,
-        reason: validation.error,
-      },
+      'highcharts',
+      graphQuery,
+      jqQuery,
+      variables,
+      { chartOptions, reason: validation.error },
     );
   }
 
@@ -150,7 +149,6 @@ interface ExecuteChartArgs {
 }
 
 export interface ExecuteChartResult {
-  chartId: string;
   chartOptions: Record<string, unknown>;
 }
 
@@ -168,14 +166,14 @@ export async function executeChart({
     predicate,
     apolloServer,
   });
-  const chartId = addChart(queryId, {
+  addChart(queryId, {
     chartOptions,
     graphQuery,
     jqQuery,
     graphqlData,
     variables,
   });
-  return { chartId, chartOptions };
+  return { chartOptions };
 }
 
 interface RefreshChartArgs {

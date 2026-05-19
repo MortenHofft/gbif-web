@@ -9,7 +9,6 @@ export interface AgentArgs {
 
 export interface AgentResult {
   provider: string;
-  chartId: string;
   // Free-form per-agent debug data (model id, token usage, raw output, etc.).
   // Sent back to the caller of POST /mcp/chart/query so we can compare agents
   // side-by-side while experimenting.

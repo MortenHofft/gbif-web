@@ -21,8 +21,8 @@ export interface RunChartFromJsonArgs {
 // Shared step that every chart agent shares once it has the model's text
 // output: parse JSON, validate the { graphQuery, jqQuery } shape, run the
 // GraphQL + jq + Highcharts pipeline, return the AgentResult. All failures
-// are thrown as McpError with `details` populated so the HTTP response and
-// the server console both surface what the model produced.
+// are thrown as McpError with `details` flattened so the HTTP response and
+// the corrective retry feedback both consume a single shape.
 export async function runChartFromAgentJson({
   provider,
   model,
@@ -32,12 +32,17 @@ export async function runChartFromAgentJson({
   apolloServer,
 }: RunChartFromJsonArgs): Promise<AgentResult> {
   // eslint-disable-next-line no-console
-  console.log(`[chart] ${provider} raw response`, { model, usage, content: text });
+  console.log(`[chart] ${provider} raw response`, {
+    model,
+    usage,
+    content: text,
+  });
 
   if (typeof text !== 'string' || text.length === 0) {
     throw new McpError(`${provider} returned no message content`, 502, {
       provider,
       model,
+      stage: 'agent-empty',
     });
   }
 
@@ -48,7 +53,7 @@ export async function runChartFromAgentJson({
     throw new McpError(
       `${provider} output is not valid JSON: ${text.slice(0, 300)}`,
       502,
-      { provider, model, content: text },
+      { provider, model, stage: 'agent-json-parse', content: text },
     );
   }
 
@@ -57,14 +62,17 @@ export async function runChartFromAgentJson({
     throw new McpError(
       `${provider} response missing string graphQuery or jqQuery`,
       502,
-      { provider, model, parsed },
+      { provider, model, stage: 'agent-shape', parsed },
     );
   }
 
-  // Wrap executeChart errors so the model output is visible alongside the
-  // pipeline failure (graphql/jq/highcharts).
+  // Wrap executeChart errors so the agent's provider/model context is
+  // attached alongside the pipeline-stage details. Flatten the inner
+  // details rather than nesting under `pipeline`, so consumers (HTTP
+  // client, retry feedback builder) see one consistent shape:
+  //   { provider, model, usage, stage, graphQuery, jqQuery, variables, ... }
   try {
-    const { chartId } = await executeChart({
+    await executeChart({
       graphQuery: obj.graphQuery,
       jqQuery: obj.jqQuery,
       queryId,
@@ -72,22 +80,15 @@ export async function runChartFromAgentJson({
     });
     return {
       provider,
-      chartId,
       raw: { model, usage, graphQuery: obj.graphQuery, jqQuery: obj.jqQuery },
     };
   } catch (err) {
     const inner = err instanceof McpError ? err : undefined;
+    const innerDetails = (inner?.details ?? {}) as Record<string, unknown>;
     throw new McpError(
       err instanceof Error ? err.message : String(err),
       inner?.status ?? 500,
-      {
-        provider,
-        model,
-        usage,
-        graphQuery: obj.graphQuery,
-        jqQuery: obj.jqQuery,
-        pipeline: inner?.details,
-      },
+      { provider, model, usage, ...innerDetails },
     );
   }
 }

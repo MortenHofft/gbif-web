@@ -16,7 +16,6 @@ const config = rawConfig as typeof rawConfig & {
   // to -1 for dynamic, or a positive integer to allow up to N thinking
   // tokens. Only relevant for thinking-capable models (Gemini 2.5+, Gemini 3+).
   geminiThinkingBudget?: number;
-  chartAgentMaxAttempts?: number;
 };
 
 const PROVIDER = 'gemini';
@@ -165,7 +164,6 @@ export const geminiAgent: Agent = {
       userQuery: query,
       queryId,
       apolloServer,
-      maxAttempts: config.chartAgentMaxAttempts ?? 2,
     });
   },
 };

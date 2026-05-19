@@ -30,13 +30,12 @@ export function getAllKeys(): string[] {
   return chartCache.keys();
 }
 
-export function addChart(queryId: string, chart: ChartEntry): string {
+export function addChart(queryId: string, chart: ChartEntry): void {
   const existing = chartCache.get<ChartConfig>(queryId);
   const obj: ChartConfig = existing ?? { charts: [] };
   obj.charts = obj.charts || [];
   obj.charts.push(chart);
   chartCache.set(queryId, obj);
-  return queryId;
 }
 
 export function setChartEntry(

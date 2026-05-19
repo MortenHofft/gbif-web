@@ -2,9 +2,8 @@ import { ApolloServer } from 'apollo-server-express';
 import { ExpressContext } from 'apollo-server-express/dist/ApolloServer';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { SEARCH_GUIDE, USAGE_TOKEN } from './guide';
+import { SEARCH_GUIDE } from './guide';
 import { executeChart } from './executeChart';
-import { McpError } from './errors';
 
 export function registerChartTools(
   server: McpServer,
@@ -24,7 +23,9 @@ export function registerChartTools(
     'gbif_usage_guidelines',
     {
       description:
-        'Always read this before using GBIF data. Provides essential guidelines. This is also where you will find the usageToken needed for the other tools. The query parameter is required.',
+        'Read this before calling create_visualization. Provides the GBIF schema, the jq + Highcharts output shape, and worked examples.',
+      // The SDK's input-schema type is stricter than the Zod-raw-shape we
+      // pass; runtime works fine, so cast through any.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       inputSchema: guidelinesInput as any,
     },
@@ -34,11 +35,6 @@ export function registerChartTools(
   );
 
   const createVizInput = {
-    usageToken: z
-      .string()
-      .describe(
-        'This token is required to use the tool (obtain from gbif_usage_guidelines).',
-      ),
     queryId: z
       .string()
       .min(1)
@@ -49,13 +45,13 @@ export function registerChartTools(
       .string()
       .min(1)
       .describe(
-        'A required GraphQL query to fetch the data needed for the chart. The result is piped through jqQuery before being interpreted as a Highcharts options object.',
+        'A GraphQL query to fetch the data needed for the chart. The result is piped through jqQuery before being interpreted as a Highcharts options object.',
       ),
     jqQuery: z
       .string()
       .min(1)
       .describe(
-        'A required jq query that transforms the GraphQL response into a Highcharts options object (must include a "series" array).',
+        'A jq program that transforms the GraphQL response into a Highcharts options object (must include a "series" array). Strings MUST use double quotes.',
       ),
   };
 
@@ -63,37 +59,24 @@ export function registerChartTools(
     'create_visualization',
     {
       description:
-        'Create a chart from species occurrence records. The jq result must be a valid Highcharts options object. Read gbif_usage_guidelines first. Supports faceting for aggregated counts by dimension.',
+        'Create a chart from species occurrence records. The jq result must be a valid Highcharts options object. Read gbif_usage_guidelines first for the schema, jq rules, and worked examples.',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       inputSchema: createVizInput as any,
     },
     async (args: unknown) => {
-      const { usageToken, queryId, graphQuery, jqQuery } = args as {
-        usageToken: string;
+      const { queryId, graphQuery, jqQuery } = args as {
         queryId: string;
         graphQuery: string;
         jqQuery: string;
       };
 
-      if (usageToken !== USAGE_TOKEN) {
-        throw new McpError(
-          'You must provide a valid usageToken to use this tool. Obtain it from the gbif_usage_guidelines tool.',
-          400,
-        );
-      }
-
-      const { chartId } = await executeChart({
-        graphQuery,
-        jqQuery,
-        queryId,
-        apolloServer,
-      });
+      await executeChart({ graphQuery, jqQuery, queryId, apolloServer });
 
       return {
         content: [
           {
             type: 'text' as const,
-            text: `Chart configuration saved with ID: ${chartId}`,
+            text: `Chart configuration saved with ID: ${queryId}`,
           },
         ],
       };

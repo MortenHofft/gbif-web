@@ -2,24 +2,24 @@
  * Chart MCP endpoint, exposed as a remote MCP server over the Streamable HTTP
  * transport at /mcp/chart. Two tools: gbif_usage_guidelines + create_visualization.
  *
- * Companion REST routes:
- *   POST /mcp/chart/query              — server-driven flow: run the chart
- *                                        agent (currently a deterministic stub
- *                                        that always produces a basisOfRecord
- *                                        pie chart) and return the saved
- *                                        chart configs.
+ * Companion REST routes used by the dashboard:
+ *   POST /mcp/chart/query              — run the configured chart agent
+ *                                        (mock / mistral / groq / gemini —
+ *                                        see ./agents) against a natural-
+ *                                        language query, store the resulting
+ *                                        chart, and return the saved config.
  *   GET  /mcp/chart/key/:key           — fetch a saved chart config (or
  *                                        "_list" for keys).
  *   POST /mcp/chart/key/:key/refresh   — re-run the stored graphQuery +
  *                                        jqQuery against a new predicate
- *                                        (passed in the body). The original
+ *                                        (body: { predicate }). The original
  *                                        predicate on the ChartConfig is not
  *                                        mutated, so the client can still
  *                                        offer "restore original".
  *
  * Auth: when config.mcpApiToken is set, the MCP endpoint requires
- * Authorization: Bearer <token>. The conversation/chart-store id flows through
- * as the queryId tool argument (no Authorization-header smuggling).
+ * Authorization: Bearer <token>. The companion REST routes are open — the
+ * dashboard is their only intended caller.
  *
  * Security: same Origin/Host DNS-rebinding guard as helloWorld.
  */
@@ -119,6 +119,23 @@ function requireMcpToken(req: Request, res: Response, next: NextFunction) {
   return res.status(401).json({ message: 'Unauthorized' });
 }
 
+// Shared error responder for the companion REST routes. McpError adds a
+// status code and structured details (set by executeChart / agents) that we
+// pass through verbatim so the client and the api log see the same shape.
+function respondWithError(
+  res: Response,
+  context: string,
+  error: unknown,
+): Response {
+  // eslint-disable-next-line no-console
+  console.error(`${context}:`, error);
+  const status = error instanceof McpError ? error.status : 500;
+  const message =
+    error instanceof Error ? error.message : 'Internal Server Error';
+  const details = error instanceof McpError ? error.details : undefined;
+  return res.status(status).json({ message, details });
+}
+
 export default function mcpChartController(
   app: Application,
   apolloServer: ApolloServer<ExpressContext>,
@@ -179,9 +196,9 @@ export default function mcpChartController(
     });
   });
 
-  // Server-driven flow: a website dashboard posts a natural-language query and
-  // the current GBIF predicate; we hand it to Claude, which calls our own MCP
-  // server to build chart configs, and we return whatever charts were stored.
+  // Dashboard posts a natural-language query plus the current GBIF predicate.
+  // Run the configured chart agent (see ./agents), persist the result keyed
+  // by hash({query, predicate}), return the saved config.
   app.post(QUERY_PATH, async (req, res) => {
     try {
       const { predicate, q: query } = req.body ?? {};
@@ -196,13 +213,7 @@ export default function mcpChartController(
       const charts = getChartConfig(queryId);
       return res.json({ queryId, charts, llm });
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Chart query error:', error);
-      const status = error instanceof McpError ? error.status : 500;
-      const message =
-        error instanceof Error ? error.message : 'Internal Server Error';
-      const details = error instanceof McpError ? error.details : undefined;
-      return res.status(status).json({ message, details });
+      return respondWithError(res, 'Chart query error', error);
     }
   });
 
@@ -221,13 +232,7 @@ export default function mcpChartController(
       });
       return res.json(updated);
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Chart refresh error:', error);
-      const status = error instanceof McpError ? error.status : 500;
-      const message =
-        error instanceof Error ? error.message : 'Internal Server Error';
-      const details = error instanceof McpError ? error.details : undefined;
-      return res.status(status).json({ message, details });
+      return respondWithError(res, 'Chart refresh error', error);
     }
   });
 
@@ -244,9 +249,7 @@ export default function mcpChartController(
       }
       return res.json(chartConfig);
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Error fetching chart config:', error);
-      return res.status(500).json({ message: 'Internal Server Error' });
+      return respondWithError(res, 'Error fetching chart config', error);
     }
   });
 }

@@ -1,8 +1,17 @@
 import { ApolloServer } from 'apollo-server-express';
 import { ExpressContext } from 'apollo-server-express/dist/ApolloServer';
+import rawConfig from '@/config';
 import { McpError } from '../errors';
 import { runChartFromAgentJson } from './runChartFromJson';
 import { AgentResult } from './types';
+
+const config = rawConfig as typeof rawConfig & {
+  chartAgentMaxAttempts?: number;
+};
+
+// Total attempts including the initial call. 2 = one corrective retry.
+// Override per environment via chartAgentMaxAttempts in .env.
+const DEFAULT_MAX_ATTEMPTS = 2;
 
 // Provider-agnostic chat message. Each agent maps these onto its own wire
 // format (OpenAI-shape messages, Gemini contents+systemInstruction, ...).
@@ -34,22 +43,19 @@ interface RunWithRetryArgs {
   userQuery: string;
   queryId: string;
   apolloServer: ApolloServer<ExpressContext>;
-  // Total attempts including the initial call. Default 2 = one corrective
-  // retry. Override via config.chartAgentMaxAttempts.
-  maxAttempts?: number;
 }
 
 // Orchestrates the call-and-parse loop with self-correction. On the first
 // failure the model's previous output plus the pipeline error are appended
-// to the message history and we try again, up to maxAttempts total.
+// to the message history and we try again, up to chartAgentMaxAttempts total.
 export async function runWithRetry({
   caller,
   systemPrompt,
   userQuery,
   queryId,
   apolloServer,
-  maxAttempts = 2,
 }: RunWithRetryArgs): Promise<AgentResult> {
+  const maxAttempts = config.chartAgentMaxAttempts ?? DEFAULT_MAX_ATTEMPTS;
   const messages: ChatMessage[] = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userQuery },
@@ -92,97 +98,94 @@ export async function runWithRetry({
   );
 }
 
+// -----------------------------------------------------------------------------
+// Corrective feedback messages.
+//
+// Each pipeline stage has its own helper that turns the error details into a
+// short, focused note. The dispatch table makes it easy to add stages and
+// keeps the per-stage hints next to the stage they describe.
+// -----------------------------------------------------------------------------
+
+type Details = Record<string, unknown>;
+
+const truncate = (s: string, limit: number) =>
+  s.length > limit ? `${s.slice(0, limit)}\n...[truncated]` : s;
+
+const stringField = (d: Details, key: string): string | undefined =>
+  typeof d[key] === 'string' ? (d[key] as string) : undefined;
+
+const stageFeedbackers: Record<string, (d: Details, err: McpError) => string[]> = {
+  jq: (d, err) => {
+    const lines: string[] = [];
+    if (d.graphqlData) {
+      lines.push(
+        `For reference, the GraphQL response had this shape (truncated):\n${truncate(
+          JSON.stringify(d.graphqlData, null, 2),
+          2000,
+        )}`,
+      );
+    }
+    // Targeted hints for jq quoting mistakes. Small models inherit the
+    // single-quote habit from Python/JS-flavoured training data; the jq error
+    // ("Unix shell quoting issues?") is misleading enough that a generic retry
+    // doesn't fix it.
+    const jqQuery = stringField(d, 'jqQuery');
+    if (jqQuery && /'[^']*'/.test(jqQuery)) {
+      lines.push(
+        "IMPORTANT: your jq uses single quotes ('...'), which are NOT valid in jq. Replace EVERY single-quoted string with a double-quoted string (\"...\").",
+      );
+    } else if (/Unix shell quoting|INVALID_CHARACTER/.test(err.message)) {
+      lines.push(
+        'IMPORTANT: jq strings must use double quotes ("..."). If you used any other quote style, switch to double quotes.',
+      );
+    }
+    return lines;
+  },
+  graphql: (d) =>
+    d.errors
+      ? [`GraphQL errors:\n${truncate(JSON.stringify(d.errors, null, 2), 1000)}`]
+      : [],
+  'parse-jq-output': (d) =>
+    d.jqOutput
+      ? [`Your jq produced this non-JSON output:\n${truncate(String(d.jqOutput), 1000)}`]
+      : [],
+  highcharts: (d) =>
+    d.chartOptions
+      ? [
+          `Your jq produced these Highcharts options:\n${truncate(
+            JSON.stringify(d.chartOptions, null, 2),
+            1000,
+          )}`,
+        ]
+      : [],
+  'agent-json-parse': (d) =>
+    typeof d.content === 'string'
+      ? [`Your raw response (which we could not parse as JSON):\n${truncate(d.content, 1000)}`]
+      : [],
+};
+
 // Builds the corrective user message we feed back to the model. Includes the
 // stage, the error, and just enough pipeline context for the model to fix its
 // own output — without dumping the full GraphQL response.
 function buildFeedback(err: McpError): string {
-  const details = (err.details ?? {}) as Record<string, unknown>;
-  const pipeline = (details.pipeline ?? {}) as Record<string, unknown>;
-  const stage = (pipeline.stage as string | undefined) ?? (details.stage as string | undefined);
+  const d = (err.details ?? {}) as Details;
+  const stage = stringField(d, 'stage');
+  const graphQuery = stringField(d, 'graphQuery');
+  const jqQuery = stringField(d, 'jqQuery');
 
-  const lines: string[] = [];
-  lines.push('Your previous response failed.');
+  const lines: string[] = ['Your previous response failed.'];
   if (stage) lines.push(`Stage: ${stage}`);
   lines.push(`Error: ${err.message}`);
-
-  const graphQuery =
-    (details.graphQuery as string | undefined) ??
-    (pipeline.graphQuery as string | undefined);
-  const jqQuery =
-    (details.jqQuery as string | undefined) ??
-    (pipeline.jqQuery as string | undefined);
   if (graphQuery) lines.push(`\nYour previous graphQuery:\n${graphQuery}`);
   if (jqQuery) lines.push(`\nYour previous jqQuery:\n${jqQuery}`);
 
-  if (stage === 'jq' && pipeline.graphqlData) {
-    lines.push(
-      `\nFor reference, the GraphQL response had this shape (truncated):\n${truncate(
-        JSON.stringify(pipeline.graphqlData, null, 2),
-        2000,
-      )}`,
-    );
-  }
-
-  // Targeted hint for the single-quotes habit small models inherit from their
-  // Python/JS-flavoured training data. The jq error "Unix shell quoting
-  // issues?" is misleading; calling it out plainly tends to get the fix
-  // right on retry.
-  if (
-    stage === 'jq' &&
-    typeof jqQuery === 'string' &&
-    /'[^']*'/.test(jqQuery)
-  ) {
-    lines.push(
-      "\nIMPORTANT: your jq uses single quotes ('...'), which are NOT valid in jq. Replace EVERY single-quoted string with a double-quoted string (\"...\").",
-    );
-  }
-  if (
-    stage === 'jq' &&
-    typeof err.message === 'string' &&
-    /Unix shell quoting|INVALID_CHARACTER/.test(err.message) &&
-    !(typeof jqQuery === 'string' && /'[^']*'/.test(jqQuery))
-  ) {
-    lines.push(
-      '\nIMPORTANT: jq strings must use double quotes ("..."). If you used any other quote style, switch to double quotes.',
-    );
-  }
-  if (stage === 'graphql' && pipeline.errors) {
-    lines.push(
-      `\nGraphQL errors:\n${truncate(
-        JSON.stringify(pipeline.errors, null, 2),
-        1000,
-      )}`,
-    );
-  }
-  if (stage === 'parse-jq-output' && pipeline.jqOutput) {
-    lines.push(
-      `\nYour jq produced this non-JSON output:\n${truncate(
-        String(pipeline.jqOutput),
-        1000,
-      )}`,
-    );
-  }
-  if (stage === 'highcharts' && pipeline.chartOptions) {
-    lines.push(
-      `\nYour jq produced these Highcharts options:\n${truncate(
-        JSON.stringify(pipeline.chartOptions, null, 2),
-        1000,
-      )}`,
-    );
-  }
-  // JSON parse failure on the agent's own output (no pipeline ran).
-  if (!graphQuery && typeof details.content === 'string') {
-    lines.push(
-      `\nYour raw response (which we could not parse as JSON):\n${truncate(details.content, 1000)}`,
-    );
+  const stageHints = stage ? stageFeedbackers[stage]?.(d, err) ?? [] : [];
+  for (const hint of stageHints) {
+    lines.push(`\n${hint}`);
   }
 
   lines.push(
     '\nProduce a corrected JSON object with "graphQuery" and "jqQuery" string fields. Output ONLY the JSON object, no prose or code fences.',
   );
   return lines.join('\n');
-}
-
-function truncate(s: string, limit: number): string {
-  return s.length > limit ? `${s.slice(0, limit)}\n...[truncated]` : s;
 }

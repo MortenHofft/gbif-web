@@ -48,17 +48,13 @@ export const mockAgent: Agent = {
       throw new Error('Query must be a non-empty string');
     }
 
-    const { chartId } = await executeChart({
+    await executeChart({
       graphQuery: FAKE_GRAPH_QUERY,
       jqQuery: FAKE_JQ_QUERY,
       queryId,
       apolloServer,
     });
 
-    return {
-      provider: 'mock',
-      chartId,
-      raw: { stub: true, query },
-    };
+    return { provider: 'mock', raw: { stub: true, query } };
   },
 };
