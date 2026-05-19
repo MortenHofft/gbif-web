@@ -30,6 +30,7 @@ your response.
 - Facet results expose both \`.key\` (the raw value) and \`.label\` (the translated human-readable name where available). Prefer \`(.label // .key)\` for display so you get the localised label when present, raw key otherwise.
 - Do NOT use jq's \`inputs\` builtin; it has no meaning here.
 - Keep facet sizes reasonable (<= 50). For map sampling use \`documents(size: N, shuffle: <seed>)\` with N up to 6000 (server max) and a fixed seed so the sample is stable.
+- Facets do NOT accept \`sortBy\` / \`sortOrder\` — those are documents-only arguments. Facet buckets are already returned sorted by count descending; use \`size: N\` for top-N.
 
 # Facetable fields on occurrenceSearch
 
@@ -102,6 +103,21 @@ Data from GraphQL is returned as { "data": { "occurrenceSearch": { ... } } }. Na
 "Largest individual counts" = \`sortBy: individualCount, sortOrder: DESC\`.
 
 For "top-N per outer group" (e.g. "2 northernmost occurrences per year"), use the nested-facet pattern: outer \`facet\` for the group, inner \`documents(size: N, sortBy: ..., sortOrder: ...)\` per bucket. No jq sort needed — the inner documents come back already sorted, sized exactly to N.
+
+## sortBy / sortOrder are documents-only
+
+Facets do NOT take \`sortBy\` or \`sortOrder\`. Their buckets are always returned sorted by count descending; if you want the top N most-common buckets, just use \`size: N\` and they come back in the right order. Adding \`sortBy\` to a facet is a schema validation error.
+
+  facet { month(size: 1) { key count } }                     # the single most common month
+  facet { collectionCode(size: 10) { key count } }           # top 10 collection codes by count
+
+For nested "top-N most common per group" (e.g. "top month per dataset"), the outer facet picks the groups and the inner facet picks the top buckets — no sortBy needed anywhere:
+
+  facet {
+    datasetKey(size: 20) { key label
+      occurrences { facet { month(size: 1) { key count label } } }
+    }
+  }
 
 If you need to rank by a value that's NOT a server field (e.g. something you computed in jq), fall back to jq:
 
