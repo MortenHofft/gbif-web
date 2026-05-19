@@ -1,9 +1,9 @@
 // Core knowledge for building either a chart (Highcharts) or a map (GeoJSON)
-// from GBIF occurrence data. Path-agnostic — used both by the direct-call
-// agent system prompt (CHART_SYSTEM_PROMPT below) and by the MCP
-// `gbif_usage_guidelines` tool output (SEARCH_GUIDE in ../guide.ts). Keep
-// this content free of transport-specific instructions; the wrappers add
-// those.
+// from GBIF occurrence data. Wrapped below into CHART_SYSTEM_PROMPT — the
+// system prompt every direct-call agent (Mistral / Groq / Gemini) sends to
+// the LLM. Kept free of transport-specific instructions ("respond with JSON"
+// lives in the wrapper) so a future MCP / function-calling agent could
+// reuse it.
 export const CHART_KNOWLEDGE = `# Output kinds
 
 You produce one of two kinds of visualization, chosen by the user's query:

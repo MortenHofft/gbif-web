@@ -1,8 +1,14 @@
-# Chart MCP
+# Custom chart agent
 
 Turns a natural-language question about GBIF occurrence data into either a
 chart or a map that renders on the occurrence dashboard. Used by the
-**"describe a chart"** search box at the top of the dashboard.
+**"Custom chart"** card the user picks from the dashboard's "Add new"
+dropdown.
+
+The folder is still named `mcp/chart/` and the routes still live under
+`/mcp/chart/...` for compatibility, but the MCP server surface
+(`gbif_usage_guidelines` / `create_visualization` tools over Streamable HTTP)
+has been removed — the direct-call agents in `./agents` bypass it entirely.
 
 ```
 user types  ─►  POST /mcp/chart/query  ─►  chart agent (LLM)
@@ -43,17 +49,7 @@ restore-original-filters controls on the Custom chart card.
 
 ## Endpoints
 
-**MCP transport** (for external MCP clients):
-
-- `POST /mcp/chart` — Streamable HTTP MCP transport. Tools:
-  - `gbif_usage_guidelines` — returns the GBIF schema reference + jq +
-    Highcharts examples + GeoJSON / simplestyle map examples. Read this
-    first.
-  - `create_visualization` — accepts `{ queryId, kind, graphQuery, jqQuery }`
-    where `kind` is `"highcharts"` (default) or `"geojson"`. Runs the
-    pipeline, stores the result.
-
-**Companion REST** (used by the dashboard):
+All three routes are open (the dashboard is the only intended caller):
 
 - `POST /mcp/chart/query` — body `{ q, predicate }`. Runs the configured
   chart agent and returns `{ queryId, charts, llm }`.
@@ -64,20 +60,11 @@ restore-original-filters controls on the Custom chart card.
   rendered chart. The ChartConfig's original predicate is preserved so the
   client can offer "restore original".
 
-## Auth and security
-
-- DNS-rebinding guard (Origin / Host allow-lists) on the MCP endpoint, same
-  as `helloWorld.ctrl.ts`.
-- Optional `Authorization: Bearer <token>` on the MCP endpoint when
-  `mcpApiToken` is configured.
-- The companion REST routes are open — the dashboard is their only intended
-  caller.
-
 ## Module layout
 
 ```
 chart/
-├── chart.ctrl.ts        Express routes + MCP transport mount
+├── chart.ctrl.ts        Express routes (POST query, GET key, POST refresh)
 ├── agent.ts             Dispatcher; picks an agent by config.chartAgent
 ├── agents/
 │   ├── types.ts         Agent interface
@@ -89,14 +76,10 @@ chart/
 │   ├── llmCall.ts       Provider-agnostic ChatMessage + runWithRetry +
 │   │                    corrective-feedback builder
 │   ├── runChartFromJson.ts  Parse model output → run pipeline → AgentResult
-│   └── sharedPrompt.ts  CHART_KNOWLEDGE (path-agnostic) + CHART_SYSTEM_PROMPT
-│                        (the direct-call wrapper)
+│   └── sharedPrompt.ts  CHART_KNOWLEDGE + CHART_SYSTEM_PROMPT
 ├── executeChart.ts      runChart (the pipeline), executeChart (append),
 │                        refreshChart (replace)
 ├── store.ts             In-memory ChartConfig cache (NodeCache, 20-min TTL)
-├── tools.ts             MCP tool registrations
-├── guide.ts             MCP `gbif_usage_guidelines` output (wraps
-│                        CHART_KNOWLEDGE)
 └── errors.ts            McpError with status + structured details
 ```
 
@@ -109,7 +92,6 @@ provider API keys for whichever agent you want to use.
 | --- | --- | --- |
 | `chartAgent` | `mock` | One of `mock`, `mistral`, `groq`, `gemini`. |
 | `chartAgentMaxAttempts` | `2` | 1 = no retry, 2 = one corrective retry, etc. |
-| `mcpApiToken` | (none) | Bearer-token required on `/mcp/chart` when set. |
 | `mistralApiKey` / `mistralModel` | / `mistral-small-latest` | |
 | `groqApiKey` / `groqModel` | / `llama-3.3-70b-versatile` | |
 | `geminiApiKey` / `geminiModel` | / `gemini-flash-latest` | |
