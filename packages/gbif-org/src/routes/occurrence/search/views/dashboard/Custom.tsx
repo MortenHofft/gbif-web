@@ -65,17 +65,25 @@ function CustomChartForm({
   const config = useConfig();
   const [value, setValue] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
   const mountedRef = useRef(true);
-  useEffect(() => () => {
-    mountedRef.current = false;
+  // Assign true on every mount — useRef persists across remounts but doesn't
+  // reset on its own, and under React strict mode (or a parent re-render
+  // sequence that unmounts the form mid-fetch) the ref would otherwise stay
+  // false forever, leaving setSubmitting(false) unreachable and the loader
+  // spinning indefinitely.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   async function submit() {
     const q = value.trim();
     if (!q || submitting) return;
     setSubmitting(true);
-    setError(null);
+    setHasError(false);
     try {
       const url = new URL(
         '/mcp/chart/query',
@@ -87,10 +95,8 @@ function CustomChartForm({
         body: JSON.stringify({ q, predicate }),
       });
       if (!response.ok) {
-        const body = (await response.json().catch(() => ({}))) as {
-          message?: string;
-        };
-        throw new Error(body.message || `Request failed (${response.status})`);
+        const body = await response.text().catch(() => '');
+        throw new Error(`${response.status} ${response.statusText}: ${body.slice(0, 500)}`);
       }
       const data = (await response.json()) as { queryId?: string };
       if (!mountedRef.current) return;
@@ -101,8 +107,13 @@ function CustomChartForm({
       // next render we receive queryId and switch to CustomChartView.
       setProps?.({ queryId: data.queryId });
     } catch (err) {
+      // Log the real reason to the console (so devs can see capacity
+      // errors, 5xx bodies, network failures, etc.) but show only a
+      // generic message in the UI.
+      // eslint-disable-next-line no-console
+      console.error('[chart] custom chart submit failed:', err);
       if (!mountedRef.current) return;
-      setError((err as Error).message);
+      setHasError(true);
     } finally {
       if (mountedRef.current) setSubmitting(false);
     }
@@ -143,8 +154,13 @@ function CustomChartForm({
           }}
           onSearch={submit}
         />
-        {error && (
-          <div className="g-text-sm g-text-red-600 g-mt-2">{error}</div>
+        {hasError && (
+          <div className="g-text-sm g-text-red-600 g-mt-2">
+            <FormattedMessage
+              id="dashboard.customChart.submitError"
+              defaultMessage="Something went wrong while creating the chart. Please try again."
+            />
+          </div>
         )}
       </CardContent>
     </Card>
