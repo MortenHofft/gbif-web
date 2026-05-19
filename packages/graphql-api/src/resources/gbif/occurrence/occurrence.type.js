@@ -3,6 +3,8 @@ import { gql } from 'apollo-server';
 const typeDef = gql`
   type Occurrence {
     key: Float
+    # Alias for key
+    occurrenceKey: Float
 
     abstract: String
     acceptedNameUsage: String

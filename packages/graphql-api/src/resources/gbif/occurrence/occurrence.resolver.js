@@ -357,6 +357,7 @@ export default {
     },
   },
   Occurrence: {
+    occurrenceKey: ({ key }) => key,
     coordinates: ({ decimalLatitude, decimalLongitude }) => {
       if (typeof decimalLatitude === 'undefined') return null;
       // extract primary image. for now just any image

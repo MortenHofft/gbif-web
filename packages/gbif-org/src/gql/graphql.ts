@@ -6979,6 +6979,8 @@ export enum OccurrenceSortBy {
   CountryCode = 'countryCode',
   DatasetId = 'datasetID',
   DatasetKey = 'datasetKey',
+  DecimalLatitude = 'decimalLatitude',
+  DecimalLongitude = 'decimalLongitude',
   DegreeOfEstablishment = 'degreeOfEstablishment',
   Depth = 'depth',
   DistanceFromCentroidInMeters = 'distanceFromCentroidInMeters',
