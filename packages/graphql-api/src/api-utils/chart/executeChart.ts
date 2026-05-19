@@ -1,5 +1,6 @@
 import { ApolloServer } from 'apollo-server-express';
 import { ExpressContext } from 'apollo-server-express/dist/ApolloServer';
+import { parse as parseGraphql } from 'graphql';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const jq = require('node-jq');
 import { McpError } from './errors';
@@ -11,6 +12,32 @@ import {
   setChartEntry,
   validateOutput,
 } from './store';
+
+// Small LLMs occasionally produce GraphQL with the right structure but a
+// missing closing brace at the end (lost track of nesting depth). Burning a
+// retry on this is wasteful when the fix is mechanical and the graphql-js
+// parser will tell us whether the candidate is syntactic. Try appending 1–5
+// closing braces; return the first variant that parses cleanly, or null if
+// the input is already valid or unrepairable. Logged when it fires so we can
+// see frequency.
+function tryRepairGraphQuery(query: string): string | null {
+  try {
+    parseGraphql(query);
+    return null;
+  } catch {
+    /* fall through to repair attempts */
+  }
+  for (let n = 1; n <= 5; n++) {
+    const candidate = query + '}'.repeat(n);
+    try {
+      parseGraphql(candidate);
+      return candidate;
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
 
 interface RunChartArgs {
   graphQuery: string;
@@ -33,6 +60,11 @@ interface RunChartResult {
   graphqlData: unknown;
   variables: Record<string, unknown>;
   timings: PipelineTimings;
+  // The graphQuery that was actually executed — possibly differs from the
+  // input if tryRepairGraphQuery had to append closing braces. Callers should
+  // persist this version so the source panel and refresh both work with what
+  // actually ran, not the broken original.
+  graphQuery: string;
 }
 
 // Each McpError thrown from this module carries the same details shape so
@@ -75,6 +107,17 @@ async function runChart({
     size: 50,
     from: 0,
   };
+
+  // Best-effort syntactic repair before sending to Apollo. Saves a retry
+  // round-trip on the common "model forgot a closing brace" failure mode.
+  const repaired = tryRepairGraphQuery(graphQuery);
+  if (repaired) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[chart] graphQuery auto-repaired (+${repaired.length - graphQuery.length} chars). Original missing closing brace(s).`,
+    );
+    graphQuery = repaired;
+  }
 
   let response: { data?: unknown; errors?: ReadonlyArray<{ message: string }> };
   const graphqlStart = Date.now();
@@ -160,6 +203,7 @@ async function runChart({
     graphqlData: response,
     variables,
     timings: { graphqlMs, jqMs },
+    graphQuery,
   };
 }
 
@@ -188,7 +232,13 @@ export async function executeChart({
 }: ExecuteChartArgs): Promise<ExecuteChartResult> {
   const chartConfig = getChartConfig(queryId);
   const predicate = chartConfig?.predicate ?? null;
-  const { output, graphqlData, variables, timings } = await runChart({
+  const {
+    output,
+    graphqlData,
+    variables,
+    timings,
+    graphQuery: executedGraphQuery,
+  } = await runChart({
     graphQuery,
     jqQuery,
     kind,
@@ -198,7 +248,10 @@ export async function executeChart({
   addChart(queryId, {
     kind,
     output,
-    graphQuery,
+    // Store the version that actually ran (may differ from input if
+    // tryRepairGraphQuery had to append closing braces), so the source
+    // panel and refresh/restore work with what was executed.
+    graphQuery: executedGraphQuery,
     jqQuery,
     graphqlData,
     variables,
@@ -234,7 +287,13 @@ export async function refreshChart({
   if (!existing) {
     throw new McpError(`No chart to refresh for queryId ${queryId}`, 400);
   }
-  const { output, graphqlData, variables, timings } = await runChart({
+  const {
+    output,
+    graphqlData,
+    variables,
+    timings,
+    graphQuery: executedGraphQuery,
+  } = await runChart({
     graphQuery: existing.graphQuery,
     jqQuery: existing.jqQuery,
     kind: existing.kind,
@@ -244,6 +303,10 @@ export async function refreshChart({
   const updated: ChartEntry = {
     ...existing,
     output,
+    // Pick up any in-flight syntactic repair; the stored entry is usually
+    // already-valid so this is a no-op, but kept for symmetry with
+    // executeChart.
+    graphQuery: executedGraphQuery,
     graphqlData,
     variables,
   };
