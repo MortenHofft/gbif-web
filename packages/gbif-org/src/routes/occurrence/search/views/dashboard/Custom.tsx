@@ -6,12 +6,8 @@ import { FormattedMessage } from 'react-intl';
 import { MdInfoOutline, MdRefresh, MdRestore, MdWarning } from 'react-icons/md';
 import { useConfig } from '@/config/config';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/smallCard';
+import { Card, CardContent, CardTitle } from '@/components/ui/smallCard';
+import { CardHeader } from '@/components/dashboard/shared';
 import Highcharts from '@/components/dashboard/charts/highcharts';
 
 type ChartEntry = {
@@ -147,39 +143,44 @@ export default function CustomChart({ queryId, predicate }: Props) {
     />
   );
 
+  const headerActions = (
+    <div>
+      <Button
+        variant="link"
+        style={{ padding: '0 5px', height: 'auto' }}
+        className={`g-m-0 ${showSource ? 'g-text-primary-500' : 'g-text-slate-400'}`}
+        onClick={() => setShowSource((s) => !s)}
+        title="Show source query"
+      >
+        <MdInfoOutline />
+      </Button>
+      <Button
+        variant="link"
+        style={{ padding: '0 5px', height: 'auto' }}
+        className="g-m-0 g-text-slate-400"
+        disabled={refreshing || loading}
+        onClick={() => refresh(predicate)}
+        title="Refresh with current filters"
+      >
+        <MdRefresh />
+      </Button>
+      <Button
+        variant="link"
+        style={{ padding: '0 5px', height: 'auto' }}
+        className="g-m-0 g-text-slate-400"
+        disabled={refreshing || loading || isRestored}
+        onClick={() => refresh(originalPredicate)}
+        title="Restore original filters"
+      >
+        <MdRestore />
+      </Button>
+    </div>
+  );
+
   return (
     <Card loading={loading || refreshing} error={!!error}>
-      <CardHeader className="g-flex-row g-justify-between g-items-start g-gap-2">
-        <CardTitle className="g-flex-auto g-break-words">{title}</CardTitle>
-        <div className="g-flex g-gap-0 g-flex-none g-text-slate-500">
-          <Button
-            variant="link"
-            style={{ padding: '0 4px', height: 'auto' }}
-            className={showSource ? 'g-text-primary-500' : ''}
-            onClick={() => setShowSource((s) => !s)}
-            title="Show source query"
-          >
-            <MdInfoOutline />
-          </Button>
-          <Button
-            variant="link"
-            style={{ padding: '0 4px', height: 'auto' }}
-            disabled={refreshing || loading}
-            onClick={() => refresh(predicate)}
-            title="Refresh with current filters"
-          >
-            <MdRefresh />
-          </Button>
-          <Button
-            variant="link"
-            style={{ padding: '0 4px', height: 'auto' }}
-            disabled={refreshing || loading || isRestored}
-            onClick={() => refresh(originalPredicate)}
-            title="Restore original filters"
-          >
-            <MdRestore />
-          </Button>
-        </div>
+      <CardHeader options={headerActions}>
+        <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
         {error && !loading && (
