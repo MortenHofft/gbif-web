@@ -233,12 +233,13 @@ GraphQL response shape:
   }
 }
 
-A correct graphQuery (note size + shuffle — gives a random spatial sample):
+A correct graphQuery (note size + shuffle — gives a random spatial sample. \`occurrenceKey\` is the occurrence id; selecting it lets the rendered popup deep-link to the record):
 
 query MapByLatitude($predicate: Predicate) {
   occurrenceSearch(predicate: $predicate) {
     documents(size: 2000, shuffle: 41) {
       results {
+        occurrenceKey
         decimalLatitude
         decimalLongitude
       }
@@ -260,6 +261,7 @@ A correct jqQuery (uses ordered site-palette colours for the gradient and emits 
           coordinates: [.decimalLongitude, .decimalLatitude]
         },
         properties: {
+          occurrenceKey: .occurrenceKey,
           "marker-color": (
             if   .decimalLatitude >  60 then "#003f5c"
             elif .decimalLatitude >  30 then "#2f4b7c"
@@ -384,6 +386,10 @@ Simplestyle-spec keys you can put in each feature's \`properties\`:
 - \`fill\`, \`fill-opacity\` — polygon fill
 
 The host renders points as circles coloured by \`marker-color\`. Don't worry about basemaps or projections — those are handled by the renderer.
+
+When the popup opens on click, ALL non-styling properties on the feature are listed. So whatever you put in \`properties\` (year, basisOfRecord, count, scientificName, ...) shows up — pick fields that make the point self-explanatory.
+
+Special property: \`occurrenceKey\`. When each feature corresponds to a single occurrence (e.g. you're selecting from \`documents.results\`), include \`occurrenceKey: .occurrenceKey\` in \`properties\`. The renderer turns this into an "Open occurrence" link that opens the full record. Only set it when the feature really is one occurrence — do NOT set it on aggregated/binned maps (per-country counts, year bins, etc.).
 
 ## Colours and legend
 
