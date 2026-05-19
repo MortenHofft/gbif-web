@@ -158,6 +158,16 @@ const stageFeedbackers: Record<string, (d: Details, err: McpError) => string[]> 
       lines.push(
         "IMPORTANT: your jq uses single quotes ('...'), which are NOT valid in jq. Replace EVERY single-quoted string with a double-quoted string (\"...\").",
       );
+    } else if (
+      /unexpected\s+\/\//i.test(err.message) ||
+      (jqQuery && /\{[^{}]*:\s*[^()]*\/\/[^()]*[,}]/.test(jqQuery))
+    ) {
+      // jq's `//` (alternative) operator is fine on its own but becomes a
+      // syntax error when used unparenthesized as an object-literal value
+      // (it clashes with the `,` separator). Tell the model to wrap it.
+      lines.push(
+        'IMPORTANT: jq\'s `//` (alternative) operator must be parenthesised when used as an object value. Write `{ name: (.label // .key) }`, NOT `{ name: .label // .key }`. The same applies to any compound expression (if/then/end, expressions containing `,` or `|`) used as an object-literal value.',
+      );
     } else if (/Unix shell quoting|INVALID_CHARACTER/.test(err.message)) {
       lines.push(
         'IMPORTANT: jq strings must use double quotes ("..."). If you used any other quote style, switch to double quotes.',

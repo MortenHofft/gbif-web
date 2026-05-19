@@ -26,6 +26,8 @@ your response.
 - The jq program MUST produce exactly ONE output. Write the chart/GeoJSON as the OUTER expression and embed array sub-expressions inline to collect points. Do NOT pipe records through at the top level with \`|\` — that produces one output per input.
 - jq STRINGS MUST USE DOUBLE QUOTES. \`{ type: "pie" }\` is correct; \`{ type: 'pie' }\` is a syntax error. Single quotes are NEVER valid in jq, even though they're valid in JavaScript, Python, and shell.
 - Every array slot in the output (\`data: [...]\` for charts, \`features: [...]\` for maps) must be wrapped in square brackets. Without the brackets you assign a stream of values, which is invalid.
+- ANY compound expression used as an object-literal value MUST be wrapped in parentheses. Most importantly, the alternative operator \`//\` (used for falling back when a field is null): \`{ name: (.label // .key) }\` is correct; \`{ name: .label // .key }\` is a jq syntax error. Same for \`if/then/else/end\` and any expression containing \`,\` or \`|\` at the top level of the value.
+- Facet results expose both \`.key\` (the raw value) and \`.label\` (the translated human-readable name where available). Prefer \`(.label // .key)\` for display so you get the localised label when present, raw key otherwise.
 - Do NOT use jq's \`inputs\` builtin; it has no meaning here.
 - Keep facet sizes reasonable (<= 50). For map sampling use \`documents(size: N, shuffle: <seed>)\` with N up to 6000 (server max) and a fixed seed so the sample is stable.
 
@@ -205,7 +207,7 @@ A correct jqQuery:
     type: "pie",
     name: "Occurrences",
     colorByPoint: true,
-    data: [.data.occurrenceSearch.facet.basisOfRecord[] | { name: .key, y: .count }]
+    data: [.data.occurrenceSearch.facet.basisOfRecord[] | { name: (.label // .key), y: .count }]
   }]
 }
 
@@ -301,7 +303,7 @@ Pie:
       "type": "pie",
       "name": "Occurrences",
       "colorByPoint": true,
-      "data": [.data.occurrenceSearch.facet.<field>[] | { name: .key, y: .count }]
+      "data": [.data.occurrenceSearch.facet.<field>[] | { name: (.label // .key), y: .count }]
     }
   ]
 }
@@ -315,7 +317,7 @@ Column:
     {
       "type": "column",
       "name": "Occurrences",
-      "data": [.data.occurrenceSearch.facet.<field>[] | { name: .key, y: .count }]
+      "data": [.data.occurrenceSearch.facet.<field>[] | { name: (.label // .key), y: .count }]
     }
   ]
 }
@@ -365,7 +367,7 @@ jqQuery:
   series: [.data.occurrenceSearch.facet.datasetKey[] | {
     type: "column",
     name: .label,
-    data: [(.occurrences.facet.speciesKey // [])[] | { name: .key, y: .count }]
+    data: [(.occurrences.facet.speciesKey // [])[] | { name: (.label // .key), y: .count }]
   }]
 }
 
