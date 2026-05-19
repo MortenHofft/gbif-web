@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
 // TODO: this has been changed to a fork. Consider updating to https://atlassian.design/components/pragmatic-drag-and-drop/examples
-import { SearchInput } from '@/components/searchInput';
 import { SimpleTooltip } from '@/components/simpleTooltip';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/smallCard';
 import { useToast } from '@/components/ui/use-toast';
-import { useConfig } from '@/config/config';
 import useBelow from '@/hooks/useBelow';
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import { Resizable } from 're-resizable';
@@ -106,10 +104,7 @@ function DashboardBuilder({
 }) {
   const [state, setState] = useUncontrolledProp(controlledState, [[]], setControlledState);
   const { toast } = useToast();
-  const config = useConfig();
   const [isDragging, setIsDragging] = useState(false);
-  const [customQuery, setCustomQuery] = useState('');
-  const [customLoading, setCustomLoading] = useState(false);
   const isBelow800 = useBelow(1100);
   const isBelow1200 = useBelow(1600);
   const isBelow1800 = useBelow(2100);
@@ -204,41 +199,6 @@ function DashboardBuilder({
     setState([...state, []]);
   }
 
-  async function submitCustomQuery() {
-    const query = customQuery.trim();
-    if (!query || customLoading) return;
-    if (!chartsTypes?.custom) {
-      console.warn('Custom chart type not registered in chartsTypes');
-      return;
-    }
-    setCustomLoading(true);
-    try {
-      const url = new URL('/mcp/chart/query', config.graphqlEndpoint).toString();
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ q: query, predicate }),
-      });
-      if (!response.ok) {
-        throw new Error(`${response.status} ${response.statusText}`);
-      }
-      const data = await response.json();
-      const newItem = getItem('custom', chartsTypes, { queryId: data.queryId });
-      if (!newItem) return;
-      const newState = [...state];
-      newState[0] = [...(newState[0] ?? []), newItem];
-      setState(newState);
-      setCustomQuery('');
-    } catch (err) {
-      toast({
-        description: `Failed to create custom chart: ${err.message}`,
-        variant: 'destructive',
-      });
-    } finally {
-      setCustomLoading(false);
-    }
-  }
-
   function removeColumn(index) {
     const newState = [...state];
     newState.splice(index, 1);
@@ -280,20 +240,6 @@ function DashboardBuilder({
             <FormattedMessage id="dashboard.adaptLayout" defaultMessage="Adapt layout" />
           </Button>
         </div>
-      )}
-      {!lockedLayout && chartsTypes?.custom && (
-        <SearchInput
-          className="g-w-full g-bg-white g-p-2 g-rounded-md g-border g-border-solid g-border-primary-500 g-text-sm g-mb-4"
-          inputClassName="g-w-full"
-          placeholder="Describe a chart, e.g. 'breakdown by basis of record'"
-          value={customQuery}
-          disabled={customLoading}
-          onChange={(e) => setCustomQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') submitCustomQuery();
-          }}
-          onSearch={() => submitCustomQuery()}
-        />
       )}
       <div style={{ display: 'flex', flexDirection: maxGroups > 1 ? 'row' : 'column' }}>
         <div
@@ -473,7 +419,8 @@ function Item({
       predicate={predicate}
       q={q}
       {...componentProps}
-      setView={(view) => onUpdateItem({ ...item, p: { view } }, index)}
+      setView={(view) => onUpdateItem({ ...item, p: { ...params, view } }, index)}
+      setProps={(partial) => onUpdateItem({ ...item, p: { ...params, ...partial } }, index)}
     />
   );
 

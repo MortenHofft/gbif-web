@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import isEqual from 'fast-deep-equal';
 import { parse, print } from 'graphql';
 import HighchartsReact from 'highcharts-react-official';
@@ -10,6 +10,7 @@ import {
 } from 'react-icons/bs';
 import { MdWarning } from 'react-icons/md';
 import { useConfig } from '@/config/config';
+import { SearchInput } from '@/components/searchInput';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardTitle } from '@/components/ui/smallCard';
 import { CardHeader } from '@/components/dashboard/shared';
@@ -33,13 +34,129 @@ type ChartConfigResponse = {
 };
 
 type Props = {
+  // Set once the user has submitted a query and the agent has produced a
+  // chart. While unset the card renders an in-place form instead of trying
+  // to fetch.
   queryId?: string;
   predicate?: unknown;
+  // Merges a partial into the chart item's persistent params (item.p) on the
+  // parent DashboardBuilder. Used here to write `queryId` back once the
+  // agent responds, so reloads / layout-shares replay the same chart.
+  setProps?: (partial: Record<string, unknown>) => void;
 };
 
 const normalize = (p: unknown) => (p === undefined ? null : p);
 
-export default function CustomChart({ queryId, predicate }: Props) {
+export default function CustomChart({ queryId, predicate, setProps }: Props) {
+  if (!queryId) {
+    return <CustomChartForm predicate={predicate} setProps={setProps} />;
+  }
+  return <CustomChartView queryId={queryId} predicate={predicate} />;
+}
+
+// In-place form shown until the user has submitted a query. Posts to
+// /mcp/chart/query, then hands the returned queryId back via setProps so the
+// parent re-renders this component with queryId set — which switches to
+// CustomChartView and fetches the chart.
+function CustomChartForm({
+  predicate,
+  setProps,
+}: Pick<Props, 'predicate' | 'setProps'>) {
+  const config = useConfig();
+  const [value, setValue] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
+
+  async function submit() {
+    const q = value.trim();
+    if (!q || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const url = new URL(
+        '/mcp/chart/query',
+        config.graphqlEndpoint,
+      ).toString();
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q, predicate }),
+      });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as {
+          message?: string;
+        };
+        throw new Error(body.message || `Request failed (${response.status})`);
+      }
+      const data = (await response.json()) as { queryId?: string };
+      if (!mountedRef.current) return;
+      if (typeof data.queryId !== 'string') {
+        throw new Error('Server response missing queryId');
+      }
+      // Hands control back to the parent: setProps updates item.p; on the
+      // next render we receive queryId and switch to CustomChartView.
+      setProps?.({ queryId: data.queryId });
+    } catch (err) {
+      if (!mountedRef.current) return;
+      setError((err as Error).message);
+    } finally {
+      if (mountedRef.current) setSubmitting(false);
+    }
+  }
+
+  return (
+    <Card loading={submitting}>
+      <CardHeader options={null}>
+        <CardTitle>
+          <FormattedMessage
+            id="dashboard.customChart"
+            defaultMessage="Custom chart"
+          />
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="g-text-sm g-text-slate-600 g-mb-2">
+          <FormattedMessage
+            id="dashboard.customChart.help"
+            defaultMessage="Describe a chart or a map. The system will write a GraphQL query, transform it with jq, and render the result."
+          />
+        </p>
+        <ul className="g-text-xs g-text-slate-500 g-list-disc g-list-inside g-mb-3 g-space-y-0.5">
+          <li>breakdown by basis of record</li>
+          <li>top 10 collection codes</li>
+          <li>occurrences per year since 2000</li>
+          <li>map coloured by latitude</li>
+        </ul>
+        <SearchInput
+          className="g-w-full g-bg-white g-p-2 g-rounded-md g-border g-border-solid g-border-primary-500 g-text-sm"
+          inputClassName="g-w-full"
+          placeholder="Describe a chart…"
+          value={value}
+          disabled={submitting}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit();
+          }}
+          onSearch={submit}
+        />
+        {error && (
+          <div className="g-text-sm g-text-red-600 g-mt-2">{error}</div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Chart-render mode: fetches the saved chart config by queryId, supports
+// refresh / restore-original, shows source provenance.
+function CustomChartView({
+  queryId,
+  predicate,
+}: Required<Pick<Props, 'queryId'>> & Pick<Props, 'predicate'>) {
   const config = useConfig();
   const [chartData, setChartData] = useState<ChartConfigResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,12 +166,6 @@ export default function CustomChart({ queryId, predicate }: Props) {
   const [showSource, setShowSource] = useState(false);
 
   useEffect(() => {
-    if (!queryId) {
-      setError('Missing queryId');
-      setLoading(false);
-      return;
-    }
-
     let cancelled = false;
     const url = new URL(
       `/mcp/chart/key/${encodeURIComponent(queryId)}`,
@@ -91,7 +202,7 @@ export default function CustomChart({ queryId, predicate }: Props) {
   }, [queryId, config.graphqlEndpoint, version]);
 
   async function refresh(withPredicate: unknown) {
-    if (!queryId || refreshing) return;
+    if (refreshing) return;
     setRefreshing(true);
     setError(null);
     try {

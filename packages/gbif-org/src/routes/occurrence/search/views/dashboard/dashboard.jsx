@@ -19,11 +19,11 @@ export function Dashboard({ predicate, q, chartsTypes: chartsTypesProp, ...props
 
   useEffect(() => {
     const charts = { ...preconfiguredCharts };
-    // delete charts that are not in the chartsTypesProp array, but always keep
-    // hidden entries (e.g. 'custom') since they're created by the search box,
-    // not the "Add new" dropdown.
+    // delete charts that are not in the chartsTypesProp array, but always
+    // keep entries marked alwaysAvailable (e.g. 'custom') so callers don't
+    // each have to add them to their chartsTypesProp.
     Object.keys(charts).forEach((key) => {
-      if (charts[key].hidden) return;
+      if (charts[key].alwaysAvailable) return;
       if (!chartsTypesProp.includes(key)) {
         delete charts[key];
       }
@@ -78,9 +78,10 @@ export function Dashboard({ predicate, q, chartsTypes: chartsTypesProp, ...props
 
 const preconfiguredCharts = {
   custom: {
-    // Created by the natural-language search box on top of the dashboard, not
-    // from the "Add new" picker — so it's hidden from CreateOptions.
-    hidden: true,
+    // Always available from the "Add new" dropdown — the chart card itself
+    // hosts the natural-language form, then re-renders with the chart once
+    // the agent responds.
+    alwaysAvailable: true,
     translation: 'dashboard.customChart',
     component: ({ queryId, ...props }) => {
       return <CustomChart queryId={queryId} {...props} />;
