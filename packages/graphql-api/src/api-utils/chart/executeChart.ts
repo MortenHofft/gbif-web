@@ -3,6 +3,7 @@ import { ExpressContext } from 'apollo-server-express/dist/ApolloServer';
 import { parse as parseGraphql } from 'graphql';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const jq = require('node-jq');
+import rawConfig from '@/config';
 import { McpError } from './errors';
 import {
   addChart,
@@ -12,6 +13,17 @@ import {
   setChartEntry,
   validateOutput,
 } from './store';
+
+// Local loopback to our own /graphql endpoint. We used to call
+// apolloServer.executeOperation in-process for efficiency, but that path
+// swallows / mangles GraphQL validation errors (the chart agent saw cryptic
+// "undefined is not iterable" instead of "Unknown argument 'sortBy'…").
+// Hitting the HTTP endpoint goes through the full Apollo middleware and
+// returns the standard { data, errors } shape, so we can surface real
+// validation messages to the agent retry loop.
+const graphqlPort: number =
+  ((rawConfig as { port?: number }).port as number | undefined) ?? 4002;
+const GRAPHQL_URL = `http://127.0.0.1:${graphqlPort}/graphql`;
 
 // Small LLMs occasionally produce GraphQL with the right structure but a
 // missing closing brace at the end (lost track of nesting depth). Burning a
@@ -132,13 +144,27 @@ async function runChart({
     graphQuery = repaired;
   }
 
+  // Note: `apolloServer` is no longer used here — see the GRAPHQL_URL
+  // comment near the top. Kept on the call signature for now to avoid
+  // touching every agent's argument-threading; can be removed in a
+  // follow-up.
+  void apolloServer;
   let response: { data?: unknown; errors?: ReadonlyArray<{ message: string }> };
   const graphqlStart = Date.now();
   try {
-    response = await apolloServer.executeOperation({
-      query: graphQuery,
-      variables,
+    const httpResponse = await fetch(GRAPHQL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: graphQuery, variables }),
     });
+    // GraphQL servers return 200 (with optional errors body) or 400 for
+    // parse/validation problems (also with errors body). 5xx is a real
+    // server-side failure we can't recover from.
+    if (httpResponse.status >= 500) {
+      const body = await httpResponse.text().catch(() => '');
+      throw new Error(`HTTP ${httpResponse.status}: ${body.slice(0, 500)}`);
+    }
+    response = (await httpResponse.json()) as typeof response;
   } catch (error) {
     throw pipelineError(
       `Failed to execute GraphQL query: ${(error as Error).message}`,
