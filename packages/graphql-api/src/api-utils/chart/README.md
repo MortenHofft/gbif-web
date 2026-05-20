@@ -85,7 +85,7 @@ provider API keys for whichever agent you want to use.
 
 | Key | Default | Notes |
 | --- | --- | --- |
-| `chartAgent` | `mock` | One of `mock`, `mistral`, `groq`, `gemini`. |
+| `chartAgent` | `mock` | One of `mock`, `debug`, `mistral`, `groq`, `gemini`. See "Debug agent" below. |
 | `chartAgentMaxAttempts` | `2` | 1 = no retry, 2 = one corrective retry, etc. |
 | `mistralApiKey` / `mistralModel` | / `mistral-small-latest` | |
 | `groqApiKey` / `groqModel` | / `llama-3.3-70b-versatile` | |
@@ -114,6 +114,32 @@ The retry loop builds a corrective user message from these details — see
 `agents/llmCall.ts`'s `stageFeedbackers`. Per-stage hints live next to the
 stage they describe; adding a new one is a single entry in the dispatch
 table.
+
+## Debug agent
+
+`chartAgent: debug` selects a deterministic agent that returns canned
+LLM responses for testing the pipeline's error handling. Token cost zero,
+latency near zero, every retry hint / JSON-recovery branch / graphQuery
+auto-repair / downstream validator runs end-to-end.
+
+Pick a scenario by typing `debug: <name>` in the Custom chart card.
+Unknown or missing names default to `ok`. Current scenarios (defined in
+`agents/debug.ts`):
+
+| Scenario | Tests |
+| --- | --- |
+| `ok` | Successful basisOfRecord pie chart. |
+| `graphql-error` | Facet with `sortBy` (schema validation failure). |
+| `jq-single-quotes` | jq strings with `'...'` (triggers our single-quote feedback). |
+| `jq-no-parens` | `{ name: .label // .key }` (triggers our `//` parens feedback). |
+| `missing-brace` | graphQuery missing a closing `}` (auto-repair should succeed). |
+| `bad-json-recoverable` | JSON + trailing `}` (extract-first-object should recover). |
+| `bad-json-unrecoverable` | Plain English; `agent-json-parse` fires. |
+| `bad-shape` | `jqQuery` as a nested object (triggers `agent-shape`). |
+| `invalid-highcharts` | jq output missing `series` / `chart`. |
+| `empty` | Empty response (`agent-empty`). |
+
+To add a scenario, append to the `SCENARIOS` map in `agents/debug.ts`.
 
 ---
 

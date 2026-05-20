@@ -1,4 +1,5 @@
 import rawConfig from '@/config';
+import { debugAgent } from './agents/debug';
 import { geminiAgent } from './agents/gemini';
 import { groqAgent } from './agents/groq';
 import { mistralAgent } from './agents/mistral';
@@ -12,6 +13,7 @@ const config = rawConfig as typeof rawConfig & {
 // Add new agents here when experimenting with additional providers.
 const agents: Record<string, Agent> = {
   mock: mockAgent,
+  debug: debugAgent,
   mistral: mistralAgent,
   groq: groqAgent,
   gemini: geminiAgent,
