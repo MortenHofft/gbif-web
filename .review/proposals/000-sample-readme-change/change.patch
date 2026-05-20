@@ -1,0 +1,10 @@
+diff --git a/README.md b/README.md
+index 42dedbe..07cd3e8 100644
+--- a/README.md
++++ b/README.md
+@@ -1,4 +1,4 @@
+-# GBIF-web
++# GBIF-web 🌍
+ 
+ This is a monorepo to group GBIF web components and API wrappers that serve UI specific needs.
+ 

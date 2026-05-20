@@ -1,0 +1,15 @@
+{
+  "id": "000-sample-readme-change",
+  "title": "Add globe emoji to README title",
+  "rationale": "Tiny demonstration proposal so the review UI has something to render on first launch. Touches only README.md so applying or rejecting it has no functional impact.",
+  "createdAt": "2026-05-20T19:58:43Z",
+  "author": "claude",
+  "baseSha": "961a91b26e875c4b0c81445f796d524cfe768721",
+  "baseBranch": "claude/add-change-review-ui-0safT",
+  "tags": ["demo", "docs"],
+  "patch": "change.patch",
+  "files": [
+    { "path": "README.md", "additions": 1, "deletions": 1 }
+  ],
+  "shots": []
+}
