@@ -30,10 +30,11 @@ const buttonVariants = cva(
         destructiveSecondary: 'g-bg-transparent g-text-red-600 g-bg-red-50 hover:g-bg-red-100',
       },
       size: {
-        default: 'g-h-9 g-px-4 g-py-2',
+        // Mobile gets 44px (h-11) to meet iOS/Material tap-target guidance; sm+ keeps the original density.
+        default: 'g-h-11 g-px-4 g-py-2 sm:g-h-9',
         sm: 'g-h-8 g-rounded-md g-px-3 g-text-xs',
-        lg: 'g-h-10 g-rounded-md g-px-8',
-        icon: 'g-h-9 g-w-9',
+        lg: 'g-h-11 g-rounded-md g-px-8 sm:g-h-10',
+        icon: 'g-h-11 g-w-11 sm:g-h-9 sm:g-w-9',
       },
       disabled: {
         true: 'g-cursor-not-allowed g-opacity-50',
