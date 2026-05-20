@@ -122,9 +122,10 @@ LLM responses for testing the pipeline's error handling. Token cost zero,
 latency near zero, every retry hint / JSON-recovery branch / graphQuery
 auto-repair / downstream validator runs end-to-end.
 
-Pick a scenario by typing `debug: <name>` in the Custom chart card.
-Unknown or missing names default to `ok`. Current scenarios (defined in
-`agents/debug.ts`):
+Pick a scenario by typing its name directly in the Custom chart card —
+e.g. `graphql-error`. The `debug:` prefix is optional. Unknown or missing
+names default to `ok` (with a warning logged to the server console).
+Current scenarios (defined in `agents/debug.ts`):
 
 | Scenario | Tests |
 | --- | --- |

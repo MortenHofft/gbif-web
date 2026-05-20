@@ -109,10 +109,22 @@ const SCENARIOS: Record<string, string> = {
 
 const SCENARIO_KEYS = Object.keys(SCENARIOS);
 
+// Lenient matching: the user is already on the debug agent (chartAgent set
+// to "debug"), so we treat the whole query as a scenario name. Accepts
+// "graphql-error", "debug: graphql-error", and "DEBUG:graphql-error" alike.
+// Falls back to "ok" when nothing recognisable matches, with a warning so
+// the case is visible in the server log.
 function pickScenario(query: string): string {
-  const m = query.match(/^\s*debug\s*:\s*([\w-]+)/i);
-  const key = m?.[1]?.toLowerCase();
-  if (key && key in SCENARIOS) return key;
+  const cleaned = query
+    .trim()
+    .toLowerCase()
+    .replace(/^debug\s*:\s*/i, '')
+    .trim();
+  if (cleaned in SCENARIOS) return cleaned;
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[chart] debug agent received "${query}" — no matching scenario, falling back to "ok". Available: ${SCENARIO_KEYS.join(', ')}`,
+  );
   return 'ok';
 }
 
