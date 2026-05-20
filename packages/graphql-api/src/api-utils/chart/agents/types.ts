@@ -1,10 +1,6 @@
-import { ApolloServer } from 'apollo-server-express';
-import { ExpressContext } from 'apollo-server-express/dist/ApolloServer';
-
 export interface AgentArgs {
   query: string;
   queryId: string;
-  apolloServer: ApolloServer<ExpressContext>;
 }
 
 export interface AgentResult {

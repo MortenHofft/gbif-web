@@ -1,5 +1,3 @@
-import { ApolloServer } from 'apollo-server-express';
-import { ExpressContext } from 'apollo-server-express/dist/ApolloServer';
 import rawConfig from '@/config';
 import { McpError } from '../errors';
 import { runChartFromAgentJson } from './runChartFromJson';
@@ -42,7 +40,6 @@ interface RunWithRetryArgs {
   systemPrompt: string;
   userQuery: string;
   queryId: string;
-  apolloServer: ApolloServer<ExpressContext>;
 }
 
 // Orchestrates the call-and-parse loop with self-correction. On the first
@@ -58,7 +55,6 @@ export async function runWithRetry({
   systemPrompt,
   userQuery,
   queryId,
-  apolloServer,
 }: RunWithRetryArgs): Promise<AgentResult> {
   const maxAttempts = config.chartAgentMaxAttempts ?? DEFAULT_MAX_ATTEMPTS;
   const messages: ChatMessage[] = [
@@ -80,7 +76,6 @@ export async function runWithRetry({
         usage,
         text,
         queryId,
-        apolloServer,
       });
       const existingTimings =
         ((result.raw as { timings?: Record<string, unknown> } | undefined)

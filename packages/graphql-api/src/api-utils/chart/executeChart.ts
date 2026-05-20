@@ -1,5 +1,3 @@
-import { ApolloServer } from 'apollo-server-express';
-import { ExpressContext } from 'apollo-server-express/dist/ApolloServer';
 import { parse as parseGraphql } from 'graphql';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const jq = require('node-jq');
@@ -28,6 +26,35 @@ const chartConfig = rawConfig as typeof rawConfig & {
 const baseUrl =
   chartConfig.origin ?? `http://127.0.0.1:${chartConfig.port ?? 4002}`;
 const GRAPHQL_URL = `${baseUrl}/graphql`;
+
+// GraphQL error objects from the /graphql HTTP endpoint carry a full
+// extensions.exception.stacktrace (Apollo's debug-mode default in many
+// setups). We don't want that in either:
+//   - the HTTP error response — it leaks internal filesystem paths and
+//     framework internals to whoever is hitting our chart endpoint
+//   - the LLM retry feedback — it's hundreds of useless tokens with no
+//     diagnostic value (the stack is always inside graphql-js / Apollo)
+// Strip it down to the fields a client or model can actually use:
+// message, locations, path, and extensions.code (the validation-rule
+// identifier).
+interface SanitizedGraphQLError {
+  message: string;
+  locations?: unknown;
+  path?: unknown;
+  extensions?: { code?: string };
+}
+function sanitizeGraphQLError(err: {
+  message: string;
+  locations?: unknown;
+  path?: unknown;
+  extensions?: { code?: string };
+}): SanitizedGraphQLError {
+  const out: SanitizedGraphQLError = { message: err.message };
+  if (err.locations) out.locations = err.locations;
+  if (err.path) out.path = err.path;
+  if (err.extensions?.code) out.extensions = { code: err.extensions.code };
+  return out;
+}
 
 // Small LLMs occasionally produce GraphQL with the right structure but a
 // missing closing brace at the end (lost track of nesting depth). Burning a
@@ -60,7 +87,6 @@ interface RunChartArgs {
   jqQuery: string;
   kind: OutputKind;
   predicate: unknown;
-  apolloServer: ApolloServer<ExpressContext>;
 }
 
 // Pipeline-stage timings in milliseconds. Surfaced through ExecuteChartResult
@@ -128,7 +154,6 @@ async function runChart({
   jqQuery,
   kind,
   predicate,
-  apolloServer,
 }: RunChartArgs): Promise<RunChartResult> {
   const variables = {
     language: 'eng',
@@ -137,7 +162,7 @@ async function runChart({
     from: 0,
   };
 
-  // Best-effort syntactic repair before sending to Apollo. Saves a retry
+  // Best-effort syntactic repair before sending to GraphQL. Saves a retry
   // round-trip on the common "model forgot a closing brace" failure mode.
   const repaired = tryRepairGraphQuery(graphQuery);
   if (repaired) {
@@ -148,12 +173,16 @@ async function runChart({
     graphQuery = repaired;
   }
 
-  // Note: `apolloServer` is no longer used here — see the GRAPHQL_URL
-  // comment near the top. Kept on the call signature for now to avoid
-  // touching every agent's argument-threading; can be removed in a
-  // follow-up.
-  void apolloServer;
-  let response: { data?: unknown; errors?: ReadonlyArray<{ message: string }> };
+  type GraphQLErrorShape = {
+    message: string;
+    locations?: unknown;
+    path?: unknown;
+    extensions?: { code?: string };
+  };
+  let response: {
+    data?: unknown;
+    errors?: ReadonlyArray<GraphQLErrorShape>;
+  };
   const graphqlStart = Date.now();
   try {
     const httpResponse = await fetch(GRAPHQL_URL, {
@@ -183,7 +212,8 @@ async function runChart({
   const graphqlMs = Date.now() - graphqlStart;
 
   if (response.errors && response.errors.length > 0) {
-    const messages = response.errors.map((e) => e.message).join(', ');
+    const cleaned = response.errors.map(sanitizeGraphQLError);
+    const messages = cleaned.map((e) => e.message).join(', ');
     throw pipelineError(
       `GraphQL query errors: ${messages}`,
       400,
@@ -191,7 +221,7 @@ async function runChart({
       graphQuery,
       jqQuery,
       variables,
-      { errors: response.errors },
+      { errors: cleaned },
     );
   }
 
@@ -257,7 +287,6 @@ interface ExecuteChartArgs {
   // emit a kind.
   kind?: OutputKind;
   queryId: string;
-  apolloServer: ApolloServer<ExpressContext>;
 }
 
 export interface ExecuteChartResult {
@@ -271,7 +300,6 @@ export async function executeChart({
   jqQuery,
   kind = 'highcharts',
   queryId,
-  apolloServer,
 }: ExecuteChartArgs): Promise<ExecuteChartResult> {
   const chartConfig = getChartConfig(queryId);
   const predicate = chartConfig?.predicate ?? null;
@@ -286,7 +314,6 @@ export async function executeChart({
     jqQuery,
     kind,
     predicate,
-    apolloServer,
   });
   addChart(queryId, {
     kind,
@@ -305,7 +332,6 @@ export async function executeChart({
 interface RefreshChartArgs {
   queryId: string;
   predicate: unknown;
-  apolloServer: ApolloServer<ExpressContext>;
 }
 
 export interface RefreshChartResult {
@@ -320,7 +346,6 @@ export interface RefreshChartResult {
 export async function refreshChart({
   queryId,
   predicate,
-  apolloServer,
 }: RefreshChartArgs): Promise<RefreshChartResult> {
   const config = getChartConfig(queryId);
   if (!config) {
@@ -341,7 +366,6 @@ export async function refreshChart({
     jqQuery: existing.jqQuery,
     kind: existing.kind,
     predicate,
-    apolloServer,
   });
   const updated: ChartEntry = {
     ...existing,

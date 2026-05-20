@@ -15,8 +15,6 @@
  *                                    "restore original".
  */
 import { Application, Response } from 'express';
-import { ApolloServer } from 'apollo-server-express';
-import { ExpressContext } from 'apollo-server-express/dist/ApolloServer';
 import hash from 'object-hash';
 import ask from './agent';
 import { McpError } from './errors';
@@ -52,10 +50,7 @@ function respondWithError(
   return res.status(status).json({ message, details });
 }
 
-export default function chartController(
-  app: Application,
-  apolloServer: ApolloServer<ExpressContext>,
-) {
+export default function chartController(app: Application) {
   // Dashboard posts a natural-language query plus the current GBIF predicate.
   // Run the configured chart agent (see ./agents), persist the result keyed
   // by hash({query, predicate}), return the saved config.
@@ -69,7 +64,7 @@ export default function chartController(
       }
       const queryId = hash({ query, predicate }).replace(/\s+/g, '_');
       createChartConfig(queryId, { predicate, query, charts: [] });
-      const llm = await ask({ query, queryId, apolloServer });
+      const llm = await ask({ query, queryId });
       const charts = getChartConfig(queryId);
       return res.json({ queryId, charts, llm });
     } catch (error) {
@@ -90,7 +85,6 @@ export default function chartController(
       const { entry, timings } = await refreshChart({
         queryId: key,
         predicate,
-        apolloServer,
       });
       return res.json({ ...entry, timings });
     } catch (error) {

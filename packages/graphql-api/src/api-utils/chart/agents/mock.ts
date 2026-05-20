@@ -43,7 +43,7 @@ const FAKE_JQ_QUERY = `{
 export const mockAgent: Agent = {
   name: 'mock',
   isAvailable: () => true,
-  async run({ query, queryId, apolloServer }) {
+  async run({ query, queryId }) {
     if (typeof query !== 'string' || query.length === 0) {
       throw new Error('Query must be a non-empty string');
     }
@@ -53,7 +53,6 @@ export const mockAgent: Agent = {
       graphQuery: FAKE_GRAPH_QUERY,
       jqQuery: FAKE_JQ_QUERY,
       queryId,
-      apolloServer,
     });
 
     return {

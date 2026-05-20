@@ -1,5 +1,3 @@
-import { ApolloServer } from 'apollo-server-express';
-import { ExpressContext } from 'apollo-server-express/dist/ApolloServer';
 import { McpError } from '../errors';
 import { executeChart } from '../executeChart';
 import { AgentResult } from './types';
@@ -15,7 +13,6 @@ export interface RunChartFromJsonArgs {
   // { graphQuery: string, jqQuery: string }.
   text: string;
   queryId: string;
-  apolloServer: ApolloServer<ExpressContext>;
 }
 
 // Shared step that every chart agent shares once it has the model's text
@@ -29,7 +26,6 @@ export async function runChartFromAgentJson({
   usage,
   text,
   queryId,
-  apolloServer,
 }: RunChartFromJsonArgs): Promise<AgentResult> {
   // eslint-disable-next-line no-console
   console.log(`[chart] ${provider} raw response`, {
@@ -115,7 +111,6 @@ export async function runChartFromAgentJson({
       jqQuery: obj.jqQuery,
       kind,
       queryId,
-      apolloServer,
     });
     return {
       provider,

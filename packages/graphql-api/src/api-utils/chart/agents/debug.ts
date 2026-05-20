@@ -131,7 +131,7 @@ function pickScenario(query: string): string {
 export const debugAgent: Agent = {
   name: 'debug',
   isAvailable: () => true,
-  async run({ query, queryId, apolloServer }) {
+  async run({ query, queryId }) {
     const scenario = pickScenario(query);
     const canned = SCENARIOS[scenario];
 
@@ -157,7 +157,6 @@ export const debugAgent: Agent = {
       systemPrompt: '',
       userQuery: query,
       queryId,
-      apolloServer,
     });
   },
 };

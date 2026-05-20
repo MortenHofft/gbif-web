@@ -36,7 +36,6 @@ export async function runChatAgent({
   maxTokens = 2000,
   query,
   queryId,
-  apolloServer,
 }: ChatAgentArgs): Promise<AgentResult> {
   const caller: LlmCaller = {
     provider,
@@ -94,6 +93,5 @@ export async function runChatAgent({
     systemPrompt,
     userQuery: query,
     queryId,
-    apolloServer,
   });
 }

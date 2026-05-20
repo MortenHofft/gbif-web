@@ -144,7 +144,7 @@ async function initializeServer() {
   helperController(app, server);
   sourceArchiveCtrl(app);
   citesController(app);
-  chartController(app, server);
+  chartController(app);
   app.listen({ port: config.port }, () =>
     console.log(
       `🚀 Server ready at http://localhost:${config.port}${server.graphqlPath}`,

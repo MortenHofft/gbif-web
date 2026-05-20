@@ -71,7 +71,7 @@ export const geminiAgent: Agent = {
   name: PROVIDER,
   isAvailable: () =>
     typeof config.geminiApiKey === 'string' && config.geminiApiKey.length > 0,
-  async run({ query, queryId, apolloServer }) {
+  async run({ query, queryId }) {
     const model = config.geminiModel ?? DEFAULT_MODEL;
     const apiKey = config.geminiApiKey ?? '';
     const url = endpointFor(model);
@@ -164,7 +164,6 @@ export const geminiAgent: Agent = {
       systemPrompt: CHART_SYSTEM_PROMPT,
       userQuery: query,
       queryId,
-      apolloServer,
     });
   },
 };
