@@ -68,9 +68,9 @@ export function MobileFilters({ filters, groups, className }: MobileFiltersProps
             <Button
               size="sm"
               variant="ghost"
-              className="g-relative g-px-1 g-mb-1 g-text-slate-400 g-ms-auto"
+              className="g-relative g-h-10 g-w-10 g-mb-1 g-text-slate-400 g-ms-auto"
             >
-              <FilterIcon className="g-text-base" />
+              <FilterIcon className="g-shrink-0 g-text-xl" />
               {activeFilterCount > 0 && (
                 <span className="g-absolute -g-top-1 -g-end-1 g-bg-primary-500 g-text-white g-text-xs g-rounded-full g-size-5 g-flex g-items-center g-justify-center g-font-medium">
                   <FormattedNumber value={activeFilterCount} />

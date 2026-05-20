@@ -41,7 +41,7 @@ export function FilterBarWithActions({
       <div className={cn(shouldShowMobileFilters && 'g-hidden sm:g-block')}>
         <FilterButtons filters={filters} searchContext={searchContext} groups={groups} />
       </div>
-      <div className="g-flex g-items-center g-gap-1 g-flex-1 g-justify-end">
+      <div className="g-flex g-items-center g-gap-3 sm:g-gap-1 g-flex-1 g-justify-end">
         {shouldShowMobileFilters && (
           <MobileFilters className="sm:g-hidden" filters={filters} groups={groups} />
         )}
@@ -54,10 +54,10 @@ export function FilterBarWithActions({
           <Button
             size="sm"
             variant="ghost"
-            className="g-px-1 g-mb-1 g-text-slate-400 hover:g-text-red-800"
+            className="g-h-10 g-w-10 g-mb-1 g-text-slate-400 hover:g-text-red-800 sm:g-h-8 sm:g-w-auto sm:g-px-1"
             onClick={() => filterContext?.setFilter({})}
           >
-            <MdDeleteOutline className="g-text-base" />
+            <MdDeleteOutline className="g-shrink-0 g-text-xl sm:g-text-base" />
           </Button>
         </SimpleTooltip>
       </div>
