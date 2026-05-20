@@ -1,5 +1,7 @@
 # GBIF-web
 
+Hello world!
+
 This is a monorepo to group GBIF web components and API wrappers that serve UI specific needs.
 
 <!-- TOC -->
