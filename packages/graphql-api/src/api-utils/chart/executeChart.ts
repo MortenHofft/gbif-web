@@ -14,16 +14,20 @@ import {
   validateOutput,
 } from './store';
 
-// Local loopback to our own /graphql endpoint. We used to call
+// Loopback to our own /graphql endpoint. We used to call
 // apolloServer.executeOperation in-process for efficiency, but that path
 // swallows / mangles GraphQL validation errors (the chart agent saw cryptic
 // "undefined is not iterable" instead of "Unknown argument 'sortBy'…").
 // Hitting the HTTP endpoint goes through the full Apollo middleware and
 // returns the standard { data, errors } shape, so we can surface real
-// validation messages to the agent retry loop.
-const graphqlPort: number =
-  ((rawConfig as { port?: number }).port as number | undefined) ?? 4002;
-const GRAPHQL_URL = `http://127.0.0.1:${graphqlPort}/graphql`;
+// validation messages to the agent retry loop. `origin` is set in .env.
+const chartConfig = rawConfig as typeof rawConfig & {
+  origin?: string;
+  port?: number;
+};
+const baseUrl =
+  chartConfig.origin ?? `http://127.0.0.1:${chartConfig.port ?? 4002}`;
+const GRAPHQL_URL = `${baseUrl}/graphql`;
 
 // Small LLMs occasionally produce GraphQL with the right structure but a
 // missing closing brace at the end (lost track of nesting depth). Burning a
