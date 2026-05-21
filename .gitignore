@@ -12,6 +12,8 @@ packages/react-components/locales/dist
 tmp/
 **/vite.config.ts.timestamp-*
 .claude/
+.playwright-mcp/
+.review/
 
 
 # dotenv environment variables file

@@ -5,7 +5,7 @@ import { useSearchContext } from '@/contexts/search';
 import { cn } from '@/utils/shadcn';
 import React, { useContext, useMemo } from 'react';
 import { MdDeleteOutline } from 'react-icons/md';
-import { FormattedMessage } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { FilterBar, FilterButtons } from './filterTools';
 import { MobileFilters } from './mobileFilters';
 import { Filters } from './filterTools';
@@ -25,6 +25,7 @@ export function FilterBarWithActions({
 }: FilterBarWithActionsProps) {
   const filterContext = useContext(FilterContext);
   const searchContext = useSearchContext();
+  const intl = useIntl();
 
   // Count visible filters, accounting for excluded filters
   const visibleFilterCount = useMemo(() => {
@@ -41,10 +42,10 @@ export function FilterBarWithActions({
       <div className={cn(shouldShowMobileFilters && 'g-hidden sm:g-block')}>
         <FilterButtons filters={filters} searchContext={searchContext} groups={groups} />
       </div>
+      {shouldShowMobileFilters && (
+        <MobileFilters className="sm:g-hidden" filters={filters} groups={groups} />
+      )}
       <div className="g-flex g-items-center g-gap-1 g-flex-1 g-justify-end">
-        {shouldShowMobileFilters && (
-          <MobileFilters className="sm:g-hidden" filters={filters} groups={groups} />
-        )}
         {additionalActions}
         <SimpleTooltip
           delayDuration={300}
@@ -54,10 +55,14 @@ export function FilterBarWithActions({
           <Button
             size="sm"
             variant="ghost"
-            className="g-px-1 g-mb-1 g-text-slate-400 hover:g-text-red-800"
+            aria-label={intl.formatMessage({
+              id: 'filterSupport.clear',
+              defaultMessage: 'Clear',
+            })}
+            className="g-h-11 g-min-w-11 sm:g-h-8 sm:g-min-w-0 g-px-2 sm:g-px-1 g-text-slate-500 sm:g-text-slate-400 hover:g-text-red-800"
             onClick={() => filterContext?.setFilter({})}
           >
-            <MdDeleteOutline className="g-text-base" />
+            <MdDeleteOutline className="g-text-base" aria-hidden="true" />
           </Button>
         </SimpleTooltip>
       </div>

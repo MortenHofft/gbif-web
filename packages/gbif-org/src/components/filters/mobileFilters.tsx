@@ -6,7 +6,7 @@ import { useContext, useMemo } from 'react';
 import { LuSettings2 as FilterIcon } from 'react-icons/lu';
 import { Filters, FilterSetting, getFilterSummary } from './filterTools';
 import { MobileFilterDrawerContent } from './mobileFilterDrawer';
-import { FormattedNumber } from 'react-intl';
+import { FormattedMessage, FormattedNumber, useIntl } from 'react-intl';
 import { useSearchContext } from '@/contexts/search';
 
 interface MobileFiltersProps {
@@ -18,6 +18,7 @@ interface MobileFiltersProps {
 export function MobileFilters({ filters, groups, className }: MobileFiltersProps) {
   const filterContext = useContext(FilterContext);
   const searchContext = useSearchContext();
+  const intl = useIntl();
 
   const { inlineFilters, otherFilters } = useMemo(() => {
     const enabledFilters = { ...filters };
@@ -68,11 +69,24 @@ export function MobileFilters({ filters, groups, className }: MobileFiltersProps
             <Button
               size="sm"
               variant="ghost"
-              className="g-relative g-px-1 g-mb-1 g-text-slate-400 g-ms-auto"
+              aria-label={intl.formatMessage(
+                {
+                  id: 'filterSupport.filtersWithCount',
+                  defaultMessage: 'Filters ({count} active)',
+                },
+                { count: activeFilterCount }
+              )}
+              className="g-relative g-h-11 g-min-w-11 g-px-3 g-gap-1.5 g-text-slate-600"
             >
-              <FilterIcon className="g-text-base" />
+              <FilterIcon className="g-text-base" aria-hidden="true" />
+              <span className="g-text-sm g-font-medium">
+                <FormattedMessage id="filterSupport.filters" defaultMessage="Filters" />
+              </span>
               {activeFilterCount > 0 && (
-                <span className="g-absolute -g-top-1 -g-end-1 g-bg-primary-500 g-text-white g-text-xs g-rounded-full g-size-5 g-flex g-items-center g-justify-center g-font-medium">
+                <span
+                  aria-hidden="true"
+                  className="g-bg-primary-500 g-text-white g-text-xs g-rounded-full g-min-w-5 g-h-5 g-px-1 g-inline-flex g-items-center g-justify-center g-font-medium"
+                >
                   <FormattedNumber value={activeFilterCount} />
                 </span>
               )}
