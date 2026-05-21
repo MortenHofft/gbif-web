@@ -148,6 +148,7 @@ export const RESULT_COLUMNS: { key: string; id: string; defaultMessage: string }
   },
   { key: 'queryLength', id: 'tools.sequenceId.colQueryLength', defaultMessage: 'queryLength' },
   { key: 'matchType', id: 'tools.sequenceId.colMatchType', defaultMessage: 'matchType' },
+  { key: 'image', id: 'tools.sequenceId.colImage', defaultMessage: 'image' },
   {
     key: 'scientificName',
     id: 'tools.sequenceId.colScientificName',

@@ -17,6 +17,8 @@ import {
 } from './types';
 import { buildAlignment, sortResults } from './utils';
 import { Classification } from '@/components/classification';
+import { useConfig } from '@/config/config';
+import { useTaxonImage } from './useTaxonImage';
 
 type ResultsPhaseProps = {
   results: SequenceResult[];
@@ -167,7 +169,7 @@ export function ResultsPhase({
                 <tr>
                   {RESULT_COLUMNS.map((col) => {
                     const isActive = sortColumn === col.key;
-                    const sortable = col.key !== 'alignment';
+                    const sortable = col.key !== 'alignment' && col.key !== 'image';
                     return (
                       <th
                         key={col.key}
@@ -325,6 +327,10 @@ function ResultRow({ row, onShowAlignment }: { row: SequenceResult; onShowAlignm
       <td className="g-px-4 g-py-2 g-whitespace-nowrap">
         <MatchTypeBadge matchType={m.matchType} />
       </td>
+      {/* image */}
+      <td className="g-px-4 g-py-2 g-whitespace-nowrap">
+        <TaxonImageCell taxonKey={usage?.key} />
+      </td>
       {/* scientificName */}
       <td className="g-px-4 g-py-2">
         {usage ? (
@@ -413,6 +419,39 @@ const MATCH_TYPE_LABELS: Record<string, { id: string; defaultMessage: string }> 
   BLAST_WEAK_MATCH: { id: 'tools.sequenceId.matchType.weak', defaultMessage: 'Weak match' },
   BLAST_NO_MATCH: { id: 'tools.sequenceId.matchType.none', defaultMessage: 'No match' },
 };
+
+function TaxonImageCell({ taxonKey }: { taxonKey?: number }) {
+  const { defaultChecklistKey } = useConfig();
+  const { image, loading } = useTaxonImage(defaultChecklistKey, taxonKey);
+
+  if (taxonKey == null) return null;
+  if (loading) {
+    return (
+      <div className="g-w-12 g-h-12 g-rounded g-bg-slate-100 g-animate-pulse" aria-hidden="true" />
+    );
+  }
+  if (!image) return null;
+  const href = image.occurrenceKey ? `/occurrence/${image.occurrenceKey}` : undefined;
+  const title = image.rightsHolder ? `© ${image.rightsHolder}` : undefined;
+  const imgEl = (
+    <img
+      src={image.identifier}
+      alt=""
+      loading="lazy"
+      className="g-w-12 g-h-12 g-object-cover g-rounded g-bg-slate-50"
+      onError={(e) => {
+        (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
+      }}
+    />
+  );
+  return href ? (
+    <a href={href} target="_blank" rel="noreferrer" title={title}>
+      {imgEl}
+    </a>
+  ) : (
+    <span title={title}>{imgEl}</span>
+  );
+}
 
 function MatchTypeBadge({ matchType }: { matchType?: string }) {
   if (!matchType) return null;
