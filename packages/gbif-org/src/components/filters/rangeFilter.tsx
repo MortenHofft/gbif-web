@@ -83,13 +83,19 @@ export const RangeFilter = React.forwardRef<HTMLInputElement, RangeProps>(
       }
     }, [filterSummary]);
 
+    const iconButtonClass =
+      'g-inline-flex g-items-center g-justify-center g-min-w-11 g-min-h-11 g-rounded hover:g-bg-slate-100';
+    const clearLabel = formatMessage({ id: 'filterSupport.clear' });
+    const existenceLabel = formatMessage({ id: 'filterSupport.existence' });
     const options = (
       <>
         <div className="g-flex-auto"></div>
-        <div className="g-flex-none g-text-base" style={{ marginTop: '-0.2em' }}>
+        <div className="g-flex-none g-flex g-items-center g-text-base">
           {selected.length > 0 && (
             <button
-              className="g-mx-1 g-me-2 g-px-1 g-pe-3 g-border-e"
+              type="button"
+              aria-label={clearLabel}
+              className={cn(iconButtonClass, 'g-me-2 g-pe-3 g-border-e')}
               onClick={() => setFullField(filterHandle, [], [])}
             >
               <MdDeleteOutline />
@@ -98,7 +104,9 @@ export const RangeFilter = React.forwardRef<HTMLInputElement, RangeProps>(
 
           {allowExistence && (
             <button
-              className="g-px-1"
+              type="button"
+              aria-label={existenceLabel}
+              className={iconButtonClass}
               onClick={() => {
                 const backup = cleanUpFilter(cloneDeep(filter));
                 setBackupFilter(backup);

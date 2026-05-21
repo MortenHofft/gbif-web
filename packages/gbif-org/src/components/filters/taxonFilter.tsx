@@ -14,7 +14,7 @@ import {
   MdOutlineRemoveCircleOutline,
 } from 'react-icons/md';
 import { PiEmptyBold } from 'react-icons/pi';
-import { FormattedMessage, FormattedNumber } from 'react-intl';
+import { FormattedMessage, FormattedNumber, useIntl } from 'react-intl';
 import StripeLoader from '../stripeLoader';
 import { AboutButton } from './aboutButton';
 import { DatasetLabel } from './displayNames';
@@ -59,6 +59,7 @@ export const TaxonFilter = React.forwardRef<HTMLInputElement, TaxonSuggestProps>
     ref
   ) => {
     const searchContext = useSearchContext();
+    const { formatMessage } = useIntl();
     const currentFilterContext = useContext(FilterContext);
     const { filter, toggle, add, setFullField, setFilter, filterHash, negateField } =
       currentFilterContext;
@@ -186,15 +187,22 @@ export const TaxonFilter = React.forwardRef<HTMLInputElement, TaxonSuggestProps>
       (x) => !selectedStrings.includes(x.name)
     );
 
+    const iconButtonClass =
+      'g-inline-flex g-items-center g-justify-center g-min-w-11 g-min-h-11 g-rounded hover:g-bg-slate-100';
+    const clearLabel = formatMessage({ id: 'filterSupport.clear' });
+    const excludeLabel = formatMessage({ id: 'filterSupport.excludeSelected' });
+    const existenceLabel = formatMessage({ id: 'filterSupport.existence' });
     const options = (
       <>
         <div className="g-flex-auto"></div>
-        <div className="g-flex-none g-text-base" style={{ marginTop: '-0.2em' }}>
+        <div className="g-flex-none g-flex g-items-center g-text-base">
           {filterType === 'SELECT' && (
             <>
               {selected.length > 0 && (
                 <button
-                  className={cn('g-mx-1 g-px-1', !!About && 'g-pe-3 g-border-e g-me-2')}
+                  type="button"
+                  aria-label={clearLabel}
+                  className={cn(iconButtonClass, !!About && 'g-pe-3 g-border-e g-me-2')}
                   onClick={() => {
                     setFullField(filterHandle, [], []);
                   }}
@@ -204,7 +212,9 @@ export const TaxonFilter = React.forwardRef<HTMLInputElement, TaxonSuggestProps>
               )}
               {allowNegations && (
                 <button
-                  className="g-px-1"
+                  type="button"
+                  aria-label={excludeLabel}
+                  className={iconButtonClass}
                   onClick={() => {
                     negateField(filterHandle, !useNegations);
                     setUseNegations(!useNegations);
@@ -227,7 +237,9 @@ export const TaxonFilter = React.forwardRef<HTMLInputElement, TaxonSuggestProps>
 
           {allowExistence && (
             <button
-              className="g-px-1"
+              type="button"
+              aria-label={existenceLabel}
+              className={iconButtonClass}
               onClick={() => {
                 const backup = cleanUpFilter(cloneDeep(filter));
                 setBackupFilter(backup);

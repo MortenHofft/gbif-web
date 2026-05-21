@@ -14,7 +14,7 @@ import {
   MdShuffle,
 } from 'react-icons/md';
 import { PiEmptyBold } from 'react-icons/pi';
-import { FormattedMessage, FormattedNumber } from 'react-intl';
+import { FormattedMessage, FormattedNumber, useIntl } from 'react-intl';
 import { AboutButton } from './aboutButton';
 import {
   AdditionalFilterProps,
@@ -53,6 +53,7 @@ export const EnumFilter = React.forwardRef(
     ref
   ) => {
     const searchContext = useSearchContext();
+    const { formatMessage } = useIntl();
     const currentFilterContext = useContext(FilterContext);
     const { filter, toggle, setFullField, negateField, setFilter, filterHash } =
       currentFilterContext;
@@ -151,13 +152,21 @@ export const EnumFilter = React.forwardRef(
       : enumOptions ?? [];
 
     const About = about;
+    const iconButtonClass =
+      'g-inline-flex g-items-center g-justify-center g-min-w-11 g-min-h-11 g-rounded hover:g-bg-slate-100';
+    const clearLabel = formatMessage({ id: 'filterSupport.clear' });
+    const excludeLabel = formatMessage({ id: 'filterSupport.excludeSelected' });
+    const existenceLabel = formatMessage({ id: 'filterSupport.existence' });
+    const invertLabel = formatMessage({ id: 'filterSupport.invert' });
     const options = (
       <>
         <div className="g-flex-auto"></div>
-        <div className="g-flex-none g-text-base" style={{ marginTop: '-0.2em' }}>
+        <div className="g-flex-none g-flex g-items-center g-text-base">
           {selected.length > 0 && (
             <button
-              className="g-mx-1 g-me-2 g-px-1 g-pe-3 g-border-e"
+              type="button"
+              aria-label={clearLabel}
+              className={cn(iconButtonClass, 'g-me-2 g-pe-3 g-border-e')}
               onClick={() => setFullField(filterHandle, [], [])}
             >
               <MdDeleteOutline />
@@ -166,7 +175,9 @@ export const EnumFilter = React.forwardRef(
 
           {allowNegations && (
             <button
-              className="g-px-1"
+              type="button"
+              aria-label={excludeLabel}
+              className={iconButtonClass}
               onClick={() => {
                 negateField(filterHandle, !useNegations);
                 setUseNegations(!useNegations);
@@ -187,7 +198,9 @@ export const EnumFilter = React.forwardRef(
 
           {allowExistence && (
             <button
-              className="g-px-1"
+              type="button"
+              aria-label={existenceLabel}
+              className={iconButtonClass}
               onClick={() => {
                 const backup = cleanUpFilter(cloneDeep(filter));
                 setBackupFilter(backup);
@@ -213,7 +226,9 @@ export const EnumFilter = React.forwardRef(
           >
             <span>
               <button
-                className="g-px-1"
+                type="button"
+                aria-label={invertLabel}
+                className={iconButtonClass}
                 onClick={() => {
                   // reverse selection
                   const newSelected = valueOptions.filter((x) => !selected.includes(x));

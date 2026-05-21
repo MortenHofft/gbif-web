@@ -188,15 +188,22 @@ export const WildcardFilter = React.forwardRef<HTMLInputElement, WildcardProps>(
         (x) => typeof x === 'object' && x.type === 'like' && x.value && x.value === q
       ) || selectedStrings.includes(q);
 
+    const iconButtonClass =
+      'g-inline-flex g-items-center g-justify-center g-min-w-11 g-min-h-11 g-rounded hover:g-bg-slate-100';
+    const clearLabel = formatMessage({ id: 'filterSupport.clear' });
+    const excludeLabel = formatMessage({ id: 'filterSupport.excludeSelected' });
+    const existenceLabel = formatMessage({ id: 'filterSupport.existence' });
     const options = (
       <>
         <div className="g-flex-auto"></div>
-        <div className="g-flex-none g-text-base" style={{ marginTop: '-0.2em' }}>
+        <div className="g-flex-none g-flex g-items-center g-text-base">
           {filterType === 'SELECT' && (
             <>
               {selected.length > 0 && (
                 <button
-                  className={cn('g-mx-1 g-px-1', !!About && 'g-pe-3 g-border-e g-me-2')}
+                  type="button"
+                  aria-label={clearLabel}
+                  className={cn(iconButtonClass, !!About && 'g-pe-3 g-border-e g-me-2')}
                   onClick={() => {
                     setFullField(filterHandle, [], []);
                   }}
@@ -206,7 +213,9 @@ export const WildcardFilter = React.forwardRef<HTMLInputElement, WildcardProps>(
               )}
               {allowNegations && (
                 <button
-                  className="g-px-1"
+                  type="button"
+                  aria-label={excludeLabel}
+                  className={iconButtonClass}
                   onClick={() => {
                     negateField(filterHandle, !useNegations);
                     setUseNegations(!useNegations);
@@ -229,7 +238,9 @@ export const WildcardFilter = React.forwardRef<HTMLInputElement, WildcardProps>(
 
           {allowExistence && (
             <button
-              className="g-px-1"
+              type="button"
+              aria-label={existenceLabel}
+              className={iconButtonClass}
               onClick={() => {
                 const backup = cleanUpFilter(cloneDeep(filter));
                 setBackupFilter(backup);
@@ -338,6 +349,10 @@ export const WildcardFilter = React.forwardRef<HTMLInputElement, WildcardProps>(
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder={formatMessage({ id: 'search.placeholders.default' })}
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={!!hasSuggestions && q !== ''}
+                aria-controls="wildcardFilter-suggestions"
                 className="g-text-sm g-w-full g-border-slate-100 g-py-1 g-px-4 g-rounded g-bg-slate-50 g-border g-border-solid focus-within:g-ring-2 focus-within:g-ring-blue-400/70 focus-within:g-ring-offset-0 g-ring-inset"
                 onKeyDown={(e) => {
                   // if user press enter, then update the value
@@ -399,10 +414,14 @@ export const WildcardFilter = React.forwardRef<HTMLInputElement, WildcardProps>(
               error={error}
             >
               {facetSuggestions && facetSuggestions.length > 0 && (
-                <div>
+                <div id="wildcardFilter-suggestions">
                   <StripeLoader active={loading} />
                   {hasFilters && q !== '' && (
-                    <div className="g-text-slate-500 g-text-xs g-border-t g-mx-4 g-py-2">
+                    <div
+                      role="status"
+                      aria-live="polite"
+                      className="g-text-slate-500 g-text-xs g-border-t g-mx-4 g-py-2"
+                    >
                       <FormattedMessage
                         id="filterSupport.suggestionsWithinFilter"
                         defaultMessage="Suggestions within your current filter"

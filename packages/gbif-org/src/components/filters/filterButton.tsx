@@ -146,7 +146,7 @@ const ActiveFilterButton = React.forwardRef<HTMLButtonElement, ActiveFilterButto
           onClick={handleClear}
           type="button"
           aria-label="Clear filter"
-          className="g-rounded-s-none g-rounded-e g-px-2"
+          className="g-rounded-s-none g-rounded-e g-px-3 g-py-2 g-min-w-11 g-min-h-11 g-justify-center"
         >
           <span>
             <MdClose />
