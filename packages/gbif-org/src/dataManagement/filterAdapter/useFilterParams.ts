@@ -3,7 +3,6 @@ import { Base64 } from 'js-base64';
 import isPlainObject from 'lodash/isPlainObject';
 import objectHash from 'object-hash';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useNormalizedSearchParams } from '@/hooks/useNormalizedSearchParams';
 import { filter2v1 } from '.';
 import { cleanUpFilter, FilterType } from '../../contexts/filter';
@@ -100,13 +99,9 @@ function useQueryParams({ observedParams }: { observedParams: string[] }) {
   const [searchParams, setSearchParams] = useNormalizedSearchParams();
   const [query, setQuery] = useState({});
 
-  // Store setSearchParams in a ref, so we can read current value without dependency
-  const setSearchParamsRef = useRef(setSearchParams);
-  useEffect(() => {
-    setSearchParamsRef.current = setSearchParams;
-  }, [setSearchParams]);
-
-  // Store searchParams in a ref, so we can read current value without dependency
+  // searchParams is a new instance on every URL change, so mirror it through a
+  // ref to keep updateQuery's identity stable. setSearchParams is already
+  // stable (see useNormalizedSearchParams).
   const searchParamsRef = useRef(searchParams);
   useEffect(() => {
     searchParamsRef.current = searchParams;
@@ -117,9 +112,9 @@ function useQueryParams({ observedParams }: { observedParams: string[] }) {
       const existingQuery = parseParams(searchParamsRef.current, true);
       const mergedQuery = { ...existingQuery, ...nextQuery };
       const stringParams = asStringParams(mergedQuery);
-      setSearchParamsRef.current(stringParams, { preventScrollReset: true });
+      setSearchParams(stringParams, { preventScrollReset: true });
     },
-    [] // to avoid recreating the callback on every parameter change we move dependencies to refs
+    [setSearchParams]
   );
 
   useEffect(() => {

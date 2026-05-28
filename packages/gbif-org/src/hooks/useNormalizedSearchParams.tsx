@@ -1,10 +1,23 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 const snakeToCamel = (s: string) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 
 export function useNormalizedSearchParams() {
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // setSearchParams is not stable across URL changes — it's recreated whenever
+  // navigate changes. Mirror it through a ref so we can expose a stable setter.
+  // https://github.com/remix-run/react-router/issues/9991
+  const setSearchParamsRef = useRef(setSearchParams);
+  useEffect(() => {
+    setSearchParamsRef.current = setSearchParams;
+  }, [setSearchParams]);
+
+  const stableSetSearchParams = useCallback<typeof setSearchParams>(
+    (...args) => setSearchParamsRef.current(...args),
+    []
+  );
 
   // Normalize params
   const normalized = useMemo(() => {
@@ -23,9 +36,9 @@ export function useNormalizedSearchParams() {
   // Sync URL once (replace, not push)
   useEffect(() => {
     if (normalized.changed) {
-      setSearchParams(normalized.params, { replace: true });
+      stableSetSearchParams(normalized.params, { replace: true });
     }
-  }, [normalized, setSearchParams]);
+  }, [normalized, stableSetSearchParams]);
 
-  return [normalized.params, setSearchParams] as const;
+  return [normalized.params, stableSetSearchParams] as const;
 }
