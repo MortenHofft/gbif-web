@@ -1,5 +1,5 @@
 import { Base64 } from 'js-base64';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 type Options<T> = {
@@ -95,9 +95,12 @@ export function useParam<T>({
 }): [T, (value: T) => void] {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const value = parse(
-    searchParams.get(key) ?? (defaultValue ? defaultValue.toString() : undefined)
-  );
+  // Memoize the parsed value keyed on the raw string. Without this, parse runs
+  // on every render (every URL change triggers a rerender of every consumer,
+  // even if their key didn't change) and JSON parsers in particular allocate a
+  // fresh object each time, destabilizing any downstream deps.
+  const rawValue = searchParams.get(key) ?? (defaultValue ? defaultValue.toString() : undefined);
+  const value = useMemo(() => parse(rawValue), [rawValue, parse]);
 
   // setSearchParams is not stable
   // https://github.com/remix-run/react-router/issues/9991
