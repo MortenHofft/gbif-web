@@ -162,20 +162,18 @@ export function Views({
   return (
     <ErrorBoundary invalidateOn={view}>
       <div className={className}>
-        {fixedHeight && (
-          <DynamicHeightDiv minPxHeight={500}>
-            {view === 'table' && <Table entityDrawerPrefix={entityDrawerPrefix} />}
-          </DynamicHeightDiv>
-        )}
-        {!fixedHeight && (
-          <DynamicHeightDiv
-            minPxHeight={500}
-            onlySetMinHeight
-            className="g-bg-white g-flex-1 g-border g-border-solid g-basis-full g-h-1 g-flex g-flex-col g-overflow-auto g-p-4"
-          >
-            {view === 'tree' && <SearchPageTree entityDrawerPrefix={entityDrawerPrefix} />}
-          </DynamicHeightDiv>
-        )}
+        <DynamicHeightDiv
+          minPxHeight={500}
+          onlySetMinHeight={!fixedHeight}
+          className={
+            fixedHeight
+              ? undefined
+              : 'g-bg-white g-flex-1 g-border g-border-solid g-basis-full g-h-1 g-flex g-flex-col g-overflow-auto g-p-4'
+          }
+        >
+          {view === 'table' && <Table entityDrawerPrefix={entityDrawerPrefix} />}
+          {view === 'tree' && <SearchPageTree entityDrawerPrefix={entityDrawerPrefix} />}
+        </DynamicHeightDiv>
       </div>
     </ErrorBoundary>
   );
