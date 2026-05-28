@@ -7,11 +7,12 @@ import { Tabs } from '@/components/tabs';
 import { useConfig } from '@/config/config';
 import { FilterProvider } from '@/contexts/filter';
 import { SearchContextProvider, useSearchContext } from '@/contexts/search';
+import { UrlStoreProvider, useUrlParam } from '@/contexts/urlStore';
 import { useFilterParams } from '@/dataManagement/filterAdapter/useFilterParams';
 import { useStringParam } from '@/hooks/useParam';
 import { useUpdateViewParams } from '@/hooks/useUpdateViewParams';
 import EntityDrawer from '@/routes/occurrence/search/views/browseList/ListBrowser';
-import React, { useMemo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { useFilters } from './filters';
 import { AboutContent, ApiContent } from './helpTexts';
@@ -39,9 +40,11 @@ export function TaxonSearchPage(): React.ReactElement {
 
       <SearchContextProvider searchContext={config.taxonSearch}>
         <FilterProvider filter={filter} onChange={setFilter}>
-          <TaxonSearchPageInner
-            datasetKey={config.taxonSearch?.checklistKey ?? config.defaultChecklistKey}
-          />
+          <UrlStoreProvider>
+            <TaxonSearchPageInner
+              datasetKey={config.taxonSearch?.checklistKey ?? config.defaultChecklistKey}
+            />
+          </UrlStoreProvider>
         </FilterProvider>
       </SearchContextProvider>
     </>
@@ -96,7 +99,11 @@ export function TaxonSearchPageInner({
         <FilterBarWithActions filters={visibleFilters} className="g-px-4" />
       </section>
 
-      <Views view={view} entityDrawerPrefix="t" className="g-py-2 g-px-4 g-bg-slate-100" />
+      <ViewsByUrlParam
+        defaultView={defaultView}
+        entityDrawerPrefix="t"
+        className="g-py-2 g-px-4 g-bg-slate-100"
+      />
     </ChecklistKeyContext.Provider>
   );
 }
@@ -129,25 +136,51 @@ export function TaxonSearchInner({
 
   return (
     <ChecklistKeyContext.Provider value={{ datasetKey }}>
-      <ErrorBoundary showReportButton>
-        <EntityDrawer />
-        <Card>
-          {/* <TaxonViewTabs
-              setView={() => {}}
-              view={view}
-              defaultView={defaultView}
-              tabs={searchContext.tabs}
-            /> */}
-          <div className="g-p2">
-            <FilterBarWithActions filters={visibleFilters} />
-          </div>
-        </Card>
+      <UrlStoreProvider>
+        <ErrorBoundary showReportButton>
+          <EntityDrawer />
+          <Card>
+            {/* <TaxonViewTabs
+                setView={() => {}}
+                view={view}
+                defaultView={defaultView}
+                tabs={searchContext.tabs}
+              /> */}
+            <div className="g-p2">
+              <FilterBarWithActions filters={visibleFilters} />
+            </div>
+          </Card>
 
-        <Views view={view} entityDrawerPrefix="t" className="g-py-2" />
-      </ErrorBoundary>
+          <ViewsByUrlParam
+            defaultView={defaultView}
+            entityDrawerPrefix="t"
+            className="g-py-2"
+          />
+        </ErrorBoundary>
+      </UrlStoreProvider>
     </ChecklistKeyContext.Provider>
   );
 }
+
+// POC: per-key URL subscription. This leaf reads `view` directly from the
+// URL store (useUrlParam) and is wrapped in memo so it doesn't rerender
+// when its parent rerenders for unrelated URL changes (e.g. filter or
+// pagination updates). It only rerenders when the `view` param itself
+// changes — proving out per-key subscription via useSyncExternalStore.
+export const ViewsByUrlParam = memo(function ViewsByUrlParam({
+  defaultView,
+  className,
+  entityDrawerPrefix,
+}: {
+  defaultView?: string;
+  className?: string;
+  entityDrawerPrefix: string;
+}) {
+  const view = useUrlParam('view') ?? defaultView;
+  return (
+    <Views view={view} className={className} entityDrawerPrefix={entityDrawerPrefix} />
+  );
+});
 
 export function Views({
   view,
