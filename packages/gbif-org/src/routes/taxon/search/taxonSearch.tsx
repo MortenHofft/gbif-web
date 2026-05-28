@@ -12,8 +12,9 @@ import { useFilterParams } from '@/dataManagement/filterAdapter/useFilterParams'
 import { useStringParam } from '@/hooks/useParam';
 import { useUpdateViewParams } from '@/hooks/useUpdateViewParams';
 import EntityDrawer from '@/routes/occurrence/search/views/browseList/ListBrowser';
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useRef } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
+import { useSearchParams } from 'react-router-dom';
 import { useFilters } from './filters';
 import { AboutContent, ApiContent } from './helpTexts';
 import { searchConfig } from './searchConfig';
@@ -79,6 +80,7 @@ export function TaxonSearchPageInner({
 
   return (
     <ChecklistKeyContext.Provider value={{ datasetKey }}>
+      <PocDebugBar />
       <EntityDrawer />
       <DataHeader
         className="g-bg-white"
@@ -159,6 +161,91 @@ export function TaxonSearchInner({
         </ErrorBoundary>
       </UrlStoreProvider>
     </ChecklistKeyContext.Provider>
+  );
+}
+
+// DEBUG widget: side-by-side render counters. Both components are memo'd
+// and take no props — the only difference is the hook used to read `view`.
+//   - Baseline subscribes to react-router-dom's full searchParams context,
+//     so it rerenders on every URL change (the existing behaviour).
+//   - POC subscribes via the URL store, so it only rerenders when the
+//     'view' param's value actually changes.
+// Click "change q (filter)" repeatedly → baseline counter increments,
+// POC counter stays put. Click view=table/view=tree → both increment.
+// Remove this widget once the difference has been verified.
+const RenderCounterBaseline = memo(function RenderCounterBaseline() {
+  const [searchParams] = useSearchParams();
+  const view = searchParams.get('view') ?? '(default)';
+  const count = useRef(0);
+  count.current += 1;
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        padding: '4px 8px',
+        marginRight: 8,
+        background: '#fee',
+        border: '1px solid #c00',
+        fontFamily: 'monospace',
+        fontSize: 12,
+      }}
+    >
+      baseline useSearchParams renders={count.current} view={view}
+    </span>
+  );
+});
+
+const RenderCounterPoc = memo(function RenderCounterPoc() {
+  const view = useUrlParam('view') ?? '(default)';
+  const count = useRef(0);
+  count.current += 1;
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        padding: '4px 8px',
+        background: '#efe',
+        border: '1px solid #0a0',
+        fontFamily: 'monospace',
+        fontSize: 12,
+      }}
+    >
+      POC useUrlParam renders={count.current} view={view}
+    </span>
+  );
+});
+
+function PocDebugBar() {
+  const [, setSearchParams] = useSearchParams();
+  const setParam = (key: string, value: string) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set(key, value);
+        return next;
+      },
+      { preventScrollReset: true }
+    );
+  return (
+    <div
+      style={{
+        padding: 8,
+        background: '#fff',
+        borderBottom: '1px solid #ccc',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        flexWrap: 'wrap',
+      }}
+    >
+      <RenderCounterBaseline />
+      <RenderCounterPoc />
+      <button onClick={() => setParam('view', 'table')}>view=table</button>
+      <button onClick={() => setParam('view', 'tree')}>view=tree</button>
+      <button onClick={() => setParam('q', String(Math.random()).slice(2, 8))}>
+        change q (filter)
+      </button>
+    </div>
   );
 }
 
