@@ -11,7 +11,10 @@ import { useFilterParams } from '@/dataManagement/filterAdapter/useFilterParams'
 import { useStringParam } from '@/hooks/useParam';
 import { useUpdateViewParams } from '@/hooks/useUpdateViewParams';
 import EntityDrawer from '@/routes/occurrence/search/views/browseList/ListBrowser';
-import React, { useMemo } from 'react';
+import { JotaiUrlSync } from '@/atoms/JotaiUrlSync';
+import { urlParamAtom } from '@/atoms/urlAtoms';
+import { Provider as JotaiProvider, useAtomValue } from 'jotai';
+import React, { memo, useMemo } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { useFilters } from './filters';
 import { AboutContent, ApiContent } from './helpTexts';
@@ -39,9 +42,12 @@ export function TaxonSearchPage(): React.ReactElement {
 
       <SearchContextProvider searchContext={config.taxonSearch}>
         <FilterProvider filter={filter} onChange={setFilter}>
-          <TaxonSearchPageInner
-            datasetKey={config.taxonSearch?.checklistKey ?? config.defaultChecklistKey}
-          />
+          <JotaiProvider>
+            <JotaiUrlSync />
+            <TaxonSearchPageInner
+              datasetKey={config.taxonSearch?.checklistKey ?? config.defaultChecklistKey}
+            />
+          </JotaiProvider>
         </FilterProvider>
       </SearchContextProvider>
     </>
@@ -96,7 +102,11 @@ export function TaxonSearchPageInner({
         <FilterBarWithActions filters={visibleFilters} className="g-px-4" />
       </section>
 
-      <Views view={view} entityDrawerPrefix="t" className="g-py-2 g-px-4 g-bg-slate-100" />
+      <ViewsByUrlParam
+        defaultView={defaultView}
+        entityDrawerPrefix="t"
+        className="g-py-2 g-px-4 g-bg-slate-100"
+      />
     </ChecklistKeyContext.Provider>
   );
 }
@@ -129,25 +139,52 @@ export function TaxonSearchInner({
 
   return (
     <ChecklistKeyContext.Provider value={{ datasetKey }}>
-      <ErrorBoundary showReportButton>
-        <EntityDrawer />
-        <Card>
-          {/* <TaxonViewTabs
-              setView={() => {}}
-              view={view}
-              defaultView={defaultView}
-              tabs={searchContext.tabs}
-            /> */}
-          <div className="g-p2">
-            <FilterBarWithActions filters={visibleFilters} />
-          </div>
-        </Card>
+      <JotaiProvider>
+        <JotaiUrlSync />
+        <ErrorBoundary showReportButton>
+          <EntityDrawer />
+          <Card>
+            {/* <TaxonViewTabs
+                setView={() => {}}
+                view={view}
+                defaultView={defaultView}
+                tabs={searchContext.tabs}
+              /> */}
+            <div className="g-p2">
+              <FilterBarWithActions filters={visibleFilters} />
+            </div>
+          </Card>
 
-        <Views view={view} entityDrawerPrefix="t" className="g-py-2" />
-      </ErrorBoundary>
+          <ViewsByUrlParam
+            defaultView={defaultView}
+            entityDrawerPrefix="t"
+            className="g-py-2"
+          />
+        </ErrorBoundary>
+      </JotaiProvider>
     </ChecklistKeyContext.Provider>
   );
 }
+
+// POC: per-key URL subscription via jotai. The leaf reads `view` from a
+// derived atom (selectAtom compares with Object.is, so subscribers only
+// rerender when the selected value changes) and is wrapped in memo so
+// unrelated parent rerenders skip it entirely.
+const viewAtom = urlParamAtom('view');
+export const ViewsByUrlParam = memo(function ViewsByUrlParam({
+  defaultView,
+  className,
+  entityDrawerPrefix,
+}: {
+  defaultView?: string;
+  className?: string;
+  entityDrawerPrefix: string;
+}) {
+  const view = useAtomValue(viewAtom) ?? defaultView;
+  return (
+    <Views view={view} className={className} entityDrawerPrefix={entityDrawerPrefix} />
+  );
+});
 
 export function Views({
   view,

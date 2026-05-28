@@ -76,6 +76,7 @@
     "highcharts": "^11.4.1",
     "highcharts-react-official": "^3.2.1",
     "isomorphic-dompurify": "^2.10.0",
+    "jotai": "^2.20.0",
     "js-base64": "^3.7.7",
     "jsonwebtoken": "^9.0.2",
     "latlon-geohash": "^2.0.0",
