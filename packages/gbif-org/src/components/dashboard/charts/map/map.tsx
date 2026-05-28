@@ -6,7 +6,11 @@ import { AdHocMapProps } from '@/routes/occurrence/search/views/map/Map/AdHocMap
 import { ClientSideOnly } from '@/components/clientSideOnly';
 import { FormattedNumber, Table } from '../../shared';
 import { SimpleTooltip as Tooltip } from '@/components/simpleTooltip';
-import { MdLocationPin, MdOutlineDragIndicator as MdDragHandle } from 'react-icons/md';
+import {
+  MdLocationPin,
+  MdOutlineDragIndicator as MdDragHandle,
+  MdSwapVert,
+} from 'react-icons/md';
 import { useOccurrenceCount } from '@/components/count';
 import formatAsPercentage from '@/utils/formatAsPercentage';
 import { cn } from '@/utils/shadcn';
@@ -23,6 +27,7 @@ type ResultItem = {
   count: number;
   hidden?: boolean;
   colorIndex?: number;
+  customColor?: string;
   filter?: Record<string, unknown[]>;
   occurrences?: {
     _meta: { predicate: object };
@@ -132,6 +137,22 @@ function FacetMap({
     setOrderedResults(reorderedResults);
   };
 
+  // Resolve the color for a layer: an explicitly chosen color takes precedence
+  // over the color derived from the palette via the colorIndex.
+  const resolveColor = (r: ResultItem): string =>
+    r.customColor ?? palette[(r.colorIndex ?? 0) % palette.length];
+
+  const reverseOrder = () => {
+    setOrderedResults([...orderedResults].reverse());
+  };
+
+  const allHidden = orderedResults.length > 0 && orderedResults.every((r) => r.hidden);
+
+  const toggleAllVisibility = () => {
+    const nextHidden = !allHidden;
+    setOrderedResults(orderedResults.map((r) => ({ ...r, hidden: nextHidden })));
+  };
+
   const mapProps: AdHocMapProps = {
     overlays: orderedResults
       .map((r) => ({
@@ -139,7 +160,7 @@ function FacetMap({
         predicate: r.occurrences?._meta.predicate ?? {},
         predicateHash: r.occurrences?.metaPredicate || '',
         style: {
-          mapDensityColors: [palette[(r.colorIndex ?? 0) % palette.length]],
+          mapDensityColors: [resolveColor(r)],
           mapPointOpacities: [1, 1, 0.95, 0.9, 0.85],
           mapPointSizes: [3, 3, 4, 5, 5],
         },
@@ -200,10 +221,15 @@ function FacetMap({
                           index={i}
                           interactive={interactive}
                           onClick={onClick}
-                          color={palette[(e.colorIndex ?? 0) % palette.length]}
+                          color={resolveColor(e)}
                           visiblityHandler={(hidden: boolean) => {
                             const newResults = [...orderedResults];
-                            newResults[i].hidden = hidden;
+                            newResults[i] = { ...newResults[i], hidden };
+                            setOrderedResults(newResults);
+                          }}
+                          colorHandler={(customColor: string) => {
+                            const newResults = [...orderedResults];
+                            newResults[i] = { ...newResults[i], customColor };
                             setOrderedResults(newResults);
                           }}
                           showSpeciesCounts={showSpeciesCounts}
@@ -217,6 +243,26 @@ function FacetMap({
             </Droppable>
           </DragDropContext>
         </Table>
+        {orderedResults.length > 0 && (
+          <div className="g-flex g-items-center g-gap-3 g-mt-2 g-text-slate-500">
+            <Tooltip title="Reverse order" side="top">
+              <button
+                className="g-flex g-items-center g-justify-center hover:g-text-slate-700"
+                onClick={reverseOrder}
+              >
+                <MdSwapVert />
+              </button>
+            </Tooltip>
+            <Tooltip title={allHidden ? 'Show all' : 'Hide all'} side="top">
+              <button
+                className="g-flex g-items-center g-justify-center hover:g-text-slate-700"
+                onClick={toggleAllVisibility}
+              >
+                {allHidden ? <IoMdEyeOff /> : <IoMdEye />}
+              </button>
+            </Tooltip>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -229,6 +275,7 @@ function Row({
   onClick,
   color,
   visiblityHandler,
+  colorHandler,
   showSpeciesCounts,
 }: {
   row: ResultItem;
@@ -237,6 +284,7 @@ function Row({
   onClick?: (args: FacetFilter) => void;
   color?: string;
   visiblityHandler: (hidden: boolean) => void;
+  colorHandler: (color: string) => void;
   showSpeciesCounts: boolean;
 }) {
   const { count: occurrenceCount } = row;
@@ -287,15 +335,27 @@ function Row({
                   {!row.hidden && <IoMdEye />}
                   {row.hidden && <IoMdEyeOff />}
                 </button>
-                <div
-                  className={cn('g-w-4 g-h-4 g-relative g-rounded-full g-inline-block', {
-                    'g-animate-pulse': loading || typeof count !== 'number',
-                  })}
+                <label
+                  className={cn(
+                    'g-w-4 g-h-4 g-relative g-rounded-full g-inline-block g-cursor-pointer g-overflow-hidden',
+                    {
+                      'g-animate-pulse': loading || typeof count !== 'number',
+                    }
+                  )}
                   style={{
                     backgroundColor: count !== 0 ? color : undefined,
                     border: '1px solid #ccc',
                   }}
-                ></div>
+                  title="Change color"
+                >
+                  <input
+                    type="color"
+                    value={color ?? '#000000'}
+                    onChange={(e) => colorHandler(e.target.value)}
+                    className="g-absolute g-inset-0 g-w-full g-h-full g-p-0 g-border-0 g-opacity-0 g-cursor-pointer"
+                    aria-label="Change layer color"
+                  />
+                </label>
               </div>
             </td>
             <td style={interactive ? { cursor: 'pointer' } : {}}>
