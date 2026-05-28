@@ -53,6 +53,13 @@ export function Dashboard() {
           'taxa',
           'sex',
           'occurrenceIssue',
+          'customTwoDim',
+          'basisOfRecordByCountry',
+          'countryByBasisOfRecord',
+          'basisOfRecordByMonth',
+          'licenseByCountry',
+          'kingdomByBasisOfRecord',
+          'datasetsByBasisOfRecord',
           ...chartsTypes,
         ]}
       />

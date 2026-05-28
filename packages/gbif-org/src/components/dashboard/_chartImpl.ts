@@ -5,6 +5,7 @@ export * from './charts/enumCharts';
 export * from './charts/keyCharts';
 export * from './charts/stringCharts';
 export * from './charts/timeCharts';
+export * from './charts/twoDimCharts';
 export * from './Custom';
 export { DataQuality } from './DataQuality';
 export { OccurrenceSummary } from './OccurrenceSummary';

@@ -85,6 +85,15 @@ export const LiteratureCreatedAt = lazyChart('LiteratureCreatedAt');
 export const Taxa = lazyChart('Taxa');
 export const Iucn = lazyChart('Iucn');
 
+// twoDimCharts
+export const CustomTwoDimensionalChart = lazyChart('CustomTwoDimensionalChart');
+export const BasisOfRecordByCountry = lazyChart('BasisOfRecordByCountry');
+export const CountryByBasisOfRecord = lazyChart('CountryByBasisOfRecord');
+export const BasisOfRecordByMonth = lazyChart('BasisOfRecordByMonth');
+export const LicenseByCountry = lazyChart('LicenseByCountry');
+export const KingdomByBasisOfRecord = lazyChart('KingdomByBasisOfRecord');
+export const DatasetsByBasisOfRecord = lazyChart('DatasetsByBasisOfRecord');
+
 // Top-level
 export const DataQuality = lazyChart('DataQuality');
 export const OccurrenceSummary = lazyChart('OccurrenceSummary');

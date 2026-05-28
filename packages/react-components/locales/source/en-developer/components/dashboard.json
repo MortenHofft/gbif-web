@@ -32,6 +32,7 @@
   "taxonomicBreakdown": "Taxonomic breakdown",
   "group": {
     "views": "Views",
+    "multidimensional": "Multi-dimensional",
     "record": "Record",
     "taxon": "Taxon",
     "occurrence": "Occurrence",
@@ -53,5 +54,15 @@
     "samplingEffort": "Sampling Effort"
   },
   "occurrencesPerField": "Occurrences per {FIELD}",
-  "kingdom": "Kingdom"
+  "kingdom": "Kingdom",
+  "customChart": "Custom chart",
+  "customChart.primary": "Show occurrences by",
+  "customChart.secondary": "And broken down by",
+  "customChart.pickDifferent": "Pick two different dimensions to see a breakdown.",
+  "basisOfRecordByCountry": "Basis of record × Country",
+  "countryByBasisOfRecord": "Country × Basis of record",
+  "basisOfRecordByMonth": "Basis of record × Month",
+  "licenseByCountry": "License × Country",
+  "kingdomByBasisOfRecord": "Kingdom × Basis of record",
+  "datasetsByBasisOfRecord": "Dataset × Basis of record"
 }

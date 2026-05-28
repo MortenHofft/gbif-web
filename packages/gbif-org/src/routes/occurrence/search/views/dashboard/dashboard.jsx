@@ -311,6 +311,48 @@ const preconfiguredCharts = {
       return <charts.DatasetId predicate={predicate} interactive {...props} />;
     },
   },
+  customTwoDim: {
+    translation: 'dashboard.customChart',
+    component: ({ predicate, ...props }) => {
+      return <charts.CustomTwoDimensionalChart predicate={predicate} interactive {...props} />;
+    },
+  },
+  basisOfRecordByCountry: {
+    translation: 'dashboard.basisOfRecordByCountry',
+    component: ({ predicate, ...props }) => {
+      return <charts.BasisOfRecordByCountry predicate={predicate} interactive {...props} />;
+    },
+  },
+  countryByBasisOfRecord: {
+    translation: 'dashboard.countryByBasisOfRecord',
+    component: ({ predicate, ...props }) => {
+      return <charts.CountryByBasisOfRecord predicate={predicate} interactive {...props} />;
+    },
+  },
+  basisOfRecordByMonth: {
+    translation: 'dashboard.basisOfRecordByMonth',
+    component: ({ predicate, ...props }) => {
+      return <charts.BasisOfRecordByMonth predicate={predicate} interactive {...props} />;
+    },
+  },
+  licenseByCountry: {
+    translation: 'dashboard.licenseByCountry',
+    component: ({ predicate, ...props }) => {
+      return <charts.LicenseByCountry predicate={predicate} interactive {...props} />;
+    },
+  },
+  kingdomByBasisOfRecord: {
+    translation: 'dashboard.kingdomByBasisOfRecord',
+    component: ({ predicate, ...props }) => {
+      return <charts.KingdomByBasisOfRecord predicate={predicate} interactive {...props} />;
+    },
+  },
+  datasetsByBasisOfRecord: {
+    translation: 'dashboard.datasetsByBasisOfRecord',
+    component: ({ predicate, ...props }) => {
+      return <charts.DatasetsByBasisOfRecord predicate={predicate} interactive {...props} />;
+    },
+  },
   map: {
     translation: 'search.tabs.map',
     r: true, // resizable

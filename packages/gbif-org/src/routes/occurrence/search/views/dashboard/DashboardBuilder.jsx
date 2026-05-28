@@ -513,6 +513,17 @@ const chartGroups = {
   views: {
     values: ['map', 'table', 'gallery'],
   },
+  multidimensional: {
+    values: [
+      'customTwoDim',
+      'basisOfRecordByCountry',
+      'countryByBasisOfRecord',
+      'basisOfRecordByMonth',
+      'licenseByCountry',
+      'kingdomByBasisOfRecord',
+      'datasetsByBasisOfRecord',
+    ],
+  },
   record: {
     values: [
       'licence',
@@ -657,6 +668,7 @@ function CreateOptions({ onAdd, chartsTypes }) {
 
   const groupOrdering = {
     views: [],
+    multidimensional: [],
     record: [],
     occurrence: [],
     organism: [],
