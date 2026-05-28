@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/largeCard';
 import { FormattedMessage, useIntl } from 'react-intl';
-import { ShortDate } from '@/components/dateFormats';
+import { EnglishLongDate, ShortDate } from '@/components/dateFormats';
 import { Paging } from '@/components/paging';
 import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -71,7 +71,7 @@ const OccurrenceSnapshotsTable = ({ results }) => {
                           GBIF.org
                         </a>{' '}
                         (
-                        <ShortDate value={res.created} />){' '}
+                        <EnglishLongDate value={res.created} />){' '}
                         <FormattedMessage id="occurrenceSnapshots.table.citation" />{' '}
                         <a className="g-link g-text-blue-500" href={`https://doi.org/${res.doi}`}>
                           https://doi.org/{res.doi}
