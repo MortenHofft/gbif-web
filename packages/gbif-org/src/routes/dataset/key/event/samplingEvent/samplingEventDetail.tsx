@@ -258,7 +258,7 @@ export const SamplingEventDetail = ({
     if (mediaItems.length > 0) {
       list.push({
         id: 'media',
-        label: <FormattedMessage id="phrases.media" defaultMessage="Media" />,
+        label: <FormattedMessage id="eventDetails.media" defaultMessage="Media" />,
       });
     }
     if (hasLocation) {
@@ -280,7 +280,7 @@ export const SamplingEventDetail = ({
         id: 'occurrence-summary',
         label: (
           <FormattedMessage
-            id="phrases.occurrenceSummary"
+            id="eventDetails.occurrenceSummary"
             defaultMessage="Occurrence summary"
           />
         ),
@@ -289,7 +289,7 @@ export const SamplingEventDetail = ({
     if (hasMethodology) {
       list.push({
         id: 'methodology',
-        label: <FormattedMessage id="phrases.methodology" defaultMessage="Methodology" />,
+        label: <FormattedMessage id="eventDetails.methodology" defaultMessage="Methodology" />,
       });
     }
     if (facts.length > 0) {
@@ -306,7 +306,7 @@ export const SamplingEventDetail = ({
     if (relations.length > 0) {
       list.push({
         id: 'relations',
-        label: <FormattedMessage id="phrases.relations" defaultMessage="Relations" />,
+        label: <FormattedMessage id="eventDetails.relations" defaultMessage="Relations" />,
       });
     }
     if (identifiers.length > 0) {
@@ -362,7 +362,7 @@ export const SamplingEventDetail = ({
                 className="g-inline-flex g-items-center g-gap-1 g-bg-slate-100 hover:g-bg-slate-200 g-text-slate-700 g-rounded g-px-2 g-py-0.5 g-leading-none"
               >
                 <FaChevronLeft aria-hidden className="g-text-xs" />
-                <FormattedMessage id="dataset.allEvents" defaultMessage="All events" />
+                <FormattedMessage id="eventDetails.allEvents" defaultMessage="All events" />
               </DynamicLink>
             </span>
           </Classification>
@@ -370,7 +370,7 @@ export const SamplingEventDetail = ({
         <div className="g-m-auto g-max-w-screen-xl g-p-3">
           <Alert variant="warning" className="g-mb-4">
             <FormattedMessage
-              id="dataset.eventNotFound"
+              id="eventDetails.eventNotFound"
               defaultMessage="We couldn't find an event with this ID on this dataset."
             />
           </Alert>
@@ -381,7 +381,7 @@ export const SamplingEventDetail = ({
             <Button variant="outline" size="sm">
               <FaChevronLeft aria-hidden className="g-text-xs g-me-1" />
               <FormattedMessage
-                id="dataset.backToEventSearch"
+                id="eventDetails.backToEventSearch"
                 defaultMessage="Back to event search"
               />
             </Button>
@@ -402,7 +402,7 @@ export const SamplingEventDetail = ({
               className="g-inline-flex g-items-center g-gap-1 g-bg-slate-100 hover:g-bg-slate-200 g-text-slate-700 g-rounded g-px-2 g-py-0.5 g-leading-none"
             >
               <FaChevronLeft aria-hidden className="g-text-xs" />
-              <FormattedMessage id="dataset.allEvents" defaultMessage="All events" />
+              <FormattedMessage id="eventDetails.allEvents" defaultMessage="All events" />
             </DynamicLink>
           </span>
           {parentEvent?.eventID && (
@@ -436,11 +436,12 @@ export const SamplingEventDetail = ({
                 <nav>
                   <ul className="g-list-none g-m-0 g-p-0 g-my-2">
                     {(() => {
-                      // Extensions render in the page between Humboldt and Issues,
-                      // so splice their TOC entries in at the same spot — Issues
-                      // follows the extensions.
-                      const humboldtIdx = sections.findIndex((s) => s.id === 'humboldt');
-                      const splitAt = humboldtIdx === -1 ? sections.length : humboldtIdx + 1;
+                      // Extensions render on the page just before Issues, so the
+                      // TOC must splice extensions in immediately before the Issues
+                      // entry — otherwise (e.g. no Humboldt section) Issues would
+                      // float above extensions in the TOC but below them on page.
+                      const issuesIdx = sections.findIndex((s) => s.id === 'issues');
+                      const splitAt = issuesIdx === -1 ? sections.length : issuesIdx;
                       const before = sections.slice(0, splitAt);
                       const after = sections.slice(splitAt);
                       return (
@@ -586,7 +587,7 @@ export const SamplingEventDetail = ({
           {mediaItems.length > 0 && (
             <Group
               id="media"
-              label="phrases.media"
+              label="eventDetails.media"
               defaultMessage="Media"
               className="g-mb-4 g-scroll-mt-24"
             >
@@ -726,7 +727,7 @@ export const SamplingEventDetail = ({
               <ClientSideOnly>
                 <ErrorBoundary
                   type="BLOCK"
-                  errorMessage={<FormattedMessage id="dataset.errors.taxa" />}
+                  errorMessage={<FormattedMessage id="eventDetails.errors.taxa" />}
                 >
                   {showSummary ? (
                     <div className="g-space-y-4">
@@ -755,7 +756,7 @@ export const SamplingEventDetail = ({
                       <CardHeader>
                         <CardTitle>
                           <FormattedMessage
-                            id="phrases.occurrenceSummary"
+                            id="eventDetails.occurrenceSummary"
                             defaultMessage="Occurrence summary"
                           />
                         </CardTitle>
@@ -764,7 +765,7 @@ export const SamplingEventDetail = ({
                         <div className="g-flex g-items-start g-gap-4">
                           <p className="g-flex-auto g-min-w-0 g-text-sm g-text-slate-500">
                             <FormattedMessage
-                              id="dataset.occurrenceSummaryHint"
+                              id="eventDetails.occurrenceSummaryHint"
                               defaultMessage="A breakdown by taxa and a taxonomic sunburst for this event. The underlying queries can be slow — generate on demand."
                             />
                           </p>
@@ -775,7 +776,7 @@ export const SamplingEventDetail = ({
                             onClick={() => setShowSummary(true)}
                           >
                             <FormattedMessage
-                              id="dataset.generateOccurrenceSummary"
+                              id="eventDetails.generateOccurrenceSummary"
                               defaultMessage="Generate summary"
                             />
                           </Button>
@@ -792,7 +793,7 @@ export const SamplingEventDetail = ({
           {hasMethodology && (
             <Group
               id="methodology"
-              label="phrases.methodology"
+              label="eventDetails.methodology"
               defaultMessage="Methodology"
               className="g-mb-4 g-scroll-mt-24"
             >
@@ -837,7 +838,7 @@ export const SamplingEventDetail = ({
           {relations.length > 0 && (
             <Group
               id="relations"
-              label="phrases.relations"
+              label="eventDetails.relations"
               defaultMessage="Relations"
               className="g-mb-4 g-scroll-mt-24"
             >
@@ -920,10 +921,10 @@ export const SamplingEventDetail = ({
                     {issues.map((issue) => (
                       <tr key={issue}>
                         <td>
-                          <FormattedMessage id={`enums.occurrenceIssue.${issue}`} />
+                          <FormattedMessage id={`enums.eventIssue.${issue}`} />
                         </td>
                         <td dir="auto">
-                          <FormattedMessage id={`enums.occurrenceIssueDescription.${issue}`} />
+                          <FormattedMessage id={`enums.eventIssueDescription.${issue}`} />
                         </td>
                       </tr>
                     ))}
@@ -1098,7 +1099,7 @@ function SampledAtLine({
   if (event?.locationID) pieces.push(event.locationID);
   if (pieces.length === 0) return null;
   return (
-    <SimpleProperty label="phrases.sampledAt">
+    <SimpleProperty label="eventDetails.sampledAt">
       {pieces.map((p, i) => (
         <span key={i}>
           {p}

@@ -18,8 +18,10 @@ import { SamplingEventDetail, SamplingEventDetailSkeleton } from './samplingEven
 /**
  * Drawer-side view for an event opened from the global event search.
  *
- * Drawer entityKey format: `e_{datasetKey}___{eventId}`. The `e_` prefix is
- * stripped before this component is rendered.
+ * Drawer entityKey format: `e_{datasetKey}_{eventId}`. The `e_` prefix is
+ * stripped before this component is rendered. Dataset keys are UUIDs (no
+ * underscores), so the first `_` cleanly separates them from the eventId,
+ * which may itself contain underscores.
  *
  * This is the third event-details view in the app (alongside the sampling-
  * event detail page and the inferred-event detail page). It is intentionally
@@ -28,8 +30,9 @@ import { SamplingEventDetail, SamplingEventDetailSkeleton } from './samplingEven
  * drawer entry point.
  */
 export default function SamplingEventDrawerView({ entityKey }: { entityKey?: string }) {
-  const datasetKey = entityKey?.split('___')[0];
-  const eventId = entityKey?.split('___')[1];
+  const sepIdx = entityKey?.indexOf('_') ?? -1;
+  const datasetKey = entityKey && sepIdx > 0 ? entityKey.slice(0, sepIdx) : undefined;
+  const eventId = entityKey && sepIdx > 0 ? entityKey.slice(sepIdx + 1) : undefined;
   const { defaultChecklistKey } = useConfig();
 
   const {
@@ -102,7 +105,7 @@ export default function SamplingEventDrawerView({ entityKey }: { entityKey?: str
       <div className="g-p-4 g-bg-slate-100">
         <Alert variant="warning">
           <FormattedMessage
-            id="dataset.eventDrawerSamplingEventOnly"
+            id="eventDetails.eventDrawerSamplingEventOnly"
             defaultMessage="Event details in this drawer are only available for sampling event datasets."
           />
         </Alert>
