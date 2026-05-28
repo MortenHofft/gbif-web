@@ -353,6 +353,24 @@ const preconfiguredCharts = {
       return <charts.DatasetsByBasisOfRecord predicate={predicate} interactive {...props} />;
     },
   },
+  countryByDataset: {
+    translation: 'dashboard.countryByDataset',
+    component: ({ predicate, ...props }) => {
+      return <charts.CountryByDataset predicate={predicate} interactive {...props} />;
+    },
+  },
+  yearByBasisOfRecord: {
+    translation: 'dashboard.yearByBasisOfRecord',
+    component: ({ predicate, ...props }) => {
+      return <charts.YearByBasisOfRecord predicate={predicate} interactive {...props} />;
+    },
+  },
+  basisOfRecordByYear: {
+    translation: 'dashboard.basisOfRecordByYear',
+    component: ({ predicate, ...props }) => {
+      return <charts.BasisOfRecordByYear predicate={predicate} interactive {...props} />;
+    },
+  },
   map: {
     translation: 'search.tabs.map',
     r: true, // resizable

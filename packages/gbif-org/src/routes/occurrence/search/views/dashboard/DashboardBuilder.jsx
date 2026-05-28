@@ -522,6 +522,9 @@ const chartGroups = {
       'licenseByCountry',
       'kingdomByBasisOfRecord',
       'datasetsByBasisOfRecord',
+      'countryByDataset',
+      'yearByBasisOfRecord',
+      'basisOfRecordByYear',
     ],
   },
   record: {

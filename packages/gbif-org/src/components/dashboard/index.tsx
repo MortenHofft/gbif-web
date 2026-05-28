@@ -93,6 +93,9 @@ export const BasisOfRecordByMonth = lazyChart('BasisOfRecordByMonth');
 export const LicenseByCountry = lazyChart('LicenseByCountry');
 export const KingdomByBasisOfRecord = lazyChart('KingdomByBasisOfRecord');
 export const DatasetsByBasisOfRecord = lazyChart('DatasetsByBasisOfRecord');
+export const CountryByDataset = lazyChart('CountryByDataset');
+export const YearByBasisOfRecord = lazyChart('YearByBasisOfRecord');
+export const BasisOfRecordByYear = lazyChart('BasisOfRecordByYear');
 
 // Top-level
 export const DataQuality = lazyChart('DataQuality');

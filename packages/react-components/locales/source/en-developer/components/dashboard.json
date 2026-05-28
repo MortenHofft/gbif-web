@@ -64,5 +64,9 @@
   "basisOfRecordByMonth": "Basis of record × Month",
   "licenseByCountry": "License × Country",
   "kingdomByBasisOfRecord": "Kingdom × Basis of record",
-  "datasetsByBasisOfRecord": "Dataset × Basis of record"
+  "datasetsByBasisOfRecord": "Dataset × Basis of record",
+  "countryByDataset": "Country · Top datasets",
+  "yearByBasisOfRecord": "Decade × Basis of record",
+  "basisOfRecordByYear": "Basis of record × Decade",
+  "top": "Top"
 }

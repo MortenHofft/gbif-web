@@ -9,22 +9,33 @@ import {
 } from '@/components/ui/select';
 import { useMemo, useState } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
-import { TwoDimensionalChart, TwoDimensionalChartProps } from './TwoDimensionalChart';
+import {
+  DimensionKind,
+  TwoDimChartView,
+  TwoDimensionalChart,
+  TwoDimensionalChartProps,
+} from './TwoDimensionalChart';
 
-// Dimension config. `field` is the GraphQL facet field name on `occurrenceSearch.facet`.
-// `filterKey` is the predicate key used when applying a click-through filter — most of the
-// time it matches `field`, but for a few fields (e.g. countryCode → country) it differs.
-// `labelId` is the translation key used in the picker UI.
+// Dimension config. `field` is the GraphQL facet field name on `occurrenceSearch`. For
+// `kind: 'histogram'` it's the field on `histogram`, and for `kind: 'autoDateHistogram'`
+// the field on `autoDateHistogram` (currently only `eventDate`). `filterKey` is the
+// predicate key used for click-through filters (countryCode → country, etc.). `kind`
+// defaults to 'facet'. `interval`/`minimumInterval` configure bucketed kinds.
+// `highCardinality` is a hint that LIST is a better default view than TABLE because the
+// column union across rows would explode.
 export type Dimension = {
   field: string;
+  kind?: DimensionKind;
+  interval?: number;
+  minimumInterval?: string;
   filterKey?: string;
   labelId: string;
   defaultLabel: string;
   group: 'common' | 'taxon' | 'location' | 'time' | 'provenance' | 'other';
+  highCardinality?: boolean;
 };
 
-// Fields that work well as a primary (row) dimension. Includes higher-cardinality fields
-// like datasetKey or country.
+// Fields that work well as a primary (row) dimension.
 export const PRIMARY_DIMENSIONS: Dimension[] = [
   { field: 'basisOfRecord', labelId: 'filters.basisOfRecord.name', defaultLabel: 'Basis of record', group: 'common' },
   { field: 'license', labelId: 'filters.license.name', defaultLabel: 'License', group: 'common' },
@@ -36,16 +47,18 @@ export const PRIMARY_DIMENSIONS: Dimension[] = [
   { field: 'gbifRegion', labelId: 'filters.gbifRegion.name', defaultLabel: 'GBIF region', group: 'location' },
   { field: 'kingdomKey', labelId: 'filters.kingdomKey.name', defaultLabel: 'Kingdom', group: 'taxon' },
   { field: 'month', labelId: 'filters.month.name', defaultLabel: 'Month', group: 'time' },
-  { field: 'year', labelId: 'filters.year.name', defaultLabel: 'Year', group: 'time' },
+  { field: 'year', kind: 'histogram', interval: 10, labelId: 'filters.year.name', defaultLabel: 'Year (decade)', group: 'time' },
   { field: 'establishmentMeans', labelId: 'filters.establishmentMeans.name', defaultLabel: 'Establishment means', group: 'other' },
   { field: 'typeStatus', labelId: 'filters.typeStatus.name', defaultLabel: 'Type status', group: 'other' },
-  { field: 'datasetKey', labelId: 'filters.datasetKey.name', defaultLabel: 'Dataset', group: 'provenance' },
-  { field: 'publishingOrg', labelId: 'filters.publisherKey.name', defaultLabel: 'Publisher', group: 'provenance' },
+  { field: 'datasetKey', labelId: 'filters.datasetKey.name', defaultLabel: 'Dataset', group: 'provenance', highCardinality: true },
+  { field: 'publishingOrg', labelId: 'filters.publisherKey.name', defaultLabel: 'Publisher', group: 'provenance', highCardinality: true },
   { field: 'networkKey', labelId: 'filters.networkKey.name', defaultLabel: 'Network', group: 'provenance' },
 ];
 
-// Fields that work well as a secondary (column) dimension. Should be low-cardinality so
-// that the column count stays manageable when expanded across every primary value.
+// Fields that work as a secondary (column) dimension. We include some high-cardinality
+// fields here (datasetKey, publishingOrg, recordedBy) — they aren't suitable for the
+// TABLE/COLUMN views (where columns must align across rows) but render fine in the
+// LIST view, which surfaces each row's own top-N values inline.
 export const SECONDARY_DIMENSIONS: Dimension[] = [
   { field: 'basisOfRecord', labelId: 'filters.basisOfRecord.name', defaultLabel: 'Basis of record', group: 'common' },
   { field: 'license', labelId: 'filters.license.name', defaultLabel: 'License', group: 'common' },
@@ -56,8 +69,12 @@ export const SECONDARY_DIMENSIONS: Dimension[] = [
   { field: 'gbifRegion', labelId: 'filters.gbifRegion.name', defaultLabel: 'GBIF region', group: 'location' },
   { field: 'kingdomKey', labelId: 'filters.kingdomKey.name', defaultLabel: 'Kingdom', group: 'taxon' },
   { field: 'month', labelId: 'filters.month.name', defaultLabel: 'Month', group: 'time' },
+  { field: 'year', kind: 'histogram', interval: 10, labelId: 'filters.year.name', defaultLabel: 'Year (decade)', group: 'time' },
+  { field: 'eventDate', kind: 'autoDateHistogram', minimumInterval: 'year', filterKey: 'eventDate', labelId: 'filters.eventDate.name', defaultLabel: 'Event date', group: 'time' },
   { field: 'establishmentMeans', labelId: 'filters.establishmentMeans.name', defaultLabel: 'Establishment means', group: 'other' },
   { field: 'typeStatus', labelId: 'filters.typeStatus.name', defaultLabel: 'Type status', group: 'other' },
+  { field: 'datasetKey', labelId: 'filters.datasetKey.name', defaultLabel: 'Dataset', group: 'provenance', highCardinality: true },
+  { field: 'publishingOrg', labelId: 'filters.publisherKey.name', defaultLabel: 'Publisher', group: 'provenance', highCardinality: true },
 ];
 
 const GROUP_LABEL_IDS: Record<Dimension['group'], string> = {
@@ -78,6 +95,45 @@ function useDimensionLabel(dim: Dimension | undefined): string {
   const intl = useIntl();
   if (!dim) return '';
   return intl.formatMessage({ id: dim.labelId, defaultMessage: dim.defaultLabel });
+}
+
+// Pick a sensible default view based on whether the pair is suitable for an aligned
+// pivot table. High-cardinality fields are LIST-first because their column union
+// across rows is unlikely to overlap, which would make TABLE/COLUMN misleading.
+function pickViews(
+  secondary: Dimension
+): { options: TwoDimChartView[]; defaultView: TwoDimChartView } {
+  if (secondary.highCardinality) {
+    return { options: ['LIST'], defaultView: 'LIST' };
+  }
+  // Bucketed numeric/time secondaries align fine because we use a fixed interval.
+  return { options: ['TABLE', 'COLUMN', 'LIST'], defaultView: 'TABLE' };
+}
+
+function chartPropsFor(
+  primary: Dimension,
+  secondary: Dimension,
+  primaryLabel: string,
+  secondaryLabel: string
+): Omit<TwoDimensionalChartProps, 'title'> {
+  const { options, defaultView } = pickViews(secondary);
+  return {
+    primaryField: primary.field,
+    secondaryField: secondary.field,
+    primaryKind: primary.kind ?? 'facet',
+    secondaryKind: secondary.kind ?? 'facet',
+    primaryInterval: primary.interval,
+    secondaryInterval: secondary.interval,
+    primaryMinimumInterval: primary.minimumInterval ?? 'year',
+    secondaryMinimumInterval: secondary.minimumInterval ?? 'year',
+    primaryFilterKey: primary.filterKey ?? primary.field,
+    secondaryFilterKey: secondary.filterKey ?? secondary.field,
+    primaryTitle: primaryLabel,
+    secondaryTitle: secondaryLabel,
+    options,
+    defaultOption: defaultView,
+    subtitleKey: 'dashboard.numberOfOccurrences',
+  };
 }
 
 // Shared props from the dashboard
@@ -126,18 +182,12 @@ function Preconfigured({
     </span>
   );
 
-  const props: TwoDimensionalChartProps = {
+  const chartProps = {
     ...(rest as object),
-    primaryField: primaryDim.field,
-    secondaryField: secondaryDim.field,
-    primaryFilterKey: primaryDim.filterKey ?? primaryDim.field,
-    secondaryFilterKey: secondaryDim.filterKey ?? secondaryDim.field,
-    primaryTitle: primaryLabel,
-    secondaryTitle: secondaryLabel,
+    ...chartPropsFor(primaryDim, secondaryDim, primaryLabel, secondaryLabel),
     title,
-    subtitleKey: 'dashboard.numberOfOccurrences',
-  };
-  return <TwoDimensionalChart {...props} />;
+  } as TwoDimensionalChartProps;
+  return <TwoDimensionalChart {...chartProps} />;
 }
 
 export function BasisOfRecordByCountry(props: CommonProps) {
@@ -157,6 +207,15 @@ export function KingdomByBasisOfRecord(props: CommonProps) {
 }
 export function DatasetsByBasisOfRecord(props: CommonProps) {
   return <Preconfigured primary="datasetKey" secondary="basisOfRecord" {...props} />;
+}
+export function CountryByDataset(props: CommonProps) {
+  return <Preconfigured primary="countryCode" secondary="datasetKey" {...props} />;
+}
+export function YearByBasisOfRecord(props: CommonProps) {
+  return <Preconfigured primary="year" secondary="basisOfRecord" {...props} />;
+}
+export function BasisOfRecordByYear(props: CommonProps) {
+  return <Preconfigured primary="basisOfRecord" secondary="year" {...props} />;
 }
 
 // Custom 2D chart: user picks both dimensions at runtime.
@@ -181,24 +240,23 @@ export function CustomTwoDimensionalChart({
         onPrimaryChange={setPrimary}
         onSecondaryChange={setSecondary}
       />
-      {primaryDim && secondaryDim && primaryDim.field !== secondaryDim.field && (
-        <TwoDimensionalChart
-          {...(props as object)}
-          key={`${primaryDim.field}__${secondaryDim.field}`}
-          primaryField={primaryDim.field}
-          secondaryField={secondaryDim.field}
-          primaryFilterKey={primaryDim.filterKey ?? primaryDim.field}
-          secondaryFilterKey={secondaryDim.filterKey ?? secondaryDim.field}
-          primaryTitle={primaryLabel}
-          secondaryTitle={secondaryLabel}
-          title={
+      {primaryDim && secondaryDim && primaryDim.field !== secondaryDim.field && (() => {
+        const chartProps = {
+          ...(props as object),
+          ...chartPropsFor(primaryDim, secondaryDim, primaryLabel, secondaryLabel),
+          title: (
             <span>
               {primaryLabel} × {secondaryLabel}
             </span>
-          }
-          subtitleKey="dashboard.numberOfOccurrences"
-        />
-      )}
+          ),
+        } as TwoDimensionalChartProps;
+        return (
+          <TwoDimensionalChart
+            key={`${primaryDim.field}__${secondaryDim.field}`}
+            {...chartProps}
+          />
+        );
+      })()}
       {primaryDim && secondaryDim && primaryDim.field === secondaryDim.field && (
         <div className="g-text-slate-400 g-text-sm g-p-4 g-text-center">
           <FormattedMessage

@@ -60,6 +60,9 @@ export function Dashboard() {
           'licenseByCountry',
           'kingdomByBasisOfRecord',
           'datasetsByBasisOfRecord',
+          'countryByDataset',
+          'yearByBasisOfRecord',
+          'basisOfRecordByYear',
           ...chartsTypes,
         ]}
       />

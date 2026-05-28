@@ -9,7 +9,7 @@ import formatAsPercentage from '@/utils/formatAsPercentage';
 import HighchartsReact from 'highcharts-react-official';
 import React, { useMemo } from 'react';
 import { BsFillBarChartFill } from 'react-icons/bs';
-import { MdViewStream } from 'react-icons/md';
+import { MdViewList, MdViewStream } from 'react-icons/md';
 import { FormattedMessage, FormattedNumber, useIntl } from 'react-intl';
 import { useDeepCompareEffectNoCheck as useDeepCompareEffect } from 'use-deep-compare-effect';
 import { useUncontrolledProp } from 'uncontrollable';
@@ -17,17 +17,31 @@ import { Card, CardHeader, Table } from '../shared';
 import ChartClickWrapper from './ChartClickWrapper';
 import Highcharts, { generateChartsPalette } from './highcharts';
 
-export type TwoDimChartView = 'TABLE' | 'COLUMN';
+export type TwoDimChartView = 'TABLE' | 'COLUMN' | 'LIST';
+
+// How a dimension's values are produced by the GBIF GraphQL API.
+//   - 'facet'             — categorical / enum-like (basisOfRecord, country, datasetKey, …)
+//   - 'autoDateHistogram' — eventDate buckets sized by the API
+//   - 'histogram'         — numeric histogram with a caller-supplied `interval` (year, elevation, …)
+export type DimensionKind = 'facet' | 'autoDateHistogram' | 'histogram';
 
 export type TwoDimensionalChartProps = {
   predicate?: unknown;
   q?: string;
   primaryField: string;
   secondaryField: string;
+  primaryKind?: DimensionKind;
+  secondaryKind?: DimensionKind;
   primaryFilterKey?: string;
   secondaryFilterKey?: string;
   primarySize?: number;
   secondarySize?: number;
+  // Histogram bucket interval (years, metres, …) when the matching kind is 'histogram'.
+  primaryInterval?: number;
+  secondaryInterval?: number;
+  // Minimum interval hint for 'autoDateHistogram'. Falls through to the API default if omitted.
+  primaryMinimumInterval?: string;
+  secondaryMinimumInterval?: string;
   title?: React.ReactNode;
   primaryTitle?: React.ReactNode;
   secondaryTitle?: React.ReactNode;
@@ -42,17 +56,26 @@ export type TwoDimensionalChartProps = {
   [key: string]: unknown;
 };
 
-type Bucket = {
+type RawBucket = {
   key: string | number;
   count: number;
   label?: string | null;
+  // autoDateHistogram bucket has a DateTime in `date`
+  date?: string | null;
 };
 
-type NestedBucket = Bucket & {
+type HistogramResult = {
+  interval?: string | number | null;
+  buckets?: RawBucket[];
+};
+
+// One nested bucket. The inner structure depends on the secondary kind, so all three
+// possible shapes are typed as optional.
+type NestedBucket = RawBucket & {
   occurrences?: {
-    facet?: {
-      secondary?: Bucket[];
-    };
+    facet?: { secondary?: RawBucket[] };
+    autoDateHistogram?: { secondary?: HistogramResult };
+    histogram?: { secondary?: HistogramResult };
   };
 };
 
@@ -60,16 +83,27 @@ type TwoDimResponse = {
   search?: {
     documents?: { total?: number };
     cardinality?: { primary?: number };
-    facet?: {
-      primary?: NestedBucket[];
-    };
+    facet?: { primary?: NestedBucket[] };
+    autoDateHistogram?: { primary?: HistogramResult };
+    histogram?: { primary?: HistogramResult };
   };
 };
 
+type NormalizedBucket = {
+  key: string | number;
+  label: string;
+  count: number;
+  // Filter value(s) to apply when this bucket is selected. For histogram buckets we emit
+  // "n,m" range strings; for autoDateHistogram we currently emit the bucket start year/date.
+  filterValue: string | number;
+};
+
+type NormalizedRow = NormalizedBucket & { secondary: NormalizedBucket[] };
+
 type PivotData = {
-  rows: Array<{ key: string | number; label: string; count: number }>;
-  columns: Array<{ key: string | number; label: string; count: number }>;
-  matrix: number[][]; // matrix[rowIdx][colIdx]
+  rows: NormalizedRow[];
+  columns: NormalizedBucket[]; // union of all secondary buckets, sorted by total count desc
+  matrix: number[][];
   rowTotals: number[];
   max: number;
   min: number;
@@ -83,75 +117,225 @@ export function TwoDimensionalChart(props: TwoDimensionalChartProps) {
   );
 }
 
-function buildQuery({
-  primaryField,
-  secondaryField,
-}: {
-  primaryField: string;
-  secondaryField: string;
-}): string {
-  return `
-    query twoDim($q: String, $predicate: Predicate, $size: Int, $secondarySize: Int, $lang: String) {
-      search: occurrenceSearch(q: $q, predicate: $predicate) {
-        documents(size: 0) { total }
-        cardinality { primary: ${primaryField} }
-        facet {
-          primary: ${primaryField}(size: $size) {
+function buildPrimaryFragment(
+  primaryField: string,
+  primaryKind: DimensionKind,
+  secondaryFragment: string
+): string {
+  if (primaryKind === 'autoDateHistogram') {
+    // The primary is wrapped inside an autoDateHistogram selector; per-bucket nested
+    // selectors aren't currently exposed for autoDateHistogram buckets, so the secondary
+    // breakdown is skipped here.
+    return `
+      autoDateHistogram {
+        primary: ${primaryField}(buckets: $size, minimum_interval: $primaryMinimumInterval) {
+          interval
+          buckets { key date count }
+        }
+      }
+    `;
+  }
+  if (primaryKind === 'histogram') {
+    return `
+      histogram {
+        primary: ${primaryField}(interval: $primaryInterval) {
+          interval
+          buckets {
             key
-            label(language: $lang)
             count
-            occurrences {
-              facet {
-                secondary: ${secondaryField}(size: $secondarySize) {
-                  key
-                  label(language: $lang)
-                  count
-                }
-              }
-            }
+            occurrences { ${secondaryFragment} }
           }
         }
+      }
+    `;
+  }
+  return `
+    facet {
+      primary: ${primaryField}(size: $size) {
+        key
+        label(language: $lang)
+        count
+        occurrences { ${secondaryFragment} }
       }
     }
   `;
 }
 
-function buildPivot(primary: NestedBucket[]): PivotData {
-  // Collect rows in order returned by the API (descending count).
-  const rows = primary.map((p) => ({
-    key: p.key,
-    label: String(p.label ?? p.key),
-    count: p.count ?? 0,
-  }));
+function buildSecondaryFragment(
+  secondaryField: string,
+  secondaryKind: DimensionKind
+): string {
+  if (secondaryKind === 'autoDateHistogram') {
+    return `
+      autoDateHistogram {
+        secondary: ${secondaryField}(buckets: $secondarySize, minimum_interval: $secondaryMinimumInterval) {
+          interval
+          buckets { key date count }
+        }
+      }
+    `;
+  }
+  if (secondaryKind === 'histogram') {
+    return `
+      histogram {
+        secondary: ${secondaryField}(interval: $secondaryInterval) {
+          interval
+          buckets { key count }
+        }
+      }
+    `;
+  }
+  return `
+    facet {
+      secondary: ${secondaryField}(size: $secondarySize) {
+        key
+        label(language: $lang)
+        count
+      }
+    }
+  `;
+}
 
-  // Collect column union across all primary buckets, summing counts.
-  const columnMap = new Map<string, { key: string | number; label: string; count: number }>();
-  primary.forEach((p) => {
-    p.occurrences?.facet?.secondary?.forEach((s) => {
+function buildQuery({
+  primaryField,
+  secondaryField,
+  primaryKind,
+  secondaryKind,
+}: {
+  primaryField: string;
+  secondaryField: string;
+  primaryKind: DimensionKind;
+  secondaryKind: DimensionKind;
+}): string {
+  const secondaryFragment = buildSecondaryFragment(secondaryField, secondaryKind);
+  const primaryFragment = buildPrimaryFragment(primaryField, primaryKind, secondaryFragment);
+
+  return `
+    query twoDim(
+      $q: String,
+      $predicate: Predicate,
+      $size: Int,
+      $secondarySize: Int,
+      $primaryInterval: Float,
+      $secondaryInterval: Float,
+      $primaryMinimumInterval: String,
+      $secondaryMinimumInterval: String,
+      $lang: String
+    ) {
+      search: occurrenceSearch(q: $q, predicate: $predicate) {
+        documents(size: 0) { total }
+        cardinality { primary: ${primaryField} }
+        ${primaryFragment}
+      }
+    }
+  `;
+}
+
+// Translate a bucket from any kind into the normalized shape used by the rendering code.
+function normalizeBucket(
+  raw: RawBucket,
+  kind: DimensionKind,
+  interval: number | undefined,
+  intl: ReturnType<typeof useIntl>
+): NormalizedBucket {
+  if (kind === 'autoDateHistogram') {
+    const date = raw.date ?? '';
+    return {
+      key: raw.key,
+      label: formatDateBucketLabel(date),
+      count: raw.count ?? 0,
+      filterValue: date.slice(0, 10), // ISO date, used as the start of the range
+    };
+  }
+  if (kind === 'histogram' && typeof interval === 'number' && interval > 0) {
+    const start = Number(raw.key);
+    const end = start + interval - 1;
+    return {
+      key: raw.key,
+      label: interval === 1 ? String(start) : `${intl.formatNumber(start)}–${intl.formatNumber(end)}`,
+      count: raw.count ?? 0,
+      filterValue: interval === 1 ? start : `${start},${end}`,
+    };
+  }
+  return {
+    key: raw.key,
+    label: String(raw.label ?? raw.key),
+    count: raw.count ?? 0,
+    filterValue: raw.key,
+  };
+}
+
+function formatDateBucketLabel(date: string): string {
+  if (!date) return '';
+  // Show just the year when the bucket is annual; otherwise show YYYY-MM.
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return date;
+  return `${d.getUTCFullYear()}`;
+}
+
+function extractSecondary(
+  bucket: NestedBucket,
+  kind: DimensionKind
+): RawBucket[] {
+  if (kind === 'autoDateHistogram') {
+    return bucket.occurrences?.autoDateHistogram?.secondary?.buckets ?? [];
+  }
+  if (kind === 'histogram') {
+    return bucket.occurrences?.histogram?.secondary?.buckets ?? [];
+  }
+  return bucket.occurrences?.facet?.secondary ?? [];
+}
+
+function extractPrimary(
+  response: TwoDimResponse,
+  kind: DimensionKind
+): NestedBucket[] {
+  if (kind === 'autoDateHistogram') {
+    return (response.search?.autoDateHistogram?.primary?.buckets ?? []) as NestedBucket[];
+  }
+  if (kind === 'histogram') {
+    return (response.search?.histogram?.primary?.buckets ?? []) as NestedBucket[];
+  }
+  return response.search?.facet?.primary ?? [];
+}
+
+function buildPivot(
+  rawPrimary: NestedBucket[],
+  primaryKind: DimensionKind,
+  secondaryKind: DimensionKind,
+  primaryInterval: number | undefined,
+  secondaryInterval: number | undefined,
+  intl: ReturnType<typeof useIntl>
+): PivotData {
+  const rows: NormalizedRow[] = rawPrimary.map((p) => {
+    const primary = normalizeBucket(p, primaryKind, primaryInterval, intl);
+    const secondary = extractSecondary(p, secondaryKind).map((s) =>
+      normalizeBucket(s, secondaryKind, secondaryInterval, intl)
+    );
+    return { ...primary, secondary };
+  });
+
+  // Union of secondary buckets across all rows, summed.
+  const columnMap = new Map<string, NormalizedBucket>();
+  rows.forEach((row) => {
+    row.secondary.forEach((s) => {
       const k = String(s.key);
       const existing = columnMap.get(k);
       if (existing) {
-        existing.count += s.count ?? 0;
+        existing.count += s.count;
       } else {
-        columnMap.set(k, {
-          key: s.key,
-          label: String(s.label ?? s.key),
-          count: s.count ?? 0,
-        });
+        columnMap.set(k, { ...s });
       }
     });
   });
   const columns = Array.from(columnMap.values()).sort((a, b) => b.count - a.count);
   const colIndex = new Map(columns.map((c, i) => [String(c.key), i]));
 
-  // Fill matrix
-  const matrix: number[][] = primary.map(() => columns.map(() => 0));
-  primary.forEach((p, rowIdx) => {
-    p.occurrences?.facet?.secondary?.forEach((s) => {
+  const matrix: number[][] = rows.map(() => columns.map(() => 0));
+  rows.forEach((row, rowIdx) => {
+    row.secondary.forEach((s) => {
       const c = colIndex.get(String(s.key));
-      if (c !== undefined) {
-        matrix[rowIdx][c] = s.count ?? 0;
-      }
+      if (c !== undefined) matrix[rowIdx][c] = s.count;
     });
   });
 
@@ -187,15 +371,21 @@ function TwoDimensionalChartInner({
   q,
   primaryField,
   secondaryField,
+  primaryKind = 'facet',
+  secondaryKind = 'facet',
   primaryFilterKey,
   secondaryFilterKey,
   primarySize = 10,
   secondarySize = 10,
+  primaryInterval,
+  secondaryInterval,
+  primaryMinimumInterval = 'year',
+  secondaryMinimumInterval = 'year',
   title,
   primaryTitle,
   secondaryTitle,
   subtitleKey,
-  options = ['TABLE', 'COLUMN'],
+  options = ['TABLE', 'COLUMN', 'LIST'],
   defaultOption,
   interactive,
   handleRedirect,
@@ -217,8 +407,8 @@ function TwoDimensionalChartInner({
   );
 
   const query = useMemo(
-    () => buildQuery({ primaryField, secondaryField }),
-    [primaryField, secondaryField]
+    () => buildQuery({ primaryField, secondaryField, primaryKind, secondaryKind }),
+    [primaryField, secondaryField, primaryKind, secondaryKind]
   );
 
   const { data, loading, error, load } = useQuery<TwoDimResponse, Record<string, unknown>>(query, {
@@ -234,27 +424,53 @@ function TwoDimensionalChartInner({
         q,
         size: primarySize,
         secondarySize,
+        primaryInterval,
+        secondaryInterval,
+        primaryMinimumInterval,
+        secondaryMinimumInterval,
         lang: locale.vocabularyLocale ?? locale.localeCode,
       },
       queue: { name: 'dashboard' },
     });
-  }, [predicate, q, primarySize, secondarySize, query, locale]);
+  }, [
+    predicate,
+    q,
+    primarySize,
+    secondarySize,
+    primaryInterval,
+    secondaryInterval,
+    primaryMinimumInterval,
+    secondaryMinimumInterval,
+    query,
+    locale,
+  ]);
 
   const pFilterKey = primaryFilterKey ?? primaryField;
   const sFilterKey = secondaryFilterKey ?? secondaryField;
 
   const pivot = useMemo(
-    () => buildPivot(data?.search?.facet?.primary ?? []),
-    [data]
+    () =>
+      buildPivot(
+        extractPrimary(data ?? {}, primaryKind),
+        primaryKind,
+        secondaryKind,
+        primaryInterval,
+        secondaryInterval,
+        intl
+      ),
+    [data, primaryKind, secondaryKind, primaryInterval, secondaryInterval, intl]
   );
 
-  const hasData = pivot.rows.length > 0 && pivot.columns.length > 0;
+  const hasData = pivot.rows.length > 0;
 
-  const onCellClick = (rowKey: string | number, colKey?: string | number) => {
+  const onCellClick = (
+    rowFilterValue: string | number,
+    colFilterValue?: string | number
+  ) => {
     if (!interactive || !handleRedirect) return;
-    const filter: Record<string, unknown> = { [pFilterKey]: [rowKey] };
-    if (colKey !== undefined && colKey !== null && String(colKey).length > 0) {
-      filter[sFilterKey] = [colKey];
+    const filter: Record<string, unknown> = { [pFilterKey]: [rowFilterValue] };
+    if (colFilterValue !== undefined && colFilterValue !== null && String(colFilterValue).length > 0) {
+      filter[sFilterKey] = [colFilterValue];
     }
     handleRedirect({ filter });
   };
@@ -299,6 +515,15 @@ function TwoDimensionalChartInner({
             seriesName={intl.formatMessage({ id: 'dashboard.occurrences' })}
           />
         )}
+        {hasData && view === 'LIST' && (
+          <ListView
+            pivot={pivot}
+            primaryTitle={primaryTitle}
+            secondaryTitle={secondaryTitle}
+            interactive={!!interactive}
+            onCellClick={onCellClick}
+          />
+        )}
       </CardContent>
     </Card>
   );
@@ -315,6 +540,7 @@ function ViewToggle({ view, setView, options }: ViewToggleProps) {
   const iconMap: Record<TwoDimChartView, React.ReactNode> = {
     TABLE: <MdViewStream />,
     COLUMN: <BsFillBarChartFill />,
+    LIST: <MdViewList />,
   };
   return (
     <div>
@@ -338,7 +564,7 @@ type HeatmapTableProps = {
   primaryTitle?: React.ReactNode;
   secondaryTitle?: React.ReactNode;
   interactive: boolean;
-  onCellClick: (rowKey: string | number, colKey?: string | number) => void;
+  onCellClick: (rowFilterValue: string | number, colFilterValue?: string | number) => void;
 };
 
 function HeatmapTable({
@@ -349,6 +575,16 @@ function HeatmapTable({
   onCellClick,
 }: HeatmapTableProps) {
   const { rows, columns, matrix, rowTotals, min, max } = pivot;
+  if (columns.length === 0) {
+    return (
+      <div className="g-text-center g-text-slate-400 g-py-4">
+        <FormattedMessage
+          id="dashboard.noData"
+          defaultMessage="No data"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="g-overflow-x-auto">
@@ -384,7 +620,7 @@ function HeatmapTable({
                   <button
                     type="button"
                     className="g-text-start hover:g-underline"
-                    onClick={() => onCellClick(row.key)}
+                    onClick={() => onCellClick(row.filterValue)}
                   >
                     {row.label}
                   </button>
@@ -436,7 +672,7 @@ function HeatmapTable({
                       <button
                         type="button"
                         className="g-w-full g-text-end"
-                        onClick={() => onCellClick(row.key, col.key)}
+                        onClick={() => onCellClick(row.filterValue, col.filterValue)}
                       >
                         {content}
                       </button>
@@ -452,15 +688,123 @@ function HeatmapTable({
   );
 }
 
+type ListViewProps = {
+  pivot: PivotData;
+  primaryTitle?: React.ReactNode;
+  secondaryTitle?: React.ReactNode;
+  interactive: boolean;
+  onCellClick: (rowFilterValue: string | number, colFilterValue?: string | number) => void;
+};
+
+function ListView({
+  pivot,
+  primaryTitle,
+  secondaryTitle,
+  interactive,
+  onCellClick,
+}: ListViewProps) {
+  const { rows } = pivot;
+  return (
+    <div className="g-overflow-x-auto">
+      <Table removeBorder>
+        <thead className="[&_th]:g-text-sm [&_th]:g-font-normal [&_th]:g-py-2 [&_th]:g-text-slate-500">
+          <tr>
+            <th className="g-text-start g-whitespace-nowrap">{primaryTitle}</th>
+            <th className="g-text-end g-whitespace-nowrap">
+              <FormattedMessage id="metrics.count" defaultMessage="Total" />
+            </th>
+            <th className="g-text-start">
+              <span className="g-text-slate-500">
+                <FormattedMessage id="dashboard.top" defaultMessage="Top" />{' '}
+                {secondaryTitle ? <>· {secondaryTitle}</> : null}
+              </span>
+            </th>
+          </tr>
+        </thead>
+        <tbody className="[&_td]:g-align-baseline">
+          {rows.map((row) => (
+            <tr key={String(row.key)} className="g-border-t g-border-slate-200">
+              <td className="g-whitespace-nowrap g-pe-2">
+                {interactive ? (
+                  <button
+                    type="button"
+                    className="g-text-start hover:g-underline"
+                    onClick={() => onCellClick(row.filterValue)}
+                  >
+                    {row.label}
+                  </button>
+                ) : (
+                  <div>{row.label}</div>
+                )}
+              </td>
+              <td className="g-text-end g-tabular-nums g-pe-3">
+                <FormattedNumber value={row.count} />
+              </td>
+              <td>
+                <SecondaryInline
+                  row={row}
+                  interactive={interactive}
+                  onClick={(s) => onCellClick(row.filterValue, s.filterValue)}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </div>
+  );
+}
+
+type SecondaryInlineProps = {
+  row: NormalizedRow;
+  interactive: boolean;
+  onClick: (s: NormalizedBucket) => void;
+};
+
+function SecondaryInline({ row, interactive, onClick }: SecondaryInlineProps) {
+  if (row.secondary.length === 0) {
+    return <span className="g-text-slate-300">—</span>;
+  }
+  return (
+    <div className="g-flex g-flex-wrap g-gap-x-3 g-gap-y-1">
+      {row.secondary.map((s) => {
+        const inner = (
+          <>
+            <span>{s.label}</span>
+            <span className="g-text-slate-400 g-ms-1 g-tabular-nums">
+              <FormattedNumber value={s.count} />
+            </span>
+          </>
+        );
+        return (
+          <span key={String(s.key)} className="g-whitespace-nowrap">
+            {interactive ? (
+              <button
+                type="button"
+                className="hover:g-underline g-text-start"
+                onClick={() => onClick(s)}
+              >
+                {inner}
+              </button>
+            ) : (
+              <span>{inner}</span>
+            )}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 type ColumnViewProps = {
   pivot: PivotData;
   interactive: boolean;
-  onCellClick: (rowKey: string | number, colKey?: string | number) => void;
+  onCellClick: (rowFilterValue: string | number, colFilterValue?: string | number) => void;
   palette: string[];
   seriesName: string;
 };
 
-function ColumnView({ pivot, interactive, onCellClick, palette, seriesName }: ColumnViewProps) {
+function ColumnView({ pivot, interactive, onCellClick, palette, seriesName: _seriesName }: ColumnViewProps) {
   const { rows, columns, matrix } = pivot;
   // One series per secondary value (column). x-axis = primary rows.
   const series = columns.map((col, colIdx) => ({
@@ -470,8 +814,8 @@ function ColumnView({ pivot, interactive, onCellClick, palette, seriesName }: Co
     data: matrix.map((row, rIdx) => ({
       y: row[colIdx],
       name: rows[rIdx].label,
-      __rowKey: rows[rIdx].key,
-      __colKey: col.key,
+      __rowFilter: rows[rIdx].filterValue,
+      __colFilter: col.filterValue,
     })),
   }));
 
@@ -496,7 +840,7 @@ function ColumnView({ pivot, interactive, onCellClick, palette, seriesName }: Co
     },
     yAxis: {
       title: {
-        text: seriesName,
+        text: _seriesName,
       },
       gridLineDashStyle: 'LongDash',
       lineColor: '#d0d2da',
@@ -515,11 +859,11 @@ function ColumnView({ pivot, interactive, onCellClick, palette, seriesName }: Co
           ? {
               events: {
                 click: function (this: {
-                  __rowKey?: string | number;
-                  __colKey?: string | number;
+                  __rowFilter?: string | number;
+                  __colFilter?: string | number;
                 }) {
-                  if (this.__rowKey !== undefined) {
-                    onCellClick(this.__rowKey, this.__colKey);
+                  if (this.__rowFilter !== undefined) {
+                    onCellClick(this.__rowFilter, this.__colFilter);
                   }
                 },
               },
@@ -539,7 +883,9 @@ function ColumnView({ pivot, interactive, onCellClick, palette, seriesName }: Co
       <HighchartsReact
         highcharts={Highcharts}
         options={options}
-        containerProps={{ style: { minWidth: Math.max(400, rows.length * columns.length * 12) } }}
+        containerProps={{
+          style: { minWidth: Math.max(400, rows.length * Math.max(1, columns.length) * 12) },
+        }}
       />
     </div>
   );
