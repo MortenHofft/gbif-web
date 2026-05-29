@@ -1,8 +1,10 @@
+import { pathnameAtom, searchParamsAtom } from '@/atoms/urlAtoms';
 import { LanguageOption } from '@/config/config';
+import { useAtomValue, useStore } from 'jotai';
 import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { IntlProvider } from 'react-intl';
-import { useLoaderData, useLocation, useNavigate } from 'react-router-dom';
+import { useLoaderData, useNavigate } from 'react-router-dom';
 import { extractLocaleFromPathname } from './extractLocaleFromURL';
 import { DirectionProvider } from '@radix-ui/react-direction';
 
@@ -34,7 +36,11 @@ type Props = {
 
 export function I18nContextProvider({ children, locale, defaultLocale, availableLocales }: Props) {
   const { messages } = useLoaderData() as { messages: Record<string, string> | null };
-  const location = useLocation();
+  // Subscribe only to pathname — search-param changes don't wake this
+  // provider any more. The search string is read imperatively inside
+  // setLocale via the jotai store (no subscription).
+  const pathname = useAtomValue(pathnameAtom);
+  const store = useStore();
   const navigate = useNavigate();
 
   const localizeLink = useCallback(
@@ -70,11 +76,12 @@ export function I18nContextProvider({ children, locale, defaultLocale, available
 
   const setLocale = useCallback(
     (locale: string) => {
-      let targetLink = localizeLink(location.pathname, locale);
-      if (location.search) targetLink += location.search;
+      let targetLink = localizeLink(pathname, locale);
+      const search = store.get(searchParamsAtom).toString();
+      if (search) targetLink += `?${search}`;
       navigate(targetLink);
     },
-    [navigate, location.pathname, location.search, localizeLink]
+    [navigate, pathname, store, localizeLink]
   );
 
   const value: I18nContextValue = useMemo(
@@ -89,12 +96,12 @@ export function I18nContextProvider({ children, locale, defaultLocale, available
   );
 
   useEffect(() => {
-    const targetLink = localizeLink(location.pathname, locale.code);
+    const targetLink = localizeLink(pathname, locale.code);
 
-    if (location.pathname !== targetLink) {
+    if (pathname !== targetLink) {
       navigate(targetLink);
     }
-  }, [locale, navigate, location.pathname, availableLocales, defaultLocale, localizeLink]);
+  }, [locale, navigate, pathname, availableLocales, defaultLocale, localizeLink]);
 
   useEffect(() => {
     const root = document.getElementById('app') ?? document.getElementById('root');

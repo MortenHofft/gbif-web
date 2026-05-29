@@ -1,7 +1,7 @@
 import { useSetAtom } from 'jotai';
 import { useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { searchParamsAtom, setSearchParamsAtom } from './urlAtoms';
+import { useLocation, useSearchParams } from 'react-router-dom';
+import { pathnameAtom, searchParamsAtom, setSearchParamsAtom } from './urlAtoms';
 
 const snakeToCamel = (s: string) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 
@@ -18,13 +18,21 @@ const snakeToCamel = (s: string) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCa
 //
 // Renders nothing.
 export function JotaiUrlSync(): null {
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const setParams = useSetAtom(searchParamsAtom);
+  const setPathname = useSetAtom(pathnameAtom);
   const setSetter = useSetAtom(setSearchParamsAtom);
 
   useEffect(() => {
     setParams(searchParams);
   }, [searchParams, setParams]);
+
+  // Dep is a primitive string, so this effect only fires when pathname
+  // actually changes — search-param updates don't trigger it.
+  useEffect(() => {
+    setPathname(location.pathname);
+  }, [location.pathname, setPathname]);
 
   // Wrap in a thunk to prevent jotai's "setter accepts function updater"
   // shorthand from invoking setSearchParams with the previous value.

@@ -1,11 +1,12 @@
+import { urlParamAtom } from '@/atoms/urlAtoms';
 import { useConfig } from '@/config/config';
 import { useI18n } from '@/reactRouterPlugins';
 import { usePartialDataNotification } from '@/routes/rootErrorPage';
 import { GraphQLService } from '@/services/graphQLService';
+import { useAtomValue } from 'jotai';
 import isArray from 'lodash/isArray';
 import Queue from 'queue-promise';
 import React, { useRef } from 'react';
-import { useLocation } from 'react-router-dom';
 
 type Options<TVariabels> = {
   throwNetworkErrors?: boolean;
@@ -61,8 +62,12 @@ export function useQuery<TResult, TVariabels>(
   const cancelRequestRef = useRef<(reason: string) => void>(() => () => {});
   const config = useConfig();
   const { locale } = useI18n();
-  const location = useLocation();
-  const preview = new URLSearchParams(location.search).get('preview') === 'true';
+  // Subscribe only to the 'preview' search param via jotai — this hook used
+  // to call useLocation() purely to read ?preview=true, which made every
+  // useQuery caller rerender on every URL change (and potentially refetch
+  // when variables were re-derived). With urlParamAtom, the component is
+  // only woken when 'preview' itself changes.
+  const preview = useAtomValue(urlParamAtom('preview')) === 'true';
 
   // Cancel pending request on unmount
   React.useEffect(() => {
