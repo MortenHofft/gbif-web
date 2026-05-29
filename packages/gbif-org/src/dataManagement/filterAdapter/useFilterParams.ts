@@ -1,23 +1,15 @@
+import { searchParamsAtom, setSearchParamsAtom } from '@/atoms/urlAtoms';
 import { asStringParams, ParamQuery, parseParams } from '@/utils/querystring';
+import { useAtomValue, useStore } from 'jotai';
+import { selectAtom } from 'jotai/utils';
 import { Base64 } from 'js-base64';
 import isPlainObject from 'lodash/isPlainObject';
 import objectHash from 'object-hash';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNormalizedSearchParams } from '@/hooks/useNormalizedSearchParams';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { filter2v1 } from '.';
 import { cleanUpFilter, FilterType } from '../../contexts/filter';
 import { FilterConfigType } from './filter2predicate';
 import v12filter from './v12filter';
-
-// function v12filter(query: any, filterConfig: FilterConfigType): FilterType {
-//   const filter = {};
-//   // TODO
-//   return {
-//     must: {
-//       country: ['DK'],
-//     },
-//   };
-// }
 
 export function useFilterParams({
   filterConfig,
@@ -95,43 +87,62 @@ export function useFilterParams({
   return [filter, setFilter];
 }
 
+const snakeToCamel = (s: string) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+
+// Reads only the URL params whose (camel-normalized) key appears in
+// observedParams, returning the parseParams-shaped Record. The slice is
+// subscribed to via jotai with an object-hash equality check, so the
+// caller only rerenders when one of the observed values actually changes
+// — not on every URL update.
+//
+// updateQuery writes back to the URL via react-router's setSearchParams,
+// which is pulled imperatively from setSearchParamsAtom (populated by
+// JotaiUrlSync). That keeps this hook free of useSearchParams /
+// useLocation / useNavigate subscriptions; nothing here wakes on
+// unrelated URL changes.
 function useQueryParams({ observedParams }: { observedParams: string[] }) {
-  const [searchParams, setSearchParams] = useNormalizedSearchParams();
-  const [query, setQuery] = useState({});
+  // Stabilize the dependency: observedParams may be a new array reference
+  // each render even when its contents are identical.
+  const observedKey = observedParams.join('');
 
-  // searchParams is a new instance on every URL change, so mirror it through a
-  // ref to keep updateQuery's identity stable. setSearchParams is already
-  // stable (see useNormalizedSearchParams).
-  const searchParamsRef = useRef(searchParams);
-  useEffect(() => {
-    searchParamsRef.current = searchParams;
-  }, [searchParams]);
-
-  const updateQuery = useCallback(
-    (nextQuery: any) => {
-      const existingQuery = parseParams(searchParamsRef.current, true);
-      const mergedQuery = { ...existingQuery, ...nextQuery };
-      const stringParams = asStringParams(mergedQuery);
-      setSearchParams(stringParams, { preventScrollReset: true });
+  const sliceAtom = useMemo(
+    () => {
+      const observed = new Set(observedParams);
+      return selectAtom(
+        searchParamsAtom,
+        (params): ParamQuery => {
+          const filtered = new URLSearchParams();
+          for (const [rawKey, value] of params.entries()) {
+            const key = snakeToCamel(rawKey);
+            if (observed.has(key)) filtered.append(key, value);
+          }
+          return parseParams(filtered, true);
+        },
+        // Slice values are Records of arrays; identity is recreated each
+        // selector run, so we need a deep equality. Hash is microseconds
+        // for filter-sized slices and only runs on URL changes.
+        (a, b) => objectHash(a) === objectHash(b)
+      );
     },
-    [setSearchParams]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [observedKey]
   );
 
-  useEffect(() => {
-    const parsedQuery = parseParams(searchParams, true);
-    const filteredQuery = Object.keys(parsedQuery).reduce((acc, key) => {
-      if (observedParams.includes(key)) {
-        acc[key] = parsedQuery[key];
-      }
-      return acc;
-    }, {} as any);
+  const query = useAtomValue(sliceAtom);
 
-    if (objectHash(filteredQuery) === objectHash(query)) {
-      return;
-    }
-
-    setQuery(filteredQuery);
-  }, [searchParams, observedParams, query]);
+  // Read the latest URL state imperatively for merge — does NOT
+  // subscribe the caller to URL changes.
+  const store = useStore();
+  const updateQuery = useCallback(
+    (nextQuery: ParamQuery) => {
+      const setSearchParams = store.get(setSearchParamsAtom);
+      if (!setSearchParams) return; // JotaiUrlSync not mounted yet
+      const existingQuery = parseParams(store.get(searchParamsAtom), true);
+      const mergedQuery = { ...existingQuery, ...nextQuery };
+      setSearchParams(asStringParams(mergedQuery), { preventScrollReset: true });
+    },
+    [store]
+  );
 
   return [query, updateQuery] as [ParamQuery, (query: ParamQuery) => void];
 }

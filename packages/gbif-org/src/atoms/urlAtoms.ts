@@ -1,5 +1,6 @@
 import { atom } from 'jotai';
 import { selectAtom } from 'jotai/utils';
+import type { SetURLSearchParams } from 'react-router-dom';
 
 // Jotai-based URL state. The base atom holds the latest URLSearchParams
 // snapshot — it is fed by <JotaiUrlSync> mounted near the route root,
@@ -8,11 +9,17 @@ import { selectAtom } from 'jotai/utils';
 // Reads use per-key derived atoms produced by `urlParamAtom('foo')`.
 // `selectAtom` compares the selected value with Object.is, so a consumer
 // only rerenders when its specific param value changes — not on every
-// URL update. Writes still go through react-router-dom (useStringParam,
-// useSearchParams.setSearchParams, etc.); JotaiUrlSync picks the change
-// up and propagates it.
+// URL update. Writes still go through react-router-dom; JotaiUrlSync
+// publishes its setSearchParams setter via setSearchParamsAtom so
+// hooks that don't want to subscribe to the URL context can read the
+// latest setter imperatively (store.get(setSearchParamsAtom)).
 
 export const searchParamsAtom = atom<URLSearchParams>(new URLSearchParams());
+
+// Mirrors react-router's setSearchParams. Populated by JotaiUrlSync.
+// Read imperatively from a jotai store (store.get(setSearchParamsAtom));
+// do NOT use useAtomValue or you'll resubscribe on every URL change.
+export const setSearchParamsAtom = atom<SetURLSearchParams | null>(null);
 
 const urlParamAtomCache = new Map<string, ReturnType<typeof urlParamAtomFor>>();
 
