@@ -61,22 +61,30 @@ const addFixedFields = winston.format((info) => {
   };
 });
 
+// File logging is disabled on read-only/ephemeral filesystems (e.g. Vercel and other
+// serverless platforms, where only /tmp is writable). Vercel sets `VERCEL` automatically;
+// it can also be turned off explicitly with DISABLE_FILE_LOGGING=true. On those platforms
+// stdout/stderr (the console transport) is the canonical log sink anyway.
+const enableFileLogging = !secretEnv.VERCEL && secretEnv.DISABLE_FILE_LOGGING !== 'true';
+
 // Configure the DailyRotateFile Transport for File Logging
-const fileRotateTransport = new DailyRotateFile({
-  filename: path.join(logDir, 'application-%DATE%.log'),
-  datePattern: 'YYYY-MM-DD',
-  zippedArchive: true,
-  // maxSize: '20m', // Disabled: size-based rotation appends .1, .2 suffixes to the end of filenames which breaks our log matching
-  maxFiles: '14d',
-  level: 'info',
-  handleExceptions: true,
-  handleRejections: true,
-  format: winston.format.combine(
-    addFixedFields(),
-    winston.format.timestamp(),
-    ecsFormat({ convertReqRes: true })
-  ),
-});
+const fileRotateTransport = enableFileLogging
+  ? new DailyRotateFile({
+      filename: path.join(logDir, 'application-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      zippedArchive: true,
+      // maxSize: '20m', // Disabled: size-based rotation appends .1, .2 suffixes to the end of filenames which breaks our log matching
+      maxFiles: '14d',
+      level: 'info',
+      handleExceptions: true,
+      handleRejections: true,
+      format: winston.format.combine(
+        addFixedFields(),
+        winston.format.timestamp(),
+        ecsFormat({ convertReqRes: true })
+      ),
+    })
+  : null;
 
 const level = debugLevel;
 console.log(`Logger level set to: ${level}`);
@@ -93,7 +101,8 @@ const consoleTransport = new winston.transports.Console({
 const logger = winston.createLogger({
   level,
   transports: [
-    fileRotateTransport,
+    // Only include the file transport when file logging is enabled (see above).
+    ...(fileRotateTransport ? [fileRotateTransport] : []),
     // Always include console transport, but adjust level based on environment
     consoleTransport,
   ],
