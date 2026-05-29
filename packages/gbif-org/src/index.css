@@ -565,6 +565,11 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
   .g-font-header {
     font-family: var(--headerFontFamily), var(--fontFamily);
   }
+  /* Headlines use the theme's header font family (e.g. Bitter on the GBIF theme),
+     while the rest of the UI uses the body font family (e.g. Rubik). */
+  .gbif :is(h1, h2, h3, h4, h5, h6) {
+    font-family: var(--headerFontFamily), var(--fontFamily);
+  }
   .classification {
     line-height: 1.2em;
     & > span:after {

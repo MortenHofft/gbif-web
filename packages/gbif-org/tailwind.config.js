@@ -122,6 +122,10 @@ module.exports = {
         DEFAULT: {
           css: {
             maxWidth: '80ch', // add required value here
+            // Headlines use the theme's header font family (e.g. Bitter), the rest uses the body font family (e.g. Rubik)
+            'h1, h2, h3, h4, h5, h6': {
+              fontFamily: 'var(--headerFontFamily), var(--fontFamily)',
+            },
             'blockquote p:first-of-type::before': false, // do not add quotation marks to block quotes. we have block quotes where the content also have quotation marks leading to double quotation marks
             'blockquote p:first-of-type::after': false,
             '--tw-prose-quote-borders': `rgb(var(--proseQuoteBorders, ${hexToRgbString(

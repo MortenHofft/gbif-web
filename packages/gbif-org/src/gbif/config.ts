@@ -128,6 +128,9 @@ export const gbifConfig: Config = {
   theme: {
     dense: true,
     primary: '#4C9C2E', // green '#69AA69', purple #4f46e5
+    fontFamily:
+      'Rubik, BlinkMacSystemFont, -apple-system, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", "Helvetica", "Arial", sans-serif',
+    headerFontFamily: 'Bitter, Georgia, Cambria, Times, serif',
     stickyOffset: '0px',
     borderRadius: 3,
     linkColor: '#61A350',
