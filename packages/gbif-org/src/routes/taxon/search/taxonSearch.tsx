@@ -50,7 +50,7 @@ export function TaxonSearchPage(): React.ReactElement {
   );
 }
 
-export function TaxonSearchPageInner({
+export const TaxonSearchPageInner = memo(function TaxonSearchPageInner({
   datasetKey = import.meta.env.PUBLIC_DEFAULT_CHECKLIST_KEY,
 }: {
   datasetKey?: string;
@@ -105,7 +105,7 @@ export function TaxonSearchPageInner({
       />
     </ChecklistKeyContext.Provider>
   );
-}
+});
 
 export function TaxonSearchInner({
   datasetKey = import.meta.env.PUBLIC_DEFAULT_CHECKLIST_KEY,
