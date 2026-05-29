@@ -1,6 +1,6 @@
 import { atom } from 'jotai';
 import { selectAtom } from 'jotai/utils';
-import type { SetURLSearchParams } from 'react-router-dom';
+import type { SetURLSearchParams, UIMatch } from 'react-router-dom';
 
 // Jotai-based URL state. The base atom holds the latest URLSearchParams
 // snapshot — it is fed by <JotaiUrlSync> mounted near the route root,
@@ -21,6 +21,14 @@ export const searchParamsAtom = atom<URLSearchParams>(new URLSearchParams());
 // ignoring search-param updates. Initial value is empty on SSR/first
 // render; JotaiUrlSync's effect populates it once it mounts.
 export const pathnameAtom = atom<string>('');
+
+// useMatches() mirror, populated by JotaiUrlSync. react-router returns a
+// new matches array on every URL change even when the matched route tree
+// is unchanged, so consumers that only care about "what route am I on"
+// should use selectAtom(matchesAtom, derive, isEqual) with a derived
+// value + equality (typically an id-based check) to avoid waking on
+// every navigation.
+export const matchesAtom = atom<UIMatch[]>([]);
 
 // Mirrors react-router's setSearchParams. Populated by JotaiUrlSync.
 // Read imperatively from a jotai store (store.get(setSearchParamsAtom));

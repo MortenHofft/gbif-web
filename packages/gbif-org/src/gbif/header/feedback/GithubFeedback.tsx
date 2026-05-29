@@ -1,6 +1,7 @@
+import { pathnameAtom, searchParamsAtom } from '@/atoms/urlAtoms';
 import { useConfig } from '@/config/config';
+import { useStore } from 'jotai';
 import { FormattedMessage } from 'react-intl';
-import { useLocation } from 'react-router-dom';
 import { MdMailOutline, MdOpenInNew } from 'react-icons/md';
 
 interface GithubFeedbackProps {
@@ -8,14 +9,17 @@ interface GithubFeedbackProps {
 }
 
 export function GithubFeedback({ onClose }: GithubFeedbackProps) {
-  const location = useLocation();
+  const store = useStore();
   const { feedback } = useConfig();
   const { githubRepo, githubUsernames = [] } = feedback || {};
 
+  // Read URL via the jotai store imperatively — no subscription, so this
+  // component doesn't rerender on URL changes (it's inside the feedback
+  // popover; the URL captured here is only used in the href).
   const currentUrl =
     typeof window !== 'undefined'
       ? window.location.toString()
-      : `${location.pathname}${location.search}`;
+      : `${store.get(pathnameAtom)}?${store.get(searchParamsAtom).toString()}`;
 
   // Prepare the issue body
   let issueBody = `**Page**: ${currentUrl}\n`;
@@ -55,7 +59,7 @@ export function GithubFeedback({ onClose }: GithubFeedbackProps) {
 }
 
 export function MailFeedback({ onClose }: GithubFeedbackProps) {
-  const location = useLocation();
+  const store = useStore();
   const { feedback } = useConfig();
   const { contactEmail } = feedback || {};
   if (!contactEmail) return null;
@@ -63,7 +67,7 @@ export function MailFeedback({ onClose }: GithubFeedbackProps) {
   const currentUrl =
     typeof window !== 'undefined'
       ? window.location.toString()
-      : `${location.pathname}${location.search}`;
+      : `${store.get(pathnameAtom)}?${store.get(searchParamsAtom).toString()}`;
 
   return (
     <a

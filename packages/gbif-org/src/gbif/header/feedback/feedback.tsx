@@ -1,10 +1,13 @@
+import { matchesAtom } from '@/atoms/urlAtoms';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { FeedbackQuery, FeedbackQueryVariables } from '@/gql/graphql';
 import useQuery from '@/hooks/useQuery';
 import { DynamicLink } from '@/reactRouterPlugins';
+import { useAtomValue } from 'jotai';
+import { selectAtom } from 'jotai/utils';
 import { useEffect, useState } from 'react';
 import { MdFeedback, MdArrowBack } from 'react-icons/md';
-import { useMatches } from 'react-router-dom';
+import type { UIMatch } from 'react-router-dom';
 import { FormattedMessage } from 'react-intl';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DataProviderFeedback } from './DataProviderFeedback';
@@ -21,22 +24,33 @@ type PageType = {
 
 type FeedbackOption = 'gbif' | null;
 
-function getPageType(matches: ReturnType<typeof useMatches>): PageType {
+function getPageType(matches: UIMatch[]): PageType {
   const page = matches.find((match) => match.id.startsWith('occurrenceKey-'));
   if (!page) {
     return { type: null, key: null, id: null };
   }
-  const key = page?.params?.key ?? null;
+  const key = (page.params?.key as string | undefined) ?? null;
   return { type: 'occurrenceKey', key, id: `pageType:occurrenceKey key:${key}` };
 }
+
+// useMatches() returns a new array on every URL change even when the
+// matched route is unchanged. This derived atom picks out only the
+// page-type identity from the matches and compares by id — so FeedbackPopover
+// only wakes when the relevant route match actually changes (e.g.,
+// navigating between occurrence detail pages), not on pagination or
+// filter updates.
+const pageTypeAtom = selectAtom(
+  matchesAtom,
+  getPageType,
+  (a, b) => a.id === b.id
+);
 
 export function FeedbackPopover({ trigger = <MdFeedback /> }): React.ReactElement {
   const config = useConfig();
   const [open, setOpen] = useState(false);
   const { feedback } = useConfig();
   const [selectedOption, setSelectedOption] = useState<FeedbackOption>('gbif'); //null
-  const matches = useMatches();
-  const [pageType, setPageType] = useState<PageType | null>(null);
+  const pageType = useAtomValue(pageTypeAtom);
   const {
     data: feedbackData,
     loading,
@@ -50,15 +64,7 @@ export function FeedbackPopover({ trigger = <MdFeedback /> }): React.ReactElemen
     if (open && pageType?.id) {
       load({ variables: { pageType: pageType.type, key: pageType.key } });
     }
-  }, [pageType?.id, load, open]);
-
-  useEffect(() => {
-    // check if any of the matches has an id that matches "occurrenceKey"
-    const newPageType = getPageType(matches);
-    if (newPageType?.id !== pageType?.id) {
-      setPageType(newPageType);
-    }
-  }, [matches, pageType?.id]);
+  }, [pageType?.id, pageType?.type, pageType?.key, load, open]);
 
   // Reset state when popover closes
   useEffect(() => {

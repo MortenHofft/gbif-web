@@ -1,7 +1,7 @@
 import { useSetAtom } from 'jotai';
 import { useEffect } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
-import { pathnameAtom, searchParamsAtom, setSearchParamsAtom } from './urlAtoms';
+import { useLocation, useMatches, useSearchParams } from 'react-router-dom';
+import { matchesAtom, pathnameAtom, searchParamsAtom, setSearchParamsAtom } from './urlAtoms';
 
 const snakeToCamel = (s: string) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 
@@ -19,9 +19,11 @@ const snakeToCamel = (s: string) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCa
 // Renders nothing.
 export function JotaiUrlSync(): null {
   const location = useLocation();
+  const matches = useMatches();
   const [searchParams, setSearchParams] = useSearchParams();
   const setParams = useSetAtom(searchParamsAtom);
   const setPathname = useSetAtom(pathnameAtom);
+  const setMatches = useSetAtom(matchesAtom);
   const setSetter = useSetAtom(setSearchParamsAtom);
 
   useEffect(() => {
@@ -33,6 +35,13 @@ export function JotaiUrlSync(): null {
   useEffect(() => {
     setPathname(location.pathname);
   }, [location.pathname, setPathname]);
+
+  // Matches array reference changes on every URL update, but content
+  // (route ids/params) only changes on route navigations. Consumers
+  // dedupe downstream with selectAtom equality.
+  useEffect(() => {
+    setMatches(matches);
+  }, [matches, setMatches]);
 
   // Wrap in a thunk to prevent jotai's "setter accepts function updater"
   // shorthand from invoking setSearchParams with the previous value.

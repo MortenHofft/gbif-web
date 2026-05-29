@@ -1,3 +1,4 @@
+import { pathnameAtom, searchParamsAtom } from '@/atoms/urlAtoms';
 import { GbifLogoIcon } from '@/components/icons/icons';
 import { Button } from '@/components/ui/button';
 import { useUser } from '@/contexts/UserContext';
@@ -7,9 +8,10 @@ import {
   StatusPageIndicatorQueryVariables,
 } from '@/gql/graphql';
 import { DynamicLink, useI18n } from '@/reactRouterPlugins';
+import { useAtomValue, useStore } from 'jotai';
 import { FiActivity } from 'react-icons/fi';
 import { MdOutlineFeedback, MdTranslate } from 'react-icons/md';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { LanguageSelector } from './languageSelector';
 import MainNavigation from './mainNav';
 import MobileMenu from './mobileMenu';
@@ -18,11 +20,11 @@ import { useConfig } from '@/config/config';
 import SearchTrigger from './SearchTrigger';
 import { cn } from '@/utils/shadcn';
 import useQuery from '@/hooks/useQuery';
-import { useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useRef } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { useNavOverflow } from '@/hooks/useNavOverflow';
 
-export function Header({ menu }: { menu: HeaderQuery }) {
+export const Header = memo(function Header({ menu }: { menu: HeaderQuery }) {
   const intl = useIntl();
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -107,7 +109,7 @@ export function Header({ menu }: { menu: HeaderQuery }) {
       </div>
     </Container>
   );
-}
+});
 
 const STATUS_PAGE_QUERY = /* GraphQL */ `
   query statusPageIndicator {
@@ -249,12 +251,27 @@ function ProfileOrLogin() {
 }
 
 function LoginButton() {
-  const { pathname, search } = useLocation();
-  const returnUrl = encodeURIComponent(`${pathname}${search}`);
+  // returnUrl was previously derived from useLocation() at render time,
+  // which made LoginButton rerender on every URL change. Now we read the
+  // current URL imperatively at click time via the jotai store — the
+  // button itself doesn't subscribe to URL state and is insensitive to
+  // pagination, filter changes, etc.
+  const navigate = useNavigate();
+  const store = useStore();
+  const handleClick = useCallback(
+    (e: React.MouseEvent<HTMLAnchorElement>) => {
+      e.preventDefault();
+      const pathname = store.get(pathnameAtom);
+      const search = store.get(searchParamsAtom).toString();
+      const returnUrl = encodeURIComponent(`${pathname}${search ? `?${search}` : ''}`);
+      navigate(`/user/login?returnUrl=${returnUrl}`);
+    },
+    [navigate, store]
+  );
 
   return (
     <Button asChild className="g-text-sm" variant="outline">
-      <DynamicLink to={`/user/login?returnUrl=${returnUrl}`}>
+      <DynamicLink to="/user/login" onClick={handleClick}>
         <FormattedMessage id="profile.loginText" defaultMessage="Login" />
       </DynamicLink>
     </Button>
@@ -263,8 +280,9 @@ function LoginButton() {
 
 function useIsRoot() {
   const { locale } = useI18n();
-  const location = useLocation();
-  const pathname = location.pathname;
+  // Subscribe only to pathname, not the full location — Logo and Container
+  // no longer rerender on search-param changes.
+  const pathname = useAtomValue(pathnameAtom);
   //remove / slash from start and begining
   const path = pathname.replace(/^\/|\/$/g, '');
   // if path is empty, it means we are on the root page. Or if path equals the locale code

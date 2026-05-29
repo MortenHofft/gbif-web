@@ -1,12 +1,13 @@
+import { pathnameAtom, searchParamsAtom } from '@/atoms/urlAtoms';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { DynamicLink } from '@/reactRouterPlugins';
 import { useUser } from '@/contexts/UserContext';
+import { useStore } from 'jotai';
 import { useCallback, useEffect, useState } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { useLocation } from 'react-router-dom';
 
 type PageType = {
   type: 'occurrenceKey' | null;
@@ -31,7 +32,10 @@ export function GbifFeedback({ pageType, onClose }: GbifFeedbackProps) {
   } catch (error) {
     // ignore JSON parse errors
   }
-  const location = useLocation();
+  // Read URL only when needed (FAILED branch and login-redirect href below)
+  // via the jotai store — no subscription, so this component doesn't
+  // rerender on URL changes.
+  const store = useStore();
   const { user, isLoggedIn } = useUser();
   const [titleValue, setTitleValue] = useState(state?.title || '');
   const [descriptionValue, setDescriptionValue] = useState(state?.description || '');
@@ -179,7 +183,7 @@ export function GbifFeedback({ pageType, onClose }: GbifFeedbackProps) {
     body += `\n\nPage: ${
       typeof window !== 'undefined'
         ? window.location.toString()
-        : `${location.pathname}${location.search}`
+        : `${store.get(pathnameAtom)}?${store.get(searchParamsAtom).toString()}`
     }`;
     return (
       <div className="g-mt-4">
@@ -263,7 +267,7 @@ export function GbifFeedback({ pageType, onClose }: GbifFeedbackProps) {
                 `**Page**: ${
                   typeof window !== 'undefined'
                     ? window.location.toString()
-                    : `${location.pathname}${location.search}`
+                    : `${store.get(pathnameAtom)}?${store.get(searchParamsAtom).toString()}`
                 }`
               )}`}
               target="_blank"
