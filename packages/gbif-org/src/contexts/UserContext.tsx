@@ -1,5 +1,13 @@
 import { Base64 } from 'js-base64';
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { DerivedDatasetPayload, RegistrationResult } from '@/routes/tools/derivedDataset/types';
 
 interface User {
@@ -632,10 +640,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     refreshUser();
   }, [refreshUser]); // Add refreshUser to the dependency array
 
-  const value: UserContextType = {
-    user,
-    isLoading,
-    isLoggedIn: !!user,
+  // Keep the latest action closures in a ref so the published context
+  // value can stay referentially stable across renders. Most action
+  // functions above are recreated on every render (not wrapped in
+  // useCallback), so a naive useMemo of the value object would still
+  // recompute on every render. The ref-delegation pattern below gives
+  // consumers stable function identities that always invoke the most
+  // recent closure — preserving React.memo / useMemo boundaries
+  // throughout the app for anything that depends on useUser().
+  type UserActions = Omit<UserContextType, 'user' | 'isLoading' | 'isLoggedIn'>;
+  const actionsRef = useRef<UserActions>(null!);
+  actionsRef.current = {
     login,
     register,
     updateForgottenPassword,
@@ -647,14 +662,46 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     resetPassword,
     confirm,
     changeEmail,
-
     deleteDownload,
     postponeDownloadDeletion,
     cancelDownload,
-
     registerDerivedDataset,
     updateDerivedDataset,
   };
+
+  const stableActions = useMemo<UserActions>(() => {
+    const wrap = <K extends keyof UserActions>(key: K): UserActions[K] =>
+      ((...args: unknown[]) =>
+        (actionsRef.current[key] as (...args: unknown[]) => unknown)(...args)) as UserActions[K];
+    return {
+      login: wrap('login'),
+      register: wrap('register'),
+      updateForgottenPassword: wrap('updateForgottenPassword'),
+      updateProfile: wrap('updateProfile'),
+      changePassword: wrap('changePassword'),
+      disconnectAccount: wrap('disconnectAccount'),
+      logout: wrap('logout'),
+      refreshUser: wrap('refreshUser'),
+      resetPassword: wrap('resetPassword'),
+      confirm: wrap('confirm'),
+      changeEmail: wrap('changeEmail'),
+      deleteDownload: wrap('deleteDownload'),
+      postponeDownloadDeletion: wrap('postponeDownloadDeletion'),
+      cancelDownload: wrap('cancelDownload'),
+      registerDerivedDataset: wrap('registerDerivedDataset'),
+      updateDerivedDataset: wrap('updateDerivedDataset'),
+    };
+  }, []);
+
+  const value = useMemo<UserContextType>(
+    () => ({
+      user,
+      isLoading,
+      isLoggedIn: !!user,
+      ...stableActions,
+    }),
+    [user, isLoading, stableActions]
+  );
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }
