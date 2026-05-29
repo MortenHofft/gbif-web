@@ -1,3 +1,4 @@
+import { JotaiUrlSync } from '@/atoms/JotaiUrlSync';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Toaster } from '@/components/ui/toaster';
 import { useI18n } from '@/reactRouterPlugins';
@@ -12,6 +13,10 @@ type Props = {
 export function HpRootLayout({ children, disableScrollRestoration = false }: Props) {
   return (
     <>
+      {/* Mirror react-router's useSearchParams into the jotai URL store
+          so per-key atom consumers only rerender on the keys they
+          actually depend on. JotaiProvider is mounted upstream in <Root>. */}
+      <JotaiUrlSync />
       <UrlChangeNotifier />
       {!disableScrollRestoration && <ScrollRestoration />}
       <Toaster />

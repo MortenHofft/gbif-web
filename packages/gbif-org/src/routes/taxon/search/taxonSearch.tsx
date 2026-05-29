@@ -11,9 +11,8 @@ import { useFilterParams } from '@/dataManagement/filterAdapter/useFilterParams'
 import { useStringParam } from '@/hooks/useParam';
 import { useUpdateViewParams } from '@/hooks/useUpdateViewParams';
 import EntityDrawer from '@/routes/occurrence/search/views/browseList/ListBrowser';
-import { JotaiUrlSync } from '@/atoms/JotaiUrlSync';
 import { urlParamAtom } from '@/atoms/urlAtoms';
-import { Provider as JotaiProvider, useAtomValue } from 'jotai';
+import { useAtomValue } from 'jotai';
 import React, { memo, useMemo } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { useFilters } from './filters';
@@ -42,12 +41,9 @@ export function TaxonSearchPage(): React.ReactElement {
 
       <SearchContextProvider searchContext={config.taxonSearch}>
         <FilterProvider filter={filter} onChange={setFilter}>
-          <JotaiProvider>
-            <JotaiUrlSync />
-            <TaxonSearchPageInner
-              datasetKey={config.taxonSearch?.checklistKey ?? config.defaultChecklistKey}
-            />
-          </JotaiProvider>
+          <TaxonSearchPageInner
+            datasetKey={config.taxonSearch?.checklistKey ?? config.defaultChecklistKey}
+          />
         </FilterProvider>
       </SearchContextProvider>
     </>
@@ -139,29 +135,26 @@ export function TaxonSearchInner({
 
   return (
     <ChecklistKeyContext.Provider value={{ datasetKey }}>
-      <JotaiProvider>
-        <JotaiUrlSync />
-        <ErrorBoundary showReportButton>
-          <EntityDrawer />
-          <Card>
-            {/* <TaxonViewTabs
-                setView={() => {}}
-                view={view}
-                defaultView={defaultView}
-                tabs={searchContext.tabs}
-              /> */}
-            <div className="g-p2">
-              <FilterBarWithActions filters={visibleFilters} />
-            </div>
-          </Card>
+      <ErrorBoundary showReportButton>
+        <EntityDrawer />
+        <Card>
+          {/* <TaxonViewTabs
+              setView={() => {}}
+              view={view}
+              defaultView={defaultView}
+              tabs={searchContext.tabs}
+            /> */}
+          <div className="g-p2">
+            <FilterBarWithActions filters={visibleFilters} />
+          </div>
+        </Card>
 
-          <ViewsByUrlParam
-            defaultView={defaultView}
-            entityDrawerPrefix="t"
-            className="g-py-2"
-          />
-        </ErrorBoundary>
-      </JotaiProvider>
+        <ViewsByUrlParam
+          defaultView={defaultView}
+          entityDrawerPrefix="t"
+          className="g-py-2"
+        />
+      </ErrorBoundary>
     </ChecklistKeyContext.Provider>
   );
 }

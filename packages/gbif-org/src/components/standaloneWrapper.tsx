@@ -1,3 +1,4 @@
+import { JotaiUrlSync } from '@/atoms/JotaiUrlSync';
 import { Config, PageConfig } from '@/config/config';
 import { applyReactRouterPlugins, RouteObjectWithPlugins, useI18n } from '@/reactRouterPlugins';
 import { PageContext } from '@/reactRouterPlugins/applyPagePaths/plugin';
@@ -93,6 +94,9 @@ function createRoutesWithPlugins(
       {
         element: (
           <>
+            {/* Mirror react-router's useSearchParams into the jotai URL
+                store. JotaiProvider is mounted upstream in <StandaloneRoot>. */}
+            <JotaiUrlSync />
             <LoadingIndicator />
             <OnRenderDone onDone={onRenderDone} />
             <Outlet />

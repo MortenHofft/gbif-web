@@ -1,3 +1,4 @@
+import { JotaiUrlSync } from '@/atoms/JotaiUrlSync';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LoadingIndicator } from '@/components/loadingIndicator';
 import { NoscriptNotification } from '@/components/noscriptNotification';
@@ -95,6 +96,11 @@ const LayoutInner = React.memo(
 
     return (
       <UserProvider>
+        {/* Mirror react-router's useSearchParams into the jotai URL store
+            so per-key atom consumers (urlParamAtom) only rerender on the
+            keys they actually depend on. JotaiProvider is mounted upstream
+            in <Root>. */}
+        <JotaiUrlSync />
         <div className="g-flex g-flex-col g-min-h-[100dvh]">
           <a
             href="#main-content"
