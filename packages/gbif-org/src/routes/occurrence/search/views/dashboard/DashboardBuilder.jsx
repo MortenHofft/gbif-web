@@ -419,7 +419,8 @@ function Item({
       predicate={predicate}
       q={q}
       {...componentProps}
-      setView={(view) => onUpdateItem({ ...item, p: { view } }, index)}
+      setView={(view) => onUpdateItem({ ...item, p: { ...params, view } }, index)}
+      setRank={(rank) => onUpdateItem({ ...item, p: { ...params, rank } }, index)}
     />
   );
 

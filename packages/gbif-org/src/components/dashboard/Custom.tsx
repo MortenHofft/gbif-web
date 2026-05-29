@@ -9,7 +9,7 @@ import { useChecklistKey } from '@/hooks/useChecklistKey';
 import { DynamicLink } from '@/reactRouterPlugins';
 import formatAsPercentage from '@/utils/formatAsPercentage';
 import { tryParse } from '@/utils/querystring';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { MdArrowDropDown, MdLink } from 'react-icons/md';
 import { FormattedMessage } from 'react-intl';
 import { useUncontrolledProp } from 'uncontrollable';
@@ -62,6 +62,8 @@ type TaxaMainProps = {
   interactive?: boolean;
   setView?: (view: ChartView) => void;
   view?: ChartView;
+  setRank?: (rank: string) => void;
+  rank?: string;
   [key: string]: unknown;
 };
 
@@ -75,13 +77,30 @@ function TaxaMain({
   interactive,
   setView: setUserView,
   view: userView,
+  setRank: setUserRank,
+  rank: userRank,
   ...props
 }: TaxaMainProps) {
   const { theme } = useConfig();
   const [view, setView] = useUncontrolledProp<ChartView>(userView, 'TABLE', setUserView);
+  const [rank, setRank] = useUncontrolledProp<string>(
+    userRank,
+    getDefaultRank(defaultRank).toUpperCase(),
+    setUserRank
+  );
   const defaultChecklistKey = useChecklistKey();
-  const [query, setQuery] = useState(getTaxonQuery(`${getDefaultRank(defaultRank)}Key`));
-  const [rank, setRank] = useState<string>(getDefaultRank(defaultRank).toUpperCase());
+  const query = useMemo(() => getTaxonQuery(`${rank.toLowerCase()}Key`), [rank]);
+
+  // When the rank is not externally controlled (e.g. not part of a shareable
+  // dashboard layout), keep following changes to the defaultRank prop. This
+  // preserves the previous behaviour on pages like the taxon metrics where the
+  // default rank depends on the current taxon.
+  useEffect(() => {
+    if (!setUserRank) {
+      setRank(getDefaultRank(defaultRank).toUpperCase());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultRank, setUserRank]);
   const hasPredicates: Array<Record<string, unknown>> = [
     {
       type: 'isNotNull',
@@ -108,11 +127,6 @@ function TaxaMain({
   const palette = chartColors
     ? generateChartsPalette(chartColors)
     : (Highcharts?.defaultOptions?.colors as string[] | undefined);
-
-  useEffect(() => {
-    setRank(getDefaultRank(defaultRank).toUpperCase());
-    setQuery(getTaxonQuery(`${getDefaultRank(defaultRank)}Key`));
-  }, [defaultRank]);
 
   const facetData = facetResults?.data as TaxonFacetData | undefined;
   const visibilityThresholdGuard =
@@ -201,17 +215,16 @@ function TaxaMain({
               </span>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              {majorRanks.map((rank) => (
+              {majorRanks.map((majorRank) => (
                 <DropdownMenuItem
-                  key={rank}
+                  key={majorRank}
                   onClick={() => {
-                    setRank(rank);
-                    setQuery(getTaxonQuery(`${rank}Key`));
+                    setRank(majorRank.toUpperCase());
                   }}
                 >
                   <FormattedMessage
-                    id={`enums.taxonRank.${rank.toUpperCase()}`}
-                    defaultMessage={rank}
+                    id={`enums.taxonRank.${majorRank.toUpperCase()}`}
+                    defaultMessage={majorRank}
                   />
                 </DropdownMenuItem>
               ))}
