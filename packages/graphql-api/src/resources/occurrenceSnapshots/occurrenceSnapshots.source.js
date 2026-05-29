@@ -1,4 +1,4 @@
-import { RESTDataSource } from 'apollo-datasource-rest';
+import { RESTDataSource } from '@/RESTDataSource';
 import { createSignedGetHeader } from '@/helpers/auth/authenticatedGet';
 
 class OccurrenceSnapshotsAPI extends RESTDataSource {
@@ -8,17 +8,23 @@ class OccurrenceSnapshotsAPI extends RESTDataSource {
     this.config = config;
   }
 
-  willSendRequest(request) {
+  willSendRequest(path, request) {
     const header = createSignedGetHeader(
-      request.path,
+      path,
       this.config,
       'download.gbif.org',
     );
-    Object.keys(header).forEach((x) => request.headers.set(x, header[x]));
+    Object.keys(header).forEach((x) => { request.headers[x] = header[x]; });
   }
 
   async getOccurrenceSnapshots({ query }) {
-    return this.get(`/occurrence/download/user/download.gbif.org`, query);
+    // The upstream sends Cache-Control: no-cache because the endpoint is normally
+    // used to list a user's private downloads. For download.gbif.org (public
+    // snapshot listings) the data only changes when a new snapshot is published,
+    // so we override the cache TTL.
+    return this.get(`/occurrence/download/user/download.gbif.org`, query, {
+      cacheOptions: { ttl: 60 * 60 },
+    });
   }
 }
 
