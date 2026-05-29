@@ -49,6 +49,14 @@ async function initializeServer() {
     // Keep introspection enabled in all environments so the self-hosted GraphiQL
     // sandbox (served from public/graphql-sandbox.html) can fetch the schema.
     introspection: true,
+    // Apollo Server 4+ enables CSRF prevention by default, which blocks "simple"
+    // GET requests that lack a JSON content-type (e.g. pasting a /graphql?query=
+    // URL in the browser, shared query links, the loggingPlugin playgroundLink).
+    // We intentionally support GET-by-URL (it powers our GET caching), and the
+    // API authenticates via the Authorization header / JWT rather than cookies,
+    // so the CSRF vector (ambient cookie credentials) does not apply. Disabling
+    // it restores the apollo-server v3 behaviour.
+    csrfPrevention: false,
     validationRules: [depthLimit(14)], // this likely have to be much higher than 6, but let us increase it as needed and not before
     plugins: [
       // We serve our own GraphiQL sandbox via the graphqlExplorer middleware,
