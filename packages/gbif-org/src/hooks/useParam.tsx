@@ -1,6 +1,7 @@
+import { searchParamsAtom, setSearchParamsAtom, urlParamAtom } from '@/atoms/urlAtoms';
+import { useAtomValue, useStore } from 'jotai';
 import { Base64 } from 'js-base64';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useCallback, useMemo } from 'react';
 
 type Options<T> = {
   key: string;
@@ -93,38 +94,30 @@ export function useParam<T>({
   replace?: boolean;
   preventScrollReset?: boolean;
 }): [T, (value: T) => void] {
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  // Memoize the parsed value keyed on the raw string. Without this, parse runs
-  // on every render (every URL change triggers a rerender of every consumer,
-  // even if their key didn't change) and JSON parsers in particular allocate a
-  // fresh object each time, destabilizing any downstream deps.
-  const rawValue = searchParams.get(key) ?? (defaultValue ? defaultValue.toString() : undefined);
+  // Per-key subscription via the URL store — the consumer only rerenders
+  // when this specific key's serialized value changes. Other URL updates
+  // (pagination of an unrelated key, different filter, etc.) don't wake it.
+  const rawFromUrl = useAtomValue(urlParamAtom(key));
+  const rawValue = rawFromUrl ?? (defaultValue ? defaultValue.toString() : undefined);
   const value = useMemo(() => parse(rawValue), [rawValue, parse]);
 
-  // setSearchParams is not stable
-  // https://github.com/remix-run/react-router/issues/9991
-  const setSearchParamsRef = useRef(setSearchParams);
-  useEffect(() => {
-    setSearchParamsRef.current = setSearchParams;
-  }, [setSearchParams]);
-
+  // Writes go through react-router's setSearchParams pulled imperatively
+  // from the jotai store — so this hook does NOT subscribe to the router's
+  // URL context just to obtain the setter.
+  const store = useStore();
   const setValue = useCallback(
-    (value: T) => {
-      setSearchParamsRef.current(
-        (params) => {
-          const clone = new URLSearchParams(params);
-          const serializedValue = typeof serialize === 'function' ? serialize(value) : value + '';
-          clone.set(key, serializedValue + '');
-          if (value === undefined || (value === defaultValue && hideDefault)) {
-            clone.delete(key);
-          }
-          return clone;
-        },
-        { replace, preventScrollReset }
-      );
+    (next: T) => {
+      const setSearchParams = store.get(setSearchParamsAtom);
+      if (!setSearchParams) return; // JotaiUrlSync not yet mounted
+      const clone = new URLSearchParams(store.get(searchParamsAtom));
+      const serializedValue = typeof serialize === 'function' ? serialize(next) : next + '';
+      clone.set(key, serializedValue + '');
+      if (next === undefined || (next === defaultValue && hideDefault)) {
+        clone.delete(key);
+      }
+      setSearchParams(clone, { replace, preventScrollReset });
     },
-    [key, serialize, defaultValue, hideDefault, replace, preventScrollReset]
+    [store, key, serialize, defaultValue, hideDefault, replace, preventScrollReset]
   );
 
   return [value, setValue];
