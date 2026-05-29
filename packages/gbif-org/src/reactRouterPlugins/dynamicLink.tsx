@@ -1,10 +1,17 @@
+import { pathnameAtom, searchParamsAtom, urlParamAtom } from '@/atoms/urlAtoms';
 import { ParentPagesContext } from '@/components/standaloneWrapper';
 import { ParamQuery, stringify } from '@/utils/querystring';
+import { useAtomValue, useStore } from 'jotai';
 import { useCallback, useContext, useMemo } from 'react';
-import { Link, LinkProps, useLocation, useNavigate } from 'react-router-dom';
+import { Link, LinkProps, useNavigate } from 'react-router-dom';
 import { PageContext } from './applyPagePaths/plugin';
 import { useI18n } from './i18n';
 import { useConfig } from '@/config/config';
+
+// Single per-key atom shared across every DynamicLink in the app
+// (urlParamAtom internally caches by key, so this is also re-used by
+// anyone else who reads ?preview=).
+const previewAtom = urlParamAtom('preview');
 
 export type LinkData = {
   to: string | object | null;
@@ -28,7 +35,14 @@ export type DynamicLinkProps<T extends React.ElementType> = {
 export function useLink() {
   const { localizeLink, locale } = useI18n();
   const config = useConfig();
-  const location = useLocation();
+  // Subscribe only to ?preview= via the per-key atom — the rest of the
+  // URL (pathname, search) is read imperatively from the store inside
+  // createLink below, so DynamicLink doesn't rerender on every URL
+  // change. Most links don't depend on the current URL anyway (they're
+  // pageId-derived); the lazy reads only matter for keepExistingSearchParams
+  // and the no-pageId path-relative fallback.
+  const preview = useAtomValue(previewAtom) === 'true';
+  const store = useStore();
   const currentPages = useContext(PageContext);
   const parentPages = useContext(ParentPagesContext);
   const pages = parentPages ?? currentPages;
@@ -101,8 +115,11 @@ export function useLink() {
             }
           }
 
-          if (keepExistingSearchParams && location.search) {
-            link = `${link}${link.includes('?') ? '&' : '?'}${location.search.slice(1)}`;
+          if (keepExistingSearchParams) {
+            const currentSearch = store.get(searchParamsAtom).toString();
+            if (currentSearch) {
+              link = `${link}${link.includes('?') ? '&' : '?'}${currentSearch}`;
+            }
           }
 
           link = localizeLink(link);
@@ -120,7 +137,7 @@ export function useLink() {
       }
 
       if (!pageId && searchParams) {
-        link = location.pathname;
+        link = store.get(pathnameAtom);
 
         if (link.includes('?')) {
           link = `${link}&${stringify(searchParams)}`;
@@ -128,13 +145,15 @@ export function useLink() {
           link = `${link}?${stringify(searchParams)}`;
         }
 
-        if (keepExistingSearchParams && location.search) {
-          link = `${link}${link.includes('?') ? '&' : '?'}${location.search.slice(1)}`;
+        if (keepExistingSearchParams) {
+          const currentSearch = store.get(searchParamsAtom).toString();
+          if (currentSearch) {
+            link = `${link}${link.includes('?') ? '&' : '?'}${currentSearch}`;
+          }
         }
       }
 
-      // If preview=true is present in the query params, add it to the link
-      const preview = new URLSearchParams(location.search).get('preview') === 'true';
+      // preview comes from the per-key atom subscribed above.
       if (link && preview) {
         link = `${link}${link.includes('?') ? '&' : '?'}preview=true`;
       }
@@ -146,7 +165,7 @@ export function useLink() {
 
       return { to: link, type: 'link' };
     };
-  }, [pages, localizeLink, locale, location.search, location.pathname]);
+  }, [pages, localizeLink, locale, preview, store]);
   return createLink;
 }
 
@@ -167,7 +186,8 @@ export function useDynamicLink({
 }): LinkData {
   const createLink = useLink();
   const { localizeLink } = useI18n();
-  const location = useLocation();
+  // Same per-key subscription as useLink — only wakes on preview flips.
+  const preview = useAtomValue(previewAtom) === 'true';
   const currentPages = useContext(PageContext);
   const parentPages = useContext(ParentPagesContext);
 
@@ -190,8 +210,6 @@ export function useDynamicLink({
     } else if (typeof to === 'string' && to !== '') {
       let localizedTo = localizeLink(to);
 
-      // If preview=true is present in the current query params, add it to the link
-      const preview = new URLSearchParams(location.search).get('preview') === 'true';
       if (preview) {
         localizedTo = `${localizedTo}${localizedTo.includes('?') ? '&' : '?'}preview=true`;
       }
@@ -218,7 +236,7 @@ export function useDynamicLink({
     createLink,
     keepExistingSearchParams,
     localizeLink,
-    location.search,
+    preview,
   ]);
 
   return result;

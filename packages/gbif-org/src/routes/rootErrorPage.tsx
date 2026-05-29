@@ -5,7 +5,9 @@ import { QueryError } from '@/hooks/useQuery';
 import { NotFoundPage } from '@/notFoundPage';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useIntl } from 'react-intl';
-import { useLocation, useRouteError } from 'react-router-dom';
+import { pathnameAtom } from '@/atoms/urlAtoms';
+import { useAtomValue } from 'jotai';
+import { useRouteError } from 'react-router-dom';
 
 export function RootErrorPage(): React.ReactElement {
   const error = useRouteError();
@@ -87,20 +89,22 @@ export function useErrorChecking({
 let pathWhereUserWasLastNotified: string | undefined;
 
 export function usePartialDataNotification() {
-  const location = useLocation();
+  // Subscribe only to pathname — useQuery wraps this hook so anything
+  // calling useQuery would otherwise rerender on every URL change.
+  const pathname = useAtomValue(pathnameAtom);
   const { toast } = useToast();
   const { formatMessage } = useIntl();
   const [hasNotified, setHasNotified] = useState(false);
 
   useEffect(() => {
-    if (location.pathname !== pathWhereUserWasLastNotified) {
+    if (pathname !== pathWhereUserWasLastNotified) {
       pathWhereUserWasLastNotified = undefined;
     }
-  }, [location.pathname]);
+  }, [pathname]);
 
   const notify = useCallback(() => {
-    if (pathWhereUserWasLastNotified !== location.pathname && !hasNotified) {
-      pathWhereUserWasLastNotified = location.pathname;
+    if (pathWhereUserWasLastNotified !== pathname && !hasNotified) {
+      pathWhereUserWasLastNotified = pathname;
       setHasNotified(true);
       toast({
         title: formatMessage({ id: 'error.partialData' }),
@@ -108,7 +112,7 @@ export function usePartialDataNotification() {
         'data-cy': 'partial-data-error',
       });
     }
-  }, [location.pathname, toast, formatMessage, hasNotified, setHasNotified]);
+  }, [pathname, toast, formatMessage, hasNotified, setHasNotified]);
 
   return notify;
 }
