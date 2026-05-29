@@ -42,6 +42,9 @@ function QFilter({
 }) {
   const [isInputHidden, setIsInputHidden] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Avoid stealing focus on the initial mount (e.g. when landing on the search
+  // page). We only want to focus the input when the user re-opens it.
+  const isFirstRender = useRef(true);
   const { formatMessage } = useIntl();
 
   const handleClearClick = () => {
@@ -49,6 +52,10 @@ function QFilter({
   };
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     if (!isInputHidden && inputRef.current) {
       inputRef.current.focus({ preventScroll: true });
     }
