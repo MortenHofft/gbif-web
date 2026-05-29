@@ -34,6 +34,21 @@ export class RESTDataSource extends ApolloRESTDataSource {
     this.context = config.context;
   }
 
+  // Replicate apollo-datasource-rest v3 URL resolution. v6 simply does
+  // `new URL(path, baseURL)`, which drops any path on the baseURL when `path`
+  // starts with `/` (e.g. baseURL `https://api.gbif.org/v1` + `/dataset/x`
+  // would resolve to `https://api.gbif.org/dataset/x`). v3 instead ensured a
+  // trailing slash on the baseURL and stripped the leading slash from the path,
+  // which is what all our data sources rely on.
+  resolveURL(path, _request) {
+    if (!this.baseURL) return new URL(path);
+    const normalizedBaseURL = this.baseURL.endsWith('/')
+      ? this.baseURL
+      : `${this.baseURL}/`;
+    const normalizedPath = path.startsWith('/') ? path.slice(1) : path;
+    return new URL(normalizedPath, normalizedBaseURL);
+  }
+
   // Convert the legacy `(params, init)` arguments into a v6 request options
   // object. `params` may be a query string, a plain object or URLSearchParams.
   // eslint-disable-next-line class-methods-use-this
