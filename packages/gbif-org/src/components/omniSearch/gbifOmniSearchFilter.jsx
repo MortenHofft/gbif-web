@@ -92,49 +92,43 @@ function encodeItemValue(cfg, item) {
   return item.value;
 }
 
-// Rebuild must/mustNot from the box's items, while preserving any field the box
-// doesn't manage (keys outside FILTER_MAP) so it composes with other widgets.
-function itemsToGbifFilter(items, previousFilter) {
-  const must = {};
-  const mustNot = {};
-
-  const keep = (bucket, target) => {
-    Object.entries(bucket ?? {}).forEach(([field, values]) => {
-      if (!FILTER_MAP[field]) target[field] = values;
-    });
-  };
-  keep(previousFilter?.must, must);
-  keep(previousFilter?.mustNot, mustNot);
-
-  items.forEach((item) => {
-    const cfg = FILTER_MAP[item.filterName];
-    // Existence ("has any / no value") always lives in `must` in gbif-web,
-    // distinguished by isNotNull vs isNull rather than the must/mustNot bucket.
-    if (item.value === '*') {
-      must[item.filterName] = must[item.filterName] ?? [];
-      must[item.filterName].push({ type: item.negated ? 'isNull' : 'isNotNull' });
-      return;
-    }
-    const target = item.negated ? mustNot : must;
-    target[item.filterName] = target[item.filterName] ?? [];
-    target[item.filterName].push(encodeItemValue(cfg, item));
-  });
-
-  return { ...previousFilter, must, mustNot };
+// Apply a single selection from the box to the shared FilterContext. The box
+// itself stays empty (see NO_ITEMS below) — it only *sets* gbif-web filters,
+// which then surface through the normal filter UI (buttons, chips, summaries).
+function applyItemToContext(filterContext, item) {
+  const cfg = FILTER_MAP[item.filterName];
+  // Existence ("has any / no value") always lives in `must` in gbif-web,
+  // distinguished by isNotNull vs isNull rather than the must/mustNot bucket.
+  if (item.value === '*') {
+    filterContext.add(item.filterName, { type: item.negated ? 'isNull' : 'isNotNull' }, false);
+    return;
+  }
+  filterContext.add(item.filterName, encodeItemValue(cfg, item), item.negated);
 }
 
 // ── The embeddable box ──────────────────────────────────────────────────────
+
+// Stable empty array: the box is always rendered "controlled, empty" so it never
+// accumulates its own chips. A constant reference keeps FilterBuilder's
+// value-sync effect from re-firing on every render.
+const NO_ITEMS = [];
 
 export function OmniSearchBox({ className }) {
   const filterContext = useContext(FilterContext);
   const filter = filterContext?.filter;
 
-  const items = useMemo(() => gbifFilterToItems(filter), [filter]);
-  const shortcuts = useFilterHistory(items);
+  // The current gbif-web filter, read only to power the "Recent" shortcuts —
+  // never to render chips inside the box.
+  const currentItems = useMemo(() => gbifFilterToItems(filter), [filter]);
+  const shortcuts = useFilterHistory(currentItems);
 
-  const handleChange = useCallback(
-    (newItems) => {
-      filterContext?.setFilter(itemsToGbifFilter(newItems, filterContext.filter));
+  // Because value is always the empty NO_ITEMS, every onChange the box emits is a
+  // freshly-applied selection (additions only — there are no chips to remove).
+  // Translate each into a FilterContext mutation so it joins the existing filters.
+  const handleApply = useCallback(
+    (appliedItems) => {
+      if (!filterContext) return;
+      appliedItems.forEach((item) => applyItemToContext(filterContext, item));
     },
     [filterContext]
   );
@@ -142,8 +136,8 @@ export function OmniSearchBox({ className }) {
   return (
     <div className={className} style={{ width: '100%', maxWidth: 480 }}>
       <FilterBuilder
-        value={items}
-        onChange={handleChange}
+        value={NO_ITEMS}
+        onChange={handleApply}
         filterConfig={FILTER_CONFIG}
         shortcuts={shortcuts}
         showChipsInInput={false}
