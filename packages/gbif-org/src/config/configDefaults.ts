@@ -206,7 +206,15 @@ export const configDefault: Partial<Config> = {
   },
   occurrenceSearch: {
     queryType: 'PREDICATE',
-    highlightedFilters: ['occurrenceStatus', 'taxonKey', 'year', 'country', 'issue', 'geometry'],
+    highlightedFilters: [
+      'omniSearch',
+      'occurrenceStatus',
+      'taxonKey',
+      'year',
+      'country',
+      'issue',
+      'geometry',
+    ],
     tabs: ['table', 'gallery', 'map', 'download'],
     excludedFilters: [
       'endDayOfYear',

@@ -6,6 +6,7 @@ import {
   generateFilters,
 } from '@/components/filters/filterTools';
 import { FilterConfigType } from '@/dataManagement/filterAdapter/filter2predicate';
+import { createOmniSearchFilterSetting } from '@/components/omniSearch/gbifOmniSearchFilter';
 import { useCountrySuggest } from '@/hooks/useCountrySuggest';
 import { useMemo } from 'react';
 import { useIntl } from 'react-intl';
@@ -120,6 +121,11 @@ export function useFilters({ searchConfig }: { searchConfig: FilterConfigType })
 
   const filters: Filters = useMemo(() => {
     const tmpFilters = {
+      // omni-search: a single box to search across any field and value. Configured
+      // via the catalogue in @/components/omniSearch/filterConfig.js. Listed first
+      // so it can be the first (default) highlighted filter in the occurrence search.
+      omniSearch: createOmniSearchFilterSetting({ formatMessage }) as unknown as FilterSetting,
+
       //free text
       q: generateFilters({ config: freeTextConfig, searchConfig, formatMessage }),
 
