@@ -92,6 +92,13 @@ function encodeItemValue(cfg, item) {
   return item.value;
 }
 
+// Single-value fields hold at most one value, so a new selection should replace
+// the previous one rather than accumulate. Free-text (`q`) is single-value by
+// nature; any other field can opt in with `singleValue: true` in its config.
+function isSingleValue(cfg) {
+  return cfg?.singleValue === true || cfg?.type === 'freeText';
+}
+
 // Apply a single selection from the box to the shared FilterContext. The box
 // itself stays empty (see NO_ITEMS below) — it only *sets* gbif-web filters,
 // which then surface through the normal filter UI (buttons, chips, summaries).
@@ -99,11 +106,18 @@ function applyItemToContext(filterContext, item) {
   const cfg = FILTER_MAP[item.filterName];
   // Existence ("has any / no value") always lives in `must` in gbif-web,
   // distinguished by isNotNull vs isNull rather than the must/mustNot bucket.
-  if (item.value === '*') {
-    filterContext.add(item.filterName, { type: item.negated ? 'isNull' : 'isNotNull' }, false);
-    return;
+  const value =
+    item.value === '*'
+      ? { type: item.negated ? 'isNull' : 'isNotNull' }
+      : encodeItemValue(cfg, item);
+  const negated = item.value === '*' ? false : item.negated;
+
+  if (isSingleValue(cfg)) {
+    // Replace rather than append for single-value fields like `q`.
+    filterContext.setField(item.filterName, [value], negated);
+  } else {
+    filterContext.add(item.filterName, value, negated);
   }
-  filterContext.add(item.filterName, encodeItemValue(cfg, item), item.negated);
 }
 
 // ── The embeddable box ──────────────────────────────────────────────────────
