@@ -1,6 +1,18 @@
 # GBIF Filter Builder
 
-A React demo for composing GBIF occurrence search filters interactively. Type filter names and values into a single input field — selected values appear as chips and the resulting URL parameters are shown below.
+> **gbif-web port.** This is the TypeScript port of the upstream
+> [omni-search](https://github.com/MortenHofft/omni-search) prototype, adapted to
+> gbif-web's design system. The interactive box renders as an input-styled
+> trigger that opens a cmdk popover (like gbif-web's other filters). Rather than
+> managing its own chip list, it emits one `FilterItem` per selection through an
+> **`onSelect(item)`** callback; `gbifOmniSearchFilter.tsx` translates each item
+> into a `FilterContext` mutation so it shows up through the normal filter UI.
+> The sections below describe the original standalone behaviour and the filter
+> catalogue/config model, which still apply; the demo-only chrome (chips in the
+> input, URL preview, copy button, page title) is not part of the ported
+> component.
+
+A React component for composing GBIF occurrence search filters interactively. Type filter names and values into a single input field to compose filters across any field and value.
 
 ## Getting started
 

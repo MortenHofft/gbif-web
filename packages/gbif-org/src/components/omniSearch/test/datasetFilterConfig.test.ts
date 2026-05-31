@@ -23,7 +23,7 @@ describe('DATASET_FILTER_CONFIG', () => {
     ]);
   });
 
-  describe.each(DATASET_FILTER_CONFIG)('$key', (filter) => {
+  describe.each(DATASET_FILTER_CONFIG)('$key', (filter: any) => {
     it('has non-empty key, label, hint, and a recognised type', () => {
       expect(typeof filter.key).toBe('string');
       expect(filter.key.length).toBeGreaterThan(0);
@@ -36,7 +36,7 @@ describe('DATASET_FILTER_CONFIG', () => {
   });
 
   it('publishingCountry enum values include {value,label} pairs', () => {
-    const cfg = DATASET_FILTER_MAP['publishingCountry'];
+    const cfg: any = DATASET_FILTER_MAP['publishingCountry'];
     expect(cfg.type).toBe('enum');
     const dk = cfg.values.find(v => v.value === 'DK');
     expect(dk).toBeDefined();
@@ -45,7 +45,7 @@ describe('DATASET_FILTER_CONFIG', () => {
   });
 
   it('publishingCountry.formatValue maps a code to a friendly label', () => {
-    const cfg = DATASET_FILTER_MAP['publishingCountry'];
+    const cfg: any = DATASET_FILTER_MAP['publishingCountry'];
     const label = cfg.formatValue('DK');
     expect(typeof label).toBe('string');
     expect(label.length).toBeGreaterThan(0);

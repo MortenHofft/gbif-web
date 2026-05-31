@@ -143,7 +143,7 @@ describe('getIntegerRangeSuggestions', () => {
   });
 
   it('appends presets after the wildcard when empty and cfg.presets is set', () => {
-    const cfg = {
+    const cfg: any = {
       presets: [
         { value: '0,100', label: 'Up to 100' },
         { value: '100,*', label: 'Above 100',  meta: 'high' },
@@ -157,13 +157,13 @@ describe('getIntegerRangeSuggestions', () => {
   });
 
   it('accepts cfg.presets as a function (evaluated each call for "now"-relative values)', () => {
-    const cfg = { presets: () => [{ value: '2026', label: 'This year' }] };
+    const cfg: any = { presets: () => [{ value: '2026', label: 'This year' }] };
     const result = getIntegerRangeSuggestions('', cfg);
     expect(result.find(s => s.isPreset)).toMatchObject({ value: '2026', label: 'This year' });
   });
 
   it('does not show presets once the user starts typing a number', () => {
-    const cfg = { presets: [{ value: '0,100', label: 'Up to 100' }] };
+    const cfg: any = { presets: [{ value: '0,100', label: 'Up to 100' }] };
     const result = getIntegerRangeSuggestions('19', cfg);
     expect(result.find(s => s.isPreset)).toBeUndefined();
     expect(result.find(s => s.isSectionHeader)).toBeUndefined();

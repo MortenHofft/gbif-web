@@ -1,17 +1,20 @@
 // Filter catalogue for the GBIF dataset (registry) search endpoint.
 // Param reference: https://techdocs.gbif.org/en/openapi/v1/registry#/Datasets/searchDatasets
+import type { FilterFieldConfig, Suggestion } from './types';
 
 // Fetch a single registry entity and return its display title.
-const resolveGbifEntity = (apiPath, titleProp = 'title') => async value => {
-  try {
-    const res = await fetch(`https://api.gbif.org/v1/${apiPath}/${encodeURIComponent(value)}`);
-    if (!res.ok) return value;
-    const d = await res.json();
-    return d[titleProp] ?? d.title ?? d.name ?? value;
-  } catch {
-    return value;
-  }
-};
+const resolveGbifEntity =
+  (apiPath: string, titleProp = 'title') =>
+  async (value: string): Promise<string> => {
+    try {
+      const res = await fetch(`https://api.gbif.org/v1/${apiPath}/${encodeURIComponent(value)}`);
+      if (!res.ok) return value;
+      const d = await res.json();
+      return d[titleProp] ?? d.title ?? d.name ?? value;
+    } catch {
+      return value;
+    }
+  };
 
 // ISO 3166-1 alpha-2 codes recognised by the GBIF country enumeration.
 // Resolved to friendly names with Intl.DisplayNames when available; falls
@@ -47,12 +50,17 @@ const regionNames = (() => {
   }
 })();
 
-const countryLabel = code => {
-  try { return regionNames?.of(code) ?? code; }
-  catch { return code; }
+const countryLabel = (code: string): string => {
+  try {
+    return regionNames?.of(code) ?? code;
+  } catch {
+    return code;
+  }
 };
 
-const COUNTRY_NAMES = Object.fromEntries(COUNTRY_CODES.map(c => [c, countryLabel(c)]));
+const COUNTRY_NAMES: Record<string, string> = Object.fromEntries(
+  COUNTRY_CODES.map((c) => [c, countryLabel(c)])
+);
 
 // The dataset registry search API doesn't expose negation or
 // "has value" / "has no value" predicates, so every field opts out of
@@ -60,14 +68,15 @@ const COUNTRY_NAMES = Object.fromEntries(COUNTRY_CODES.map(c => [c, countryLabel
 // capability by setting the flag itself.
 const datasetFieldDefaults = { supportsNegation: false, supportsExistence: false };
 
-const RAW_DATASET_FILTER_CONFIG = [
+const RAW_DATASET_FILTER_CONFIG: FilterFieldConfig[] = [
   // ── Full-text ──────────────────────────────────────────────────────────────
   {
     key: 'q',
     label: 'Text Search',
     hint: 'Free-text search across dataset metadata',
     type: 'freeText',
-    formatValue: v => `"${v}"`,
+    singleValue: true,
+    formatValue: (v) => `"${v}"`,
   },
 
   // ── Dataset attributes ─────────────────────────────────────────────────────
@@ -86,10 +95,10 @@ const RAW_DATASET_FILTER_CONFIG = [
     hint: 'Organisation that published the dataset',
     type: 'suggestEntity',
     suggestUrl: 'https://api.gbif.org/v1/organization/suggest',
-    toSuggestion: item => ({
+    toSuggestion: (item): Suggestion => ({
       value: String(item.key),
       label: item.title ?? item.name ?? String(item.key),
-      meta:  null,
+      meta: null,
     }),
     resolveLabel: resolveGbifEntity('organization'),
   },
@@ -99,10 +108,10 @@ const RAW_DATASET_FILTER_CONFIG = [
     hint: 'Organisation hosting the dataset technical installation',
     type: 'suggestEntity',
     suggestUrl: 'https://api.gbif.org/v1/organization/suggest',
-    toSuggestion: item => ({
+    toSuggestion: (item): Suggestion => ({
       value: String(item.key),
       label: item.title ?? item.name ?? String(item.key),
-      meta:  null,
+      meta: null,
     }),
     resolveLabel: resolveGbifEntity('organization'),
   },
@@ -111,8 +120,8 @@ const RAW_DATASET_FILTER_CONFIG = [
     label: 'Publishing Country',
     hint: 'Country of the publishing organisation (ISO 2-letter code)',
     type: 'enum',
-    values: COUNTRY_CODES.map(c => ({ value: c, label: COUNTRY_NAMES[c] })),
-    formatValue: v => COUNTRY_NAMES[v] ?? v,
+    values: COUNTRY_CODES.map((c) => ({ value: c, label: COUNTRY_NAMES[c] })),
+    formatValue: (v) => COUNTRY_NAMES[v] ?? v,
   },
 
   // ── Dataset (for quick selection via root entity) ─────────────────────────
@@ -122,20 +131,20 @@ const RAW_DATASET_FILTER_CONFIG = [
     hint: 'Specific dataset by name',
     type: 'suggestEntity',
     suggestUrl: 'https://api.gbif.org/v1/dataset/suggest',
-    toSuggestion: item => ({
+    toSuggestion: (item): Suggestion => ({
       value: String(item.key),
       label: item.title ?? String(item.key),
-      meta:  item.type ?? null,
+      meta: item.type ?? null,
     }),
     resolveLabel: resolveGbifEntity('dataset'),
   },
 ];
 
-export const DATASET_FILTER_CONFIG = RAW_DATASET_FILTER_CONFIG.map(f => ({
+export const DATASET_FILTER_CONFIG: FilterFieldConfig[] = RAW_DATASET_FILTER_CONFIG.map((f) => ({
   ...datasetFieldDefaults,
   ...f,
 }));
 
-export const DATASET_FILTER_MAP = Object.fromEntries(
-  DATASET_FILTER_CONFIG.map(f => [f.key, f]),
+export const DATASET_FILTER_MAP: Record<string, FilterFieldConfig> = Object.fromEntries(
+  DATASET_FILTER_CONFIG.map((f) => [f.key, f])
 );

@@ -35,7 +35,7 @@ describe('FILTER_CONFIG', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  describe.each(FILTER_CONFIG)('$key', (filter) => {
+  describe.each(FILTER_CONFIG)('$key', (filter: any) => {
     it('has non-empty key, label, hint, and a recognised type', () => {
       expect(typeof filter.key).toBe('string');
       expect(filter.key.length).toBeGreaterThan(0);
