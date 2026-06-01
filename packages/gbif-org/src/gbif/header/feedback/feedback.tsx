@@ -1,8 +1,17 @@
 import { matchesAtom } from '@/atoms/urlAtoms';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import { FeedbackQuery, FeedbackQueryVariables } from '@/gql/graphql';
+import useBelow from '@/hooks/useBelow';
 import useQuery from '@/hooks/useQuery';
-import { DynamicLink } from '@/reactRouterPlugins';
+import { DynamicLink, useI18n } from '@/reactRouterPlugins';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useAtomValue } from 'jotai';
 import { selectAtom } from 'jotai/utils';
 import { useEffect, useState } from 'react';
@@ -14,6 +23,7 @@ import { DataProviderFeedback } from './DataProviderFeedback';
 import { GbifFeedback } from './GbifFeedback';
 import { GithubFeedback, MailFeedback } from './GithubFeedback';
 import { useConfig } from '@/config/config';
+import { cn } from '@/utils/shadcn';
 import TestSiteAlert from '@/components/TestSiteAlert';
 
 type PageType = {
@@ -45,9 +55,25 @@ const pageTypeAtom = selectAtom(
   (a, b) => a.id === b.id
 );
 
-export function FeedbackPopover({ trigger = <MdFeedback /> }): React.ReactElement {
+type FeedbackPopoverProps = {
+  trigger?: React.ReactElement;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+};
+
+export function FeedbackPopover({
+  trigger = <MdFeedback />,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+}: FeedbackPopoverProps): React.ReactElement {
   const config = useConfig();
-  const [open, setOpen] = useState(false);
+  const { locale } = useI18n();
+  const isMobileBreakpoint = useBelow(640);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = controlledOnOpenChange ?? setInternalOpen;
+  // Render as sheet on mobile breakpoint OR when opened externally (e.g. from the mobile sidebar)
+  const isMobile = isMobileBreakpoint || controlledOpen !== undefined;
   const { feedback } = useConfig();
   const [selectedOption, setSelectedOption] = useState<FeedbackOption>('gbif'); //null
   const pageType = useAtomValue(pageTypeAtom);
@@ -186,30 +212,64 @@ export function FeedbackPopover({ trigger = <MdFeedback /> }): React.ReactElemen
     );
   };
 
+  const body = (
+    <>
+      <div className={cn('g-space-y-2', isMobile && 'g-pe-12')}>
+        <div className="g-flex g-items-center g-gap-2">
+          {selectedOption && (
+            <button
+              onClick={handleBack}
+              className="g-pe-1 hover:g-bg-gray-100 g-rounded g-flex g-items-center g-justify-center"
+            >
+              <MdArrowBack className="g-w-4 g-h-4" />
+            </button>
+          )}
+          <h4 className={`g-font-medium g-leading-none ${config.testSite ? 'test-box' : ''}`}>
+            {getTitle()}
+          </h4>
+        </div>
+        <p className="g-text-sm g-text-muted-foreground">{getDescription()}</p>
+      </div>
+
+      {renderContent()}
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={setOpen}>
+        {trigger && controlledOpen === undefined && (
+          <SheetTrigger asChild>{trigger}</SheetTrigger>
+        )}
+        <SheetContent
+          side={locale.textDirection === 'rtl' ? 'left' : 'right'}
+          className={cn(
+            'g-w-full sm:g-max-w-full g-h-full g-overflow-y-auto g-p-4',
+            config.testSite && 'gbif-test-background'
+          )}
+          dir={locale.textDirection || 'ltr'}
+        >
+          <VisuallyHidden asChild>
+            <SheetTitle>{getTitle()}</SheetTitle>
+          </VisuallyHidden>
+          <VisuallyHidden asChild>
+            <SheetDescription>
+              <FormattedMessage id="feedback.title" defaultMessage="Questions and comments" />
+            </SheetDescription>
+          </VisuallyHidden>
+          {body}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      {trigger && <PopoverTrigger asChild>{trigger}</PopoverTrigger>}
       <PopoverContent
         className={`g-w-96 g-shadow-2xl g-p-6 ${config.testSite ? 'gbif-test-background' : ''}`}
       >
-        <div className="g-space-y-2">
-          <div className="g-flex g-items-center g-gap-2">
-            {selectedOption && (
-              <button
-                onClick={handleBack}
-                className="g-pe-1 hover:g-bg-gray-100 g-rounded g-flex g-items-center g-justify-center"
-              >
-                <MdArrowBack className="g-w-4 g-h-4" />
-              </button>
-            )}
-            <h4 className={`g-font-medium g-leading-none ${config.testSite ? 'test-box' : ''}`}>
-              {getTitle()}
-            </h4>
-          </div>
-          <p className="g-text-sm g-text-muted-foreground">{getDescription()}</p>
-        </div>
-
-        {renderContent()}
+        {body}
       </PopoverContent>
     </Popover>
   );
