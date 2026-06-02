@@ -76,12 +76,19 @@ export function I18nContextProvider({ children, locale, defaultLocale, available
 
   const setLocale = useCallback(
     (locale: string) => {
+      // Read the current pathname imperatively from the jotai store at call
+      // time (same approach already used for the search string below). This
+      // keeps `setLocale` referentially stable across navigations, so the
+      // memoized context `value` doesn't change on every pathname update and
+      // `useI18n()` consumers (every DynamicLink, footer, header, tabs, …)
+      // don't rerender on navigation.
+      const pathname = store.get(pathnameAtom);
       let targetLink = localizeLink(pathname, locale);
       const search = store.get(searchParamsAtom).toString();
       if (search) targetLink += `?${search}`;
       navigate(targetLink);
     },
-    [navigate, pathname, store, localizeLink]
+    [navigate, store, localizeLink]
   );
 
   const value: I18nContextValue = useMemo(
