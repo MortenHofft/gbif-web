@@ -95,22 +95,28 @@ export function getOverloadStats() {
 }
 
 export function overloadGuard(req: Request, res: Response, next: NextFunction) {
-  const guarded =
-    settings.enabled &&
-    settings.guardedPaths.some((p) => req.path.startsWith(p));
-  if (!guarded) {
+  // Only concern ourselves with guarded paths (default /graphql; never /health).
+  const onGuardedPath = settings.guardedPaths.some((p) =>
+    req.path.startsWith(p),
+  );
+  if (!onGuardedPath) {
     next();
     return;
   }
 
-  const reason = overloadReason();
-  if (reason) {
-    res.setHeader('Retry-After', String(settings.retryAfterSeconds));
-    res.status(503).json({
-      error: 'Service overloaded, please retry shortly.',
-      reason,
-    });
-    return;
+  // Shed only when enabled and overloaded; the in-flight count is tracked
+  // regardless so it is observable on /health even with the guard off (for
+  // tuning the maxInFlight backstop before turning it on).
+  if (settings.enabled) {
+    const reason = overloadReason();
+    if (reason) {
+      res.setHeader('Retry-After', String(settings.retryAfterSeconds));
+      res.status(503).json({
+        error: 'Service overloaded, please retry shortly.',
+        reason,
+      });
+      return;
+    }
   }
 
   inFlight += 1;

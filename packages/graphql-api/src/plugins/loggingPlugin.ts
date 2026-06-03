@@ -2,6 +2,14 @@ import { ApolloServerPlugin } from '@apollo/server';
 import config from '@/config';
 import logger from '@/logger';
 
+// Overload 503s can arrive in floods. Serializing the full query/variables/
+// headers and writing a log line per shed request would make the logging itself
+// a major event-loop cost during the exact moment the process is overloaded, so
+// we throttle them to a periodic count instead.
+let shedSinceLastLog = 0;
+let lastShedLogAt = 0;
+const SHED_LOG_INTERVAL_MS = 1000;
+
 const loggingPlugin: ApolloServerPlugin = {
   async requestDidStart(rc) {
     // Don't log introspection queries
@@ -35,15 +43,29 @@ const loggingPlugin: ApolloServerPlugin = {
             (error.extensions?.http as { status?: number })?.status === 503,
         );
 
-        let logLevel: 'warn' | 'error' = 'error';
-        let logMessage = 'GraphQL Error';
-        if (is404Error) {
-          logLevel = 'warn';
-          logMessage = 'GraphQL 404 (Expected)';
-        } else if (isOverloadError) {
-          logLevel = 'warn';
-          logMessage = 'GraphQL 503 (Overloaded - load shed)';
+        // Cheap, throttled accounting for shed requests — no payload
+        // serialization, at most one line per interval.
+        if (isOverloadError) {
+          errorHasBeenLogged = true;
+          shedSinceLastLog += 1;
+          const now = Date.now();
+          if (now - lastShedLogAt >= SHED_LOG_INTERVAL_MS) {
+            logger.warn({
+              message: 'GraphQL 503 (Overloaded - load shed)',
+              time: date.toISOString(),
+              shedCount: shedSinceLastLog,
+              intervalMs: now - lastShedLogAt,
+            });
+            shedSinceLastLog = 0;
+            lastShedLogAt = now;
+          }
+          return;
         }
+
+        const logLevel: 'warn' | 'error' = is404Error ? 'warn' : 'error';
+        const logMessage = is404Error
+          ? 'GraphQL 404 (Expected)'
+          : 'GraphQL Error';
 
         logger[logLevel]({
           message: logMessage,
