@@ -103,8 +103,43 @@ that matters is **dataset latency relative to occurrence**, not absolute speed.
 Inspect live state any time during a run:
 
 ```bash
-curl -s localhost:4123/health | jq .requestPools
+curl -s localhost:4123/health | jq '{requestPools, overload}'
 ```
+
+## Front door: the pre-Apollo overload guard
+
+The per-upstream pools isolate one slow upstream from the others, but they run
+*after* the per-request ingress cost (body parse, GraphQL validate, building ~28
+data sources). When the **process itself** is saturated, you want to shed before
+that work. `overloadProtection` (src/overloadGuard.ts) does exactly that: a
+fast 503 on `/graphql` (never `/health`) when the process is overloaded.
+
+Tuning workflow:
+
+1. Leave the guard **off** and run your load test. `eventLoopDelayMs`,
+   `heapUsedPercent` and `inFlight` are reported on `/health` regardless, e.g.:
+
+   ```
+   pool[occurrence] waiting=500 running=100 ... | loopDelay=180ms heap=78% inFlight=2000 guard=off
+   ```
+
+   Watch where `loopDelay`/`heap` sit at the moment dataset latency starts
+   degrading — that's your threshold.
+
+2. Enable it just below that point in `.env`:
+
+   ```yaml
+   overloadProtection:
+     enabled: true
+     maxEventLoopDelayMs: 70     # healthy loop is <10ms
+     maxHeapUsedFraction: 0.85   # pre-empt GC death-spiral / OOM
+     # maxInFlight: 2000         # optional hard backstop
+   ```
+
+3. Re-run: occurrence bursts now show up as `shed` 503s issued *before* Apollo,
+   `loopDelay` stays bounded, and dataset latency holds. Because the guard is
+   global it triggers late (after the pools have shed the actual cause), so
+   dataset requests are rarely caught by it.
 
 ## Knobs summary
 
@@ -117,4 +152,7 @@ curl -s localhost:4123/health | jq .requestPools
 | `.env` | `requestPools.occurrence.maxQueueDepth` | shed (fast 503) beyond this backlog |
 | `.env` | `requestPools.occurrence.maxSockets` | socket pool size |
 | `.env` | `requestPools.occurrence.timeoutMs` | per-request total budget |
+| `.env` | `overloadProtection.enabled` | turn the pre-Apollo front-door guard on |
+| `.env` | `overloadProtection.maxEventLoopDelayMs` | shed when the event loop can't keep up |
+| `.env` | `overloadProtection.maxHeapUsedFraction` | shed near the heap limit (pre-OOM) |
 | load | `OCC_CONC`, `DURATION_MS`, `PROBE_MS` | load shape |

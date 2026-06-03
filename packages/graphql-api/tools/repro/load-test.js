@@ -64,8 +64,10 @@ function classifyOccError(errors) {
 async function occWorker() {
   while (!stop) {
     try {
-      const { errors } = await gql(OCC_QUERY);
-      if (!errors) occ.ok += 1;
+      const { status, errors } = await gql(OCC_QUERY);
+      // A 503 from the pre-Apollo overload guard has no GraphQL `errors` body.
+      if (status === 503) occ.shed += 1;
+      else if (!errors) occ.ok += 1;
       else occ[classifyOccError(errors)] += 1;
     } catch {
       occ.transport += 1; // socket/connection level failure (often client-side)
@@ -100,10 +102,15 @@ async function poolMonitor() {
       const res = await fetch(HEALTH);
       const json = await res.json();
       const p = json.requestPools?.occurrence;
+      const o = json.overload;
       if (p) {
         console.log(
           `  pool[occurrence] waiting=${p.waiting} running=${p.running} ` +
-            `concurrency=${p.concurrency} maxQueueDepth=${p.maxQueueDepth}`,
+            `concurrency=${p.concurrency} maxQueueDepth=${p.maxQueueDepth}` +
+            (o
+              ? `  | loopDelay=${o.eventLoopDelayMs}ms heap=${o.heapUsedPercent}% ` +
+                `inFlight=${o.inFlight} guard=${o.enabled ? 'on' : 'off'}`
+              : ''),
         );
       }
     } catch {
