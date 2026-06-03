@@ -100,6 +100,25 @@ in the summary means you're measuring the client, not the server — lower
 `OCC_CONC`, raise `ulimit -n`, or drive load from multiple processes. The metric
 that matters is **dataset latency relative to occurrence**, not absolute speed.
 
+### Hitting `EADDRNOTAVAIL` / machine-wide socket exhaustion
+
+At very high churn you'll see `connect EADDRNOTAVAIL ... Local (0.0.0.0:0)` and
+seconds-to-minutes `/health` responses *even though the server's event loop is
+healthy* (`overload.eventLoopDelayMs` stays low). That's **ephemeral-port
+exhaustion**, not a server problem: tens of thousands of short-lived connections
+fill the machine's ~28k local ports (held in `TIME_WAIT` ~60s), so any new
+outbound `connect` — including the server's own call to api.gbif.org — fails.
+Running the client and server on one box makes this worse because they share the
+port range.
+
+Mitigate:
+- run the client on a **separate machine**, and/or lower `OCC_CONC`;
+- `ulimit -n 200000`, widen `net.ipv4.ip_local_port_range`, enable
+  `net.ipv4.tcp_tw_reuse=1`;
+- keep `requestPools.*.maxSockets` sized to the pool concurrency (e.g. 150 for a
+  100-concurrency pool), not 8000 — an oversized cap is itself a port-exhaustion
+  risk under load.
+
 Inspect live state any time during a run:
 
 ```bash

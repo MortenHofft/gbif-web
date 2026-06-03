@@ -16,9 +16,12 @@ function createGetAgentFn(httpsAgent: HttpsAgent, httpAgent: HttpAgent) {
 }
 
 // Per-pool socket settings, overridable via `.env` (`requestPools.<pool>.*`):
-//  - maxSockets: cap on concurrent TCP sockets to a single origin. Lowering it
-//    (together with the delay proxy) is a handy lever for reproducing socket
-//    starvation locally.
+//  - maxSockets: cap on concurrent TCP sockets to a single origin. Size it to
+//    the pool's concurrency (plus a little keep-alive headroom), not to a huge
+//    number: with a bulkhead you never need more than ~concurrency sockets to a
+//    host, and an oversized cap lets a burst consume thousands of ephemeral
+//    ports and hit machine-wide EADDRNOTAVAIL. Also a lever for reproducing
+//    socket starvation locally.
 //  - timeout: socket inactivity timeout (ms). This is a best-effort backstop;
 //    the authoritative request timeout is the AbortSignal applied per request in
 //    requestPools.withPoolTimeout. Keeping both means a stalled upstream cannot
