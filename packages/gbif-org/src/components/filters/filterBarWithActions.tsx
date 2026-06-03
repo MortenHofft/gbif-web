@@ -9,6 +9,7 @@ import { FormattedMessage } from 'react-intl';
 import { FilterBar, FilterButtons } from './filterTools';
 import { MobileFilters } from './mobileFilters';
 import { Filters } from './filterTools';
+import { renderLog } from '@/utils/renderLog';
 
 interface FilterBarWithActionsProps {
   filters: Filters;
@@ -25,6 +26,7 @@ export function FilterBarWithActions({
   className,
   hideMobileFilters = false,
 }: FilterBarWithActionsProps) {
+  renderLog('FilterBarWithActions');
   const filterContext = useContext(FilterContext);
   const searchContext = useSearchContext();
 

@@ -5,6 +5,7 @@ import { InlineSkeletonWrapper } from '../inlineSkeletonWrapper';
 import { usePagination } from '../../hooks/usePagination';
 import { PaginationState, SetPaginationState } from '../../hooks/usePaginationState';
 import { useI18n } from '@/reactRouterPlugins';
+import { renderLog } from '@/utils/renderLog';
 
 type Props = {
   loading: boolean;
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export function Footer({ loading, paginationState, setPaginationState, rowCount }: Props) {
+  renderLog('TableFooter');
   const { locale } = useI18n();
   const isRtl = locale.textDirection === 'rtl';
   const { hasPreviousPage, firstPage, previousPage, pageNumber, pageCount, hasNextPage, nextPage } =

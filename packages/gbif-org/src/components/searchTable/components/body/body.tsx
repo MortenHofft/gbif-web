@@ -5,6 +5,7 @@ import { ColumnDef } from '../..';
 import { CreateRowLink } from '../../hooks/useRowLink';
 import { Cell } from './cell';
 import { InitialSkeletonTable } from './initialSkeletonTable';
+import { renderLog } from '@/utils/renderLog';
 
 type Props<T> = {
   loading: boolean;
@@ -28,6 +29,7 @@ function Body<T>({
   firstColumnIsLocked,
   createRowLink,
 }: Props<T>) {
+  renderLog('TableBody');
   const initialLoading = items.length === 0 && (loading || rowCount == null);
 
   return (

@@ -1,3 +1,4 @@
+import { renderLog } from '@/utils/renderLog';
 import { ClientSideOnly } from '@/components/clientSideOnly';
 import { getAsQuery } from '@/components/filters/filterTools';
 import {
@@ -186,6 +187,7 @@ export function OccurrenceTable() {
 }
 
 export function OccurrenceTableClient() {
+  renderLog('OccurrenceTableClient');
   const [occurrenceSort] = useLocalStorage<{ sortBy?: OccurrenceSortBy; sortOrder: SortOrder }>(
     'occurrenceSort',
     { sortBy: undefined, sortOrder: SortOrder.Asc }

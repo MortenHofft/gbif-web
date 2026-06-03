@@ -1,6 +1,7 @@
 import { FormattedMessage } from 'react-intl';
 import { Skeleton } from './ui/skeleton';
 import { cn } from '@/utils/shadcn';
+import { renderLog } from '@/utils/renderLog';
 
 export const ViewHeader = ({
   children,
@@ -16,6 +17,7 @@ export const ViewHeader = ({
   message?: string;
   className?: string;
 }) => {
+  renderLog('ViewHeader');
   const showSkeleton = loading || typeof total !== 'number';
 
   return (

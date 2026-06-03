@@ -12,6 +12,7 @@ import { useFirstColumLock } from './hooks/useFirstColumLock';
 import { useOrderedColumns } from './hooks/useOrderedColumns';
 import { PaginationState } from './hooks/usePaginationState';
 import { CreateRowLink } from './hooks/useRowLink';
+import { renderLog } from '@/utils/renderLog';
 
 interface Props<T> {
   columns: ColumnDef<T>[];
@@ -50,6 +51,7 @@ function SearchTable<T>({
   filters,
   hideColumnVisibilityDropdown = false,
 }: Props<T>) {
+  renderLog('SearchTable');
   const { visibleColumns, resetColumnVisibility, toggleColumnVisibility } = useColumnVisibility({
     selectedColumnsLocalStoreKey,
     defaultEnabledTableColumns,

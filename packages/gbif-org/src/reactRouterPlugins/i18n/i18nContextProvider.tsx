@@ -76,12 +76,13 @@ export function I18nContextProvider({ children, locale, defaultLocale, available
 
   const setLocale = useCallback(
     (locale: string) => {
+      const pathname = store.get(pathnameAtom);
       let targetLink = localizeLink(pathname, locale);
       const search = store.get(searchParamsAtom).toString();
       if (search) targetLink += `?${search}`;
       navigate(targetLink);
     },
-    [navigate, pathname, store, localizeLink]
+    [navigate, store, localizeLink]
   );
 
   const value: I18nContextValue = useMemo(

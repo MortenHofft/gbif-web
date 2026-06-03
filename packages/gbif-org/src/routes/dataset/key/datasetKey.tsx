@@ -31,7 +31,7 @@ import { PageContainer } from '@/routes/resource/key/components/pageContainer';
 import { throwCriticalErrors, useNotifyOfPartialDataIfErrors } from '@/routes/rootErrorPage';
 import { required } from '@/utils/required';
 import { getDatasetSchema } from '@/utils/schemaOrg';
-import { createContext, useContext, useEffect, useMemo } from 'react';
+import { createContext, memo, useContext, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { FormattedMessage } from 'react-intl';
 import { Outlet, useLoaderData } from 'react-router-dom';
@@ -46,19 +46,6 @@ const DATASET_QUERY = /* GraphQL */ `
         total
       }
     }
-    # totalTaxa: taxonSearch(datasetKey: [$key], origin: [SOURCE]) {
-    #   count
-    # }
-    # accepted: taxonSearch(datasetKey: [$key], origin: [SOURCE], status: [ACCEPTED]) {
-    #   count
-    # }
-    # synonyms: taxonSearch(
-    #   datasetKey: [$key]
-    #   origin: [SOURCE]
-    #   status: [SYNONYM, HETEROTYPIC_SYNONYM, PROPARTE_SYNONYM, HOMOTYPIC_SYNONYM]
-    # ) {
-    #   count
-    # }
     dataset(key: $key) {
       key
       checklistBankDataset {
@@ -339,14 +326,10 @@ export const DatasetPageSkeleton = ArticleSkeleton;
 
 export function DatasetPage() {
   const config = useConfig();
-  const { locale } = useI18n();
   const { errors, data } = useLoaderData() as DatasetKeyLoaderResult;
   useNotifyOfPartialDataIfErrors(errors);
 
   const dataset = data.dataset;
-  const deletedAt = dataset.deleted;
-  const contactThreshold = 6;
-  const contactsCitation = dataset.contactsCitation?.filter((c) => c.abbreviatedName) || [];
   const siteOccurrencePredicate = config?.occurrenceSearch?.scope;
 
   const {
@@ -387,66 +370,6 @@ export function DatasetPage() {
     dataset.type === DatasetType.SamplingEvent &&
     import.meta.env.PUBLIC_ENABLE_SAMPLING_EVENT_BROWSER === 'enabled';
   const showEventsTab = config.datasetKey?.showEvents && (withEventId > 0 || hasSamplingEvents);
-  const occurrenceCountOrZero = occData?.occurrenceSearch?.documents?.total || 0;
-  const citationCountOrZero = occData?.literatureSearchScoped?.documents?.total || 0;
-
-  const tabs = useMemo<{ to: string; children: React.ReactNode }[]>(() => {
-    const tabsToDisplay: { to: string; children: React.ReactNode }[] = [
-      { to: '.', children: <FormattedMessage id="dataset.tabs.about" /> },
-    ];
-    if (dataset.project) {
-      tabsToDisplay.push({
-        to: 'project',
-        children: <FormattedMessage id="dataset.tabs.project" />,
-      });
-    }
-    if (showPhylogenyTab) {
-      tabsToDisplay.push({ to: 'phylogenies', children: 'Phylogenies' });
-    }
-    if (showSpeciesTab) {
-      tabsToDisplay.push({
-        to: 'taxon',
-        children: <FormattedMessage id="dataset.tabs.taxonomy" />,
-      });
-      // tabsToDisplay.push({
-      //   to: `${import.meta.env.PUBLIC_CHECKLIST_BANK_WEBSITE}/dataset/gbif-${
-      //     dataset.key
-      //   }/classification`,
-      //   children: (
-      //     <>
-      //       <SimpleTooltip
-      //         title={
-      //           <FormattedMessage
-      //             id="dataset.exploreInChecklistBank"
-      //             defaultMessage="Explore taxonomy via Checklist Bank"
-      //           />
-      //         }
-      //       >
-      //         <FormattedMessage id="dataset.tabs.taxonomy" defaultMessage="Taxonomy" />
-      //         <MdLink />
-      //       </SimpleTooltip>
-      //     </>
-      //   ),
-      // });
-    }
-    if (showEventsTab) {
-      tabsToDisplay.push({
-        to: 'event',
-        children: <FormattedMessage id="dataset.tabs.events" defaultMessage={'Events'} />,
-      });
-    }
-    if (dataset.type !== DatasetType.Metadata) {
-      tabsToDisplay.push({
-        to: 'metrics',
-        children: <FormattedMessage id="dataset.tabs.metrics" defaultMessage={'Metrics'} />,
-      });
-    }
-    tabsToDisplay.push({
-      to: 'download',
-      children: <FormattedMessage id="dataset.tabs.download" />,
-    });
-    return tabsToDisplay;
-  }, [showPhylogenyTab, showSpeciesTab, showEventsTab, dataset.type, dataset.project]);
 
   useEffect(() => {
     const datasetPredicate = {
@@ -508,11 +431,132 @@ export function DatasetPage() {
     });
   }, [load, dataset.key, siteOccurrencePredicate, config?.literatureSearch?.scope]);
 
+  return (
+    <article>
+      {/* The header (title, publisher, DataHeader, feature list, tab bar) is
+          extracted into a memoized component below so switching tabs only
+          re-renders the <Outlet/> content, not the whole page header. */}
+      <DatasetPageHeader
+        dataset={dataset}
+        occData={occData}
+        loading={loading}
+        showPhylogenyTab={showPhylogenyTab}
+        showSpeciesTab={showSpeciesTab}
+        showEventsTab={!!showEventsTab}
+      />
+      <DatasetKeyContext.Provider
+        value={{
+          datasetType: dataset.type ?? undefined,
+          datasetKey: dataset.key,
+          dynamicProperties:
+            occData?.occurrenceSearch?.documents?.results?.[0]?.dynamicProperties || undefined,
+          contentMetrics: occData,
+          showPhylogenyTab,
+          showSpeciesTab,
+          showEventsTab,
+        }}
+      >
+        <ErrorBoundary type="PAGE">
+          <Outlet />
+        </ErrorBoundary>
+      </DatasetKeyContext.Provider>
+    </article>
+  );
+}
+
+type DatasetPageHeaderProps = {
+  dataset: DatasetKeyLoaderResult['data']['dataset'];
+  occData: DatasetOccurrenceSearchQuery | undefined;
+  loading: boolean;
+  showPhylogenyTab: boolean;
+  showSpeciesTab: boolean;
+  showEventsTab: boolean;
+};
+
+// Memoized so navigating between dataset tabs does not re-render the dataset
+// title, publisher, DataHeader, feature list and tab bar. Every prop is stable
+// across tab navigation (the parent route's loader data does not revalidate
+// when only a child route changes), so React.memo bails out on a tab click.
+// The active tab highlight still updates because the NavLinks inside <Tabs>
+// subscribe to the router location individually.
+const DatasetPageHeader = memo(function DatasetPageHeader({
+  dataset,
+  occData,
+  loading,
+  showPhylogenyTab,
+  showSpeciesTab,
+  showEventsTab,
+}: DatasetPageHeaderProps) {
+  const { locale } = useI18n();
+  const deletedAt = dataset.deleted;
+  const contactThreshold = 6;
+  const contactsCitation = dataset.contactsCitation?.filter((c) => c.abbreviatedName) || [];
+  const occurrenceCountOrZero = occData?.occurrenceSearch?.documents?.total || 0;
+  const citationCountOrZero = occData?.literatureSearchScoped?.documents?.total || 0;
+
   const contributorNames = dataset.volatileContributors
     ?.filter((c) => c != null)
     .filter((c) => c.type === 'ORIGINATOR')
     .map((c) => [c.firstName, c.lastName].filter(Boolean).join(' '))
     .filter(Boolean);
+
+  const tabs = useMemo<{ to: string; children: React.ReactNode }[]>(() => {
+    const tabsToDisplay: { to: string; children: React.ReactNode }[] = [
+      { to: '.', children: <FormattedMessage id="dataset.tabs.about" /> },
+    ];
+    if (dataset.project) {
+      tabsToDisplay.push({
+        to: 'project',
+        children: <FormattedMessage id="dataset.tabs.project" />,
+      });
+    }
+    if (showPhylogenyTab) {
+      tabsToDisplay.push({ to: 'phylogenies', children: 'Phylogenies' });
+    }
+    if (showSpeciesTab) {
+      tabsToDisplay.push({
+        to: 'taxon',
+        children: <FormattedMessage id="dataset.tabs.taxonomy" />,
+      });
+      // tabsToDisplay.push({
+      //   to: `${import.meta.env.PUBLIC_CHECKLIST_BANK_WEBSITE}/dataset/gbif-${
+      //     dataset.key
+      //   }/classification`,
+      //   children: (
+      //     <>
+      //       <SimpleTooltip
+      //         title={
+      //           <FormattedMessage
+      //             id="dataset.exploreInChecklistBank"
+      //             defaultMessage="Explore taxonomy via Checklist Bank"
+      //           />
+      //         }
+      //       >
+      //         <FormattedMessage id="dataset.tabs.taxonomy" defaultMessage="Taxonomy" />
+      //         <MdLink />
+      //       </SimpleTooltip>
+      //     </>
+      //   ),
+      // });
+    }
+    if (showEventsTab) {
+      tabsToDisplay.push({
+        to: 'event',
+        children: <FormattedMessage id="dataset.tabs.events" defaultMessage={'Events'} />,
+      });
+    }
+    if (dataset.type !== DatasetType.Metadata) {
+      tabsToDisplay.push({
+        to: 'metrics',
+        children: <FormattedMessage id="dataset.tabs.metrics" defaultMessage={'Metrics'} />,
+      });
+    }
+    tabsToDisplay.push({
+      to: 'download',
+      children: <FormattedMessage id="dataset.tabs.download" />,
+    });
+    return tabsToDisplay;
+  }, [showPhylogenyTab, showSpeciesTab, showEventsTab, dataset.type, dataset.project]);
 
   return (
     <>
@@ -553,153 +597,135 @@ export function DatasetPage() {
         apiContent={<ApiContent id={dataset.key} />}
         doi={dataset.doi}
       />
-      <article>
-        <PageContainer topPadded hasDataHeader className="g-bg-white">
-          <ArticleTextContainer className="g-max-w-screen-xl">
-            <ArticlePreTitle
-              clickable
-              secondary={
-                <FormattedMessage
-                  id="dataset.registeredDate"
-                  values={{
-                    DATE: dataset.created ? (
-                      <LongDate value={dataset.created} />
-                    ) : (
-                      <FormattedMessage id="phrases.unknownDate" />
-                    ),
-                  }}
-                />
-              }
+      <PageContainer topPadded hasDataHeader className="g-bg-white">
+        <ArticleTextContainer className="g-max-w-screen-xl">
+          <ArticlePreTitle
+            clickable
+            secondary={
+              <FormattedMessage
+                id="dataset.registeredDate"
+                values={{
+                  DATE: dataset.created ? (
+                    <LongDate value={dataset.created} />
+                  ) : (
+                    <FormattedMessage id="phrases.unknownDate" />
+                  ),
+                }}
+              />
+            }
+          >
+            <DynamicLink pageId="datasetSearch" searchParams={{ type: dataset.type }}>
+              <FormattedMessage id={`dataset.longType.${dataset.type}`} />
+            </DynamicLink>
+          </ArticlePreTitle>
+          {/* it would be nice to know for sure which fields to expect */}
+          <ArticleTitle
+            dir={locale.textDirection}
+            dangerouslySetTitle={{ __html: dataset.title || 'No title provided' }}
+          />
+
+          <div className="g-mt-2">
+            <FormattedMessage id="dataset.publishedBy" />{' '}
+            <DynamicLink
+              className="hover:g-underline g-text-primary-500"
+              to={`/publisher/${dataset.publishingOrganizationKey}`}
+              pageId="publisherKey"
+              variables={{ key: dataset.publishingOrganizationKey }}
             >
-              <DynamicLink pageId="datasetSearch" searchParams={{ type: dataset.type }}>
-                <FormattedMessage id={`dataset.longType.${dataset.type}`} />
-              </DynamicLink>
-            </ArticlePreTitle>
-            {/* it would be nice to know for sure which fields to expect */}
-            <ArticleTitle
-              dir={locale.textDirection}
-              dangerouslySetTitle={{ __html: dataset.title || 'No title provided' }}
-            />
+              {dataset.publishingOrganizationTitle ?? (
+                <PublisherLabel id={dataset.publishingOrganizationKey} />
+              )}
+            </DynamicLink>
+          </div>
 
-            <div className="g-mt-2">
-              <FormattedMessage id="dataset.publishedBy" />{' '}
-              <DynamicLink
-                className="hover:g-underline g-text-primary-500"
-                to={`/publisher/${dataset.publishingOrganizationKey}`}
-                pageId="publisherKey"
-                variables={{ key: dataset.publishingOrganizationKey }}
-              >
-                {dataset.publishingOrganizationTitle ?? (
-                  <PublisherLabel id={dataset.publishingOrganizationKey} />
+          {deletedAt && <DeletedMessage date={deletedAt} />}
+
+          {/* It would be great if we could point from a deleted dataset to the version it has been replaced with. But duplicates only exist in the API the opposite direction. So for now I've disabled this */}
+          {dataset.duplicateOfDataset && (
+            <ErrorMessage>
+              <FormattedMessage
+                id="phrases.replacedBy"
+                values={{
+                  newItem: (
+                    <DynamicLink
+                      className="g-me-4 g-underline"
+                      to={`/dataset/${dataset.duplicateOfDataset.key}`}
+                      pageId="datasetKey"
+                      variables={{ key: dataset.duplicateOfDataset.key }}
+                    >
+                      {dataset.duplicateOfDataset.title}
+                    </DynamicLink>
+                  ),
+                }}
+              />
+            </ErrorMessage>
+          )}
+
+          <HeaderInfo>
+            <HeaderInfoMain>
+              <FeatureList>
+                {contactsCitation.length < contactThreshold && contactsCitation.length > 0 && (
+                  <GenericFeature>
+                    <PeopleIcon />
+                    <span>{contactsCitation.map((c) => c.abbreviatedName).join(' • ')}</span>
+                  </GenericFeature>
                 )}
-              </DynamicLink>
-            </div>
-
-            {deletedAt && <DeletedMessage date={deletedAt} />}
-
-            {/* It would be great if we could point from a deleted dataset to the version it has been replaced with. But duplicates only exist in the API the opposite direction. So for now I've disabled this */}
-            {dataset.duplicateOfDataset && (
-              <ErrorMessage>
-                <FormattedMessage
-                  id="phrases.replacedBy"
-                  values={{
-                    newItem: (
-                      <DynamicLink
-                        className="g-me-4 g-underline"
-                        to={`/dataset/${dataset.duplicateOfDataset.key}`}
-                        pageId="datasetKey"
-                        variables={{ key: dataset.duplicateOfDataset.key }}
-                      >
-                        {dataset.duplicateOfDataset.title}
-                      </DynamicLink>
-                    ),
-                  }}
-                />
-              </ErrorMessage>
-            )}
-
-            <HeaderInfo>
-              <HeaderInfoMain>
-                <FeatureList>
-                  {contactsCitation.length < contactThreshold && contactsCitation.length > 0 && (
-                    <GenericFeature>
-                      <PeopleIcon />
-                      <span>{contactsCitation.map((c) => c.abbreviatedName).join(' • ')}</span>
-                    </GenericFeature>
-                  )}
-                  {/* It would be good to show this with a link to the contacts, but how to do that so it also works on e.g. the metrics tab? */}
-                  {/* https://github.com/gbif/gbif-web/issues/1360 */}
-                  {/* {contactsCitation.length >= contactThreshold && (
+                {/* It would be good to show this with a link to the contacts, but how to do that so it also works on e.g. the metrics tab? */}
+                {/* https://github.com/gbif/gbif-web/issues/1360 */}
+                {/* {contactsCitation.length >= contactThreshold && (
                     <FormattedMessage
                       id="counts.nAuthors"
                       values={{ total: contactsCitation.length }}
                     />
                   )} */}
-                  {dataset.homepage && <Homepage url={dataset.homepage} />}
-                  <GenericFeature>
-                    <LicenceTag value={dataset.license} />
-                  </GenericFeature>
-                  {/* <GenericFeature>
+                {dataset.homepage && <Homepage url={dataset.homepage} />}
+                <GenericFeature>
+                  <LicenceTag value={dataset.license} />
+                </GenericFeature>
+                {/* <GenericFeature>
                     <DoiTag id={dataset.doi} />
                   </GenericFeature> */}
-                </FeatureList>
-              </HeaderInfoMain>
-              <HeaderInfoEdit className="g-flex g-mt-4 g-gap-2">
-                {citationCountOrZero > 0 && (
-                  <Button asChild variant="outline" className="g-py-1 g-px-2 g-h-[2rem]">
-                    <DynamicLink
-                      to="literatureSearch"
-                      pageId="literatureSearch"
-                      searchParams={{ gbifDatasetKey: dataset.key }}
-                    >
-                      <span className="g-whitespace-nowrap">
-                        <FormattedMessage
-                          id="counts.nCitations"
-                          values={{ total: citationCountOrZero }}
-                        />
-                      </span>
-                    </DynamicLink>
-                  </Button>
-                )}
-                {(occurrenceCountOrZero > 0 || dataset.type === 'OCCURRENCE') && (
-                  <Button className="g-py-1 g-px-2 g-h-[2rem]" asChild isLoading={loading}>
-                    <DynamicLink
-                      to="occurrenceSearch"
-                      pageId="occurrenceSearch"
-                      searchParams={{ datasetKey: dataset.key }}
-                    >
-                      <span className="g-whitespace-nowrap">
-                        <FormattedMessage
-                          id="counts.nOccurrences"
-                          values={{ total: occurrenceCountOrZero }}
-                        />
-                      </span>
-                    </DynamicLink>
-                  </Button>
-                )}
-              </HeaderInfoEdit>
-            </HeaderInfo>
-            <div className="g-border-b g-mt-4"></div>
-            <Tabs links={tabs} />
-          </ArticleTextContainer>
-        </PageContainer>
-        <DatasetKeyContext.Provider
-          value={{
-            datasetType: dataset.type ?? undefined,
-            datasetKey: dataset.key,
-            dynamicProperties:
-              occData?.occurrenceSearch?.documents?.results?.[0]?.dynamicProperties || undefined,
-            contentMetrics: occData,
-            showPhylogenyTab,
-            showSpeciesTab,
-            showEventsTab,
-          }}
-        >
-          <ErrorBoundary type="PAGE">
-            <Outlet />
-          </ErrorBoundary>
-        </DatasetKeyContext.Provider>
-      </article>
+              </FeatureList>
+            </HeaderInfoMain>
+            <HeaderInfoEdit className="g-flex g-mt-4 g-gap-2">
+              {citationCountOrZero > 0 && (
+                <Button asChild variant="outline" className="g-py-1 g-px-2 g-h-[2rem]">
+                  <DynamicLink
+                    to="literatureSearch"
+                    pageId="literatureSearch"
+                    searchParams={{ gbifDatasetKey: dataset.key }}
+                  >
+                    <span className="g-whitespace-nowrap">
+                      <FormattedMessage
+                        id="counts.nCitations"
+                        values={{ total: citationCountOrZero }}
+                      />
+                    </span>
+                  </DynamicLink>
+                </Button>
+              )}
+              {(occurrenceCountOrZero > 0 || dataset.type === 'OCCURRENCE') && (
+                <Button className="g-py-1 g-px-2 g-h-[2rem]" asChild isLoading={loading}>
+                  <DynamicLink
+                    to="occurrenceSearch"
+                    pageId="occurrenceSearch"
+                    searchParams={{ datasetKey: dataset.key }}
+                  >
+                    <span className="g-whitespace-nowrap">
+                      <FormattedMessage
+                        id="counts.nOccurrences"
+                        values={{ total: occurrenceCountOrZero }}
+                      />
+                    </span>
+                  </DynamicLink>
+                </Button>
+              )}
+            </HeaderInfoEdit>
+          </HeaderInfo>
+          <div className="g-border-b g-mt-4"></div>
+          <Tabs links={tabs} />
+        </ArticleTextContainer>
+      </PageContainer>
     </>
   );
-}
+});

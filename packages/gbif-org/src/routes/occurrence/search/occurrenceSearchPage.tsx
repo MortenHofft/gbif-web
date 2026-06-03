@@ -27,8 +27,10 @@ import { Download } from './views/download';
 import { Map } from './views/map';
 import { Media } from './views/media';
 import { OccurrenceTable } from './views/table/occurrenceTable';
+import { renderLog } from '@/utils/renderLog';
 
 export function OccurrenceSearchPage(): React.ReactElement {
+  renderLog('OccurrenceSearchPage');
   const config = useConfig();
   const [filter, setFilter] = useFilterParams({
     filterConfig: searchConfig,
@@ -74,6 +76,7 @@ const groups = [
 ];
 
 export function OccurrenceSearchPageInner(): React.ReactElement {
+  renderLog('OccurrenceSearchPageInner');
   const searchContext = useSearchContext();
   const { filters } = useFilters({ searchConfig });
   const filterSheetActive = useIsMobileFilterSheetActive(filters);
@@ -149,6 +152,7 @@ export function OccurrenceSearchInner(): React.ReactElement {
 }
 
 function Views({ view: unknownCaseView, className }: { view?: string; className?: string }) {
+  renderLog('Views');
   // lower case view to match the tabs
   const view = unknownCaseView?.toLowerCase();
   const fixedHeight = ['table', 'map', 'clusters'].includes(view ?? '');
@@ -184,6 +188,7 @@ function OccurrenceViewTabs({
   view?: string;
   tabs?: string[];
 }) {
+  renderLog('OccurrenceViewTabs');
   const { getParams } = useUpdateViewParams(['from', 'sort', 'limit', 'offset']); // Removes 'from' and 'sort'
 
   return (

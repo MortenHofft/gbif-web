@@ -7,6 +7,7 @@ import hash from 'object-hash';
 import React, { useCallback, useEffect } from 'react';
 import isEqual from 'react-fast-compare';
 import { useUncontrolledProp } from 'uncontrollable';
+import { renderLog } from '@/utils/renderLog';
 
 const ADD_FILTER_EVENT = 'GBIF_ADD_FILTER_EVENT';
 
@@ -53,6 +54,7 @@ export function FilterProvider({
   defaultChecklistKey?: string;
   children: React.ReactNode;
 }) {
+  renderLog('FilterProvider');
   const [currentFilter, onChange] = useUncontrolledProp(controlledFilter, {}, controlledOnChange);
 
   const hashObj = {
