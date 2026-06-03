@@ -79,6 +79,28 @@ export function poolTimeoutMs(pool: PoolName): number {
   return Number.isFinite(n) && n > 0 ? n : DEFAULT_TIMEOUT_MS;
 }
 
+const DEFAULT_PER_REQUEST_CONCURRENCY = 10;
+
+/**
+ * Per-GraphQL-request fan-out cap for a pool. A single query can fan out into
+ * many enQueued calls (e.g. occurrence search resolves each facet/stat/histogram
+ * field as its own es-api search); this limits how many of one request's calls
+ * run at once so a single greedy query cannot monopolise the shared pool.
+ * Configurable via `requestPools.<pool>.perRequestConcurrency`.
+ */
+export function poolPerRequestConcurrency(pool: PoolName): number {
+  const value = get(
+    config,
+    ['requestPools', pool, 'perRequestConcurrency'],
+    DEFAULT_PER_REQUEST_CONCURRENCY,
+  );
+  if (value === null || value === undefined || value === 0 || value === 'unbounded') {
+    return Infinity;
+  }
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_PER_REQUEST_CONCURRENCY;
+}
+
 export function getPoolQueue(pool: PoolName): PQueue {
   let queue = queues.get(pool);
   if (!queue) {
