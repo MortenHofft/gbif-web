@@ -1,5 +1,6 @@
 import { getEnumStatus } from './components/enum';
 import { getInterpretationRemarkStatus } from './components/interpretationRemark';
+import { getPoolStats } from '@/requestPools';
 
 export default (req, res) => {
   try {
@@ -7,6 +8,9 @@ export default (req, res) => {
     res.json({
       enums: getEnumStatus(),
       interpetationRemark: getInterpretationRemarkStatus(),
+      // Per-upstream bulkhead depth/limits. During an incident this shows which
+      // pool is backed up (high `waiting`) vs which upstream is just slow.
+      requestPools: getPoolStats(),
     });
   } catch (err) {
     console.log(err);

@@ -28,10 +28,22 @@ const loggingPlugin: ApolloServerPlugin = {
             (error.extensions?.http as { status?: number })?.status === 404,
         );
 
-        const logLevel = is404Error ? 'warn' : 'error';
-        const logMessage = is404Error
-          ? 'GraphQL 404 (Expected)'
-          : 'GraphQL Error';
+        // Load-shed 503s are expected backpressure under overload, not faults.
+        const isOverloadError = requestContext?.errors?.some(
+          (error) =>
+            error.extensions?.code === 'SERVICE_UNAVAILABLE' ||
+            (error.extensions?.http as { status?: number })?.status === 503,
+        );
+
+        let logLevel: 'warn' | 'error' = 'error';
+        let logMessage = 'GraphQL Error';
+        if (is404Error) {
+          logLevel = 'warn';
+          logMessage = 'GraphQL 404 (Expected)';
+        } else if (isOverloadError) {
+          logLevel = 'warn';
+          logMessage = 'GraphQL 503 (Overloaded - load shed)';
+        }
 
         logger[logLevel]({
           message: logMessage,

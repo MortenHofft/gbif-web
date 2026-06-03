@@ -1,7 +1,26 @@
 import PQueue from 'p-queue';
 import { get } from 'lodash';
+import { GraphQLError } from 'graphql';
 import config from './config';
 import type { PoolName } from './requestAgents';
+
+/**
+ * Thrown when a pool's queue is already at its configured depth limit. Rather
+ * than accept the request into memory and let an unbounded backlog drag down the
+ * whole process, we shed it immediately with a 503 so the client can retry.
+ */
+export class PoolOverloadError extends GraphQLError {
+  constructor(pool: PoolName, depth: number) {
+    super(`Service busy: the '${pool}' upstream is overloaded. Please retry.`, {
+      extensions: {
+        code: 'SERVICE_UNAVAILABLE',
+        pool,
+        queueDepth: depth,
+        http: { status: 503 },
+      },
+    });
+  }
+}
 
 /**
  * Per-upstream "bulkheads".
@@ -44,6 +63,15 @@ function resolveConcurrency(pool: PoolName): number {
   return Number.isFinite(n) && n > 0 ? n : Infinity;
 }
 
+function resolveMaxQueueDepth(pool: PoolName): number {
+  const value = get(config, ['requestPools', pool, 'maxQueueDepth'], Infinity);
+  if (value === null || value === undefined || value === 0 || value === 'unbounded') {
+    return Infinity;
+  }
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : Infinity;
+}
+
 export function poolTimeoutMs(pool: PoolName): number {
   const value = get(config, ['requestPools', pool, 'timeoutMs'], DEFAULT_TIMEOUT_MS);
   if (value === null || value === undefined || value === 'none') return Infinity;
@@ -60,9 +88,21 @@ export function getPoolQueue(pool: PoolName): PQueue {
   return queue;
 }
 
-/** Run `fn` under the process-wide concurrency limit for `pool`. */
+/**
+ * Run `fn` under the process-wide concurrency limit for `pool`. If the pool's
+ * queue is already at its configured `maxQueueDepth`, the request is shed
+ * immediately with a `PoolOverloadError` (503) instead of being buffered — this
+ * is the backpressure that keeps the in-process backlog (and therefore memory)
+ * bounded under overload, so a flood to one upstream cannot slow the others.
+ */
 export function runInPool<T>(pool: PoolName, fn: () => Promise<T>): Promise<T> {
-  return getPoolQueue(pool).add(fn) as Promise<T>;
+  const queue = getPoolQueue(pool);
+  const maxDepth = resolveMaxQueueDepth(pool);
+  // queue.size = jobs waiting (not yet started); queue.pending = jobs running.
+  if (Number.isFinite(maxDepth) && queue.size >= maxDepth) {
+    return Promise.reject(new PoolOverloadError(pool, queue.size));
+  }
+  return queue.add(fn) as Promise<T>;
 }
 
 /**
@@ -86,15 +126,26 @@ export function withPoolTimeout<T extends { signal?: AbortSignal }>(
   return { ...init, signal };
 }
 
-/** Lightweight snapshot for diagnostics / health output. */
+/** Lightweight snapshot for diagnostics / health output. (-1 means unbounded.) */
 export function getPoolStats() {
-  const stats: Record<string, { size: number; pending: number; concurrency: number }> = {};
+  const unbounded = (n: number) => (Number.isFinite(n) ? n : -1);
+  const stats: Record<
+    string,
+    {
+      waiting: number;
+      running: number;
+      concurrency: number;
+      maxQueueDepth: number;
+      timeoutMs: number;
+    }
+  > = {};
   for (const [pool, queue] of queues.entries()) {
     stats[pool] = {
-      size: queue.size, // waiting in the queue
-      pending: queue.pending, // currently running
-      concurrency:
-        queue.concurrency === Infinity ? -1 : (queue.concurrency as number),
+      waiting: queue.size, // queued, not yet started
+      running: queue.pending, // currently in flight
+      concurrency: unbounded(queue.concurrency as number),
+      maxQueueDepth: unbounded(resolveMaxQueueDepth(pool)),
+      timeoutMs: unbounded(poolTimeoutMs(pool)),
     };
   }
   return stats;
