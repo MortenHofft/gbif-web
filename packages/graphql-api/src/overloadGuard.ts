@@ -51,9 +51,15 @@ const settings = {
 const histogram = monitorEventLoopDelay({ resolution: 20 });
 histogram.enable();
 let eventLoopDelayMs = 0;
+let eventLoopDelayMaxMs = 0; // worst single sample in the most recent window
+let peakEventLoopDelayMs = 0; // sticky worst since process start
 const SAMPLE_INTERVAL_MS = 250;
 const sampler = setInterval(() => {
   eventLoopDelayMs = histogram.mean / 1e6; // ns -> ms, mean since last reset
+  eventLoopDelayMaxMs = histogram.max / 1e6;
+  if (eventLoopDelayMaxMs > peakEventLoopDelayMs) {
+    peakEventLoopDelayMs = eventLoopDelayMaxMs;
+  }
   histogram.reset();
 }, SAMPLE_INTERVAL_MS);
 sampler.unref();
@@ -83,6 +89,8 @@ export function getOverloadStats() {
   return {
     enabled: settings.enabled,
     eventLoopDelayMs: Math.round(eventLoopDelayMs * 10) / 10,
+    eventLoopDelayMaxMs: Math.round(eventLoopDelayMaxMs * 10) / 10,
+    peakEventLoopDelayMs: Math.round(peakEventLoopDelayMs * 10) / 10,
     inFlight,
     heapUsedMb: Math.round(process.memoryUsage().heapUsed / 1048576),
     heapUsedPercent: Math.round(heapUsedFraction() * 100),
