@@ -42,6 +42,9 @@ class DatasetAPI extends QueuedRESTDataSource {
     const response = await this.get(`/dataset/${key}`, null, {
       retry: 3,
       enQueue: true,
+      // Forward the per-request abort signal so a client disconnect cancels the
+      // in-flight call and removes any of this request's still-queued lookups.
+      signal: this.context.abortController.signal,
     });
     return response;
   }

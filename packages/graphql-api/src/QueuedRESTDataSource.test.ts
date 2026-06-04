@@ -507,7 +507,7 @@ describe('QueuedRESTDataSource', () => {
       assert.strictEqual(await b, 'ok');
     });
 
-    it('[user abort] cancels every in-flight request and drains this request\'s queue without hitting upstream — but not the shared pool', async () => {
+    it('[user abort] cancels in-flight requests and removes this request\'s queued ones (no upstream calls); the shared pool stays usable', async () => {
       installUpstream({}, 'hang');
       const ac = new AbortController();
       const ds = new QueuedRESTDataSource({ pool: 'p', concurrency: 2 });
@@ -520,7 +520,7 @@ describe('QueuedRESTDataSource', () => {
 
       ac.abort();
 
-      // All four reject: the two in-flight are cancelled, the two queued dropped.
+      // All four reject: the two in-flight are cancelled, the two queued removed.
       await Promise.all(ps.map((p) => assert.rejects(p)));
       assert.strictEqual(
         calls.length,
@@ -529,8 +529,8 @@ describe('QueuedRESTDataSource', () => {
       );
       assert.ok(!calls.some((c) => c.path === '/c' || c.path === '/d'));
 
-      // The shared pool is untouched: a fresh request (its own per-request queue,
-      // a non-aborted signal) still works.
+      // The shared pool is unaffected: a fresh request (its own per-request
+      // queue, a non-aborted signal) still works.
       const ds2 = new QueuedRESTDataSource({ pool: 'p', concurrency: 2 });
       const fresh = ds2.get('/fresh', null, { enQueue: true });
       await waitFor(() => calls.some((c) => c.path === '/fresh'));
