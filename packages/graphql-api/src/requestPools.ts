@@ -37,9 +37,10 @@ export class PoolOverloadError extends GraphQLError {
  * a real timeout visible (504) instead of hidden.
  */
 export class PoolTimeoutError extends GraphQLError {
-  constructor(pool: PoolName, ms: number) {
+  constructor(pool: PoolName, ms: number, target?: string) {
+    const where = target ? ` to ${target}` : '';
     super(
-      `Upstream timeout: the '${pool}' request exceeded ${ms}ms and was aborted.`,
+      `Upstream timeout: the '${pool}' request${where} exceeded ${ms}ms and was aborted.`,
       {
         extensions: {
           code: 'GATEWAY_TIMEOUT',
@@ -48,6 +49,8 @@ export class PoolTimeoutError extends GraphQLError {
           poolTimeout: true,
           pool,
           timeoutMs: ms,
+          // The endpoint that timed out, so logs say *what* was slow.
+          ...(target ? { target } : {}),
           http: { status: 504 },
         },
       },

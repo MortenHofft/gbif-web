@@ -538,16 +538,20 @@ describe('QueuedRESTDataSource', () => {
       assert.strictEqual(await fresh, 'ok');
     });
 
-    it('[timeout] fails AS a timeout, not as a "user aborted" message', async () => {
+    it('[timeout] fails AS a timeout, names the endpoint, and is not a "user aborted" message', async () => {
       setPoolTimeout('p', 40);
       installUpstream({}, 'hang');
       const ds = new QueuedRESTDataSource({ pool: 'p', concurrency: 1 });
       await assert.rejects(
-        ds.get('/slow', null, { enQueue: true }),
+        ds.get('/dataset/abc-123', null, { enQueue: true }),
         (e: any) => {
           assert.strictEqual(e?.extensions?.poolTimeout, true);
           assert.match(e?.message ?? '', /timeout/i);
           assert.doesNotMatch(e?.message ?? '', /user aborted/i);
+          // The offending endpoint is reported, both in the message and as
+          // structured data for logs.
+          assert.match(e?.message ?? '', /\/dataset\/abc-123/);
+          assert.strictEqual(e?.extensions?.target, '/dataset/abc-123');
           return true;
         },
       );

@@ -119,7 +119,7 @@ class QueuedRESTDataSource extends RESTDataSource {
   // the clock started at acquisition each request gets its full budget once it
   // runs; the running requests still time out and recycle their slots, so the
   // queue keeps draining (depth is bounded separately by maxQueueDepth).
-  #enqueue(init, retry, run) {
+  #enqueue(init, retry, run, target) {
     const clientSignal = init.signal;
     return this.requestQueue.add(() =>
       runInPool(this.pool, () => {
@@ -137,13 +137,17 @@ class QueuedRESTDataSource extends RESTDataSource {
         const { signal } = initWithTimeout;
         // The fetch reports a timeout abort and a client disconnect identically
         // (a generic abort/timeout error). When our pool timeout was the cause,
-        // surface it as a distinct, visible 504 instead of a misleading
-        // "user aborted".
+        // surface it as a distinct, visible 504 that names the endpoint, instead
+        // of a misleading "user aborted".
         const translate = (err) => {
           const abortLike =
             err?.name === 'AbortError' || err?.name === 'TimeoutError';
           if (abortLike && abortCause() === 'timeout') {
-            return new PoolTimeoutError(this.pool, poolTimeoutMs(this.pool));
+            return new PoolTimeoutError(
+              this.pool,
+              poolTimeoutMs(this.pool),
+              target,
+            );
           }
           return err;
         };
@@ -156,10 +160,24 @@ class QueuedRESTDataSource extends RESTDataSource {
     );
   }
 
+  // Best-effort absolute endpoint for diagnostics (e.g. timeout messages). Query
+  // params are intentionally omitted to keep messages/logs short and clean.
+  #target(path) {
+    if (!path) return undefined;
+    if (/^https?:\/\//i.test(path)) return path;
+    if (!this.baseURL) return path;
+    return `${this.baseURL.replace(/\/$/, '')}/${String(path).replace(/^\//, '')}`;
+  }
+
   // GET is idempotent — the only method we retry.
   async get(path, params, { enQueue, retry, ...init } = {}) {
     if (enQueue) {
-      return this.#enqueue(init, retry, (i) => super.get(path, params, i));
+      return this.#enqueue(
+        init,
+        retry,
+        (i) => super.get(path, params, i),
+        this.#target(path),
+      );
     }
     return this.#withRetry(retry, init.signal, () =>
       super.get(path, params, init),
@@ -169,28 +187,48 @@ class QueuedRESTDataSource extends RESTDataSource {
   // Non-idempotent methods are never auto-retried (retry is dropped).
   async post(path, body, { enQueue, retry, ...init } = {}) {
     if (enQueue) {
-      return this.#enqueue(init, 0, (i) => super.post(path, body, i));
+      return this.#enqueue(
+        init,
+        0,
+        (i) => super.post(path, body, i),
+        this.#target(path),
+      );
     }
     return super.post(path, body, init);
   }
 
   async put(path, body, { enQueue, retry, ...init } = {}) {
     if (enQueue) {
-      return this.#enqueue(init, 0, (i) => super.put(path, body, i));
+      return this.#enqueue(
+        init,
+        0,
+        (i) => super.put(path, body, i),
+        this.#target(path),
+      );
     }
     return super.put(path, body, init);
   }
 
   async patch(path, body, { enQueue, retry, ...init } = {}) {
     if (enQueue) {
-      return this.#enqueue(init, 0, (i) => super.patch(path, body, i));
+      return this.#enqueue(
+        init,
+        0,
+        (i) => super.patch(path, body, i),
+        this.#target(path),
+      );
     }
     return super.patch(path, body, init);
   }
 
   async delete(path, params, { enQueue, retry, ...init } = {}) {
     if (enQueue) {
-      return this.#enqueue(init, 0, (i) => super.delete(path, params, i));
+      return this.#enqueue(
+        init,
+        0,
+        (i) => super.delete(path, params, i),
+        this.#target(path),
+      );
     }
     return super.delete(path, params, init);
   }
