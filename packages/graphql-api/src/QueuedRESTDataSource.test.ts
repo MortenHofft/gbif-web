@@ -15,6 +15,19 @@ function abortError() {
 // Let microtasks/timers settle so p-queue can start/advance queued work.
 const flush = () => new Promise((r) => setTimeout(r, 5));
 
+// Poll until `cond` holds (or fail). Avoids guessing how many `flush`es a piece
+// of async queue/pool plumbing needs.
+async function waitFor(cond: () => boolean, timeoutMs = 1500) {
+  const start = Date.now();
+  while (!cond()) {
+    if (Date.now() - start > timeoutMs) {
+      throw new Error('waitFor: condition not met in time');
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((r) => setTimeout(r, 5));
+  }
+}
+
 describe('QueuedRESTDataSource', () => {
   let originalGet;
   let originalPost;
@@ -337,6 +350,207 @@ describe('QueuedRESTDataSource', () => {
         );
         return true;
       });
+    });
+  });
+
+  // The reported scenario, distilled into the acceptance criteria: a search
+  // returns many results and each result resolves its dataset key as its own
+  // enQueued GET through a (low-)concurrency per-request queue.
+  describe('dataset-search fan-out (acceptance criteria)', () => {
+    let originalRequestPools;
+
+    beforeEach(() => {
+      originalRequestPools = (config as any).requestPools;
+    });
+    afterEach(() => {
+      (config as any).requestPools = originalRequestPools;
+    });
+
+    function setPoolTimeout(pool: string, ms: number) {
+      (config as any).requestPools = {
+        ...((config as any).requestPools || {}),
+        [pool]: { ...((config as any).requestPools?.[pool] || {}), timeoutMs: ms },
+      };
+    }
+
+    // A programmable upstream. `plan` gives a per-path sequence consumed per
+    // attempt (so retries take the next entry; the last entry repeats):
+    //   'ok'    -> resolve immediately
+    //   number  -> reject immediately with that HTTP status
+    //   'hang'  -> never settles on its own (release() or a signal abort settles it)
+    // Anything not in `plan` uses `fallback`.
+    function installUpstream(
+      plan: Record<string, Array<'ok' | 'hang' | number>> = {},
+      fallback: 'ok' | 'hang' | number = 'ok',
+    ) {
+      const idx: Record<string, number> = {};
+      const httpError = (status: number) => {
+        const e: any = new Error(`${status}: upstream`);
+        e.extensions = { http: { status } };
+        return e;
+      };
+      RESTDataSource.prototype.get = function stub(path, params, init) {
+        const seq = plan[path];
+        const n = (idx[path] = (idx[path] ?? 0) + 1);
+        const behavior = seq ? seq[n - 1] ?? seq[seq.length - 1] : fallback;
+        active += 1;
+        peak = Math.max(peak, active);
+        const rec: any = { path, params, init, attempt: n };
+        calls.push(rec);
+        return new Promise((resolve, reject) => {
+          let settled = false;
+          const settle = (fn: () => void) => {
+            if (settled) return;
+            settled = true;
+            active -= 1;
+            const i = pending.indexOf(rec);
+            if (i >= 0) pending.splice(i, 1);
+            fn();
+          };
+          if (behavior === 'ok') return settle(() => resolve('ok'));
+          if (typeof behavior === 'number') {
+            return settle(() => reject(httpError(behavior)));
+          }
+          // 'hang'
+          rec.release = () => settle(() => resolve('ok'));
+          pending.push(rec);
+          const sig = init?.signal;
+          if (sig) {
+            if (sig.aborted) return settle(() => reject(abortError()));
+            sig.addEventListener('abort', () => settle(() => reject(abortError())), {
+              once: true,
+            });
+          }
+          return undefined;
+        });
+      } as any;
+    }
+
+    const countCalls = (path: string) =>
+      calls.filter((c) => c.path === path).length;
+
+    it('[concurrency 1, no retry] one request timing out does not abort the rest — the queue continues', async () => {
+      setPoolTimeout('p', 60);
+      installUpstream({ '/a': ['hang'] }, 'ok'); // /a times out; /b, /c succeed
+      const ds = new QueuedRESTDataSource({ pool: 'p', concurrency: 1 });
+      const a = ds.get('/a', null, { enQueue: true });
+      const b = ds.get('/b', null, { enQueue: true });
+      const c = ds.get('/c', null, { enQueue: true });
+
+      await assert.rejects(a, (e: any) => e?.extensions?.poolTimeout === true);
+      assert.strictEqual(await b, 'ok');
+      assert.strictEqual(await c, 'ok');
+      assert.deepStrictEqual(
+        calls.map((x) => x.path),
+        ['/a', '/b', '/c'],
+      );
+    });
+
+    it('[concurrency 1, retry 1] a timeout is NOT retried (it is our own deadline) — move on to the next', async () => {
+      setPoolTimeout('p', 60);
+      installUpstream({ '/a': ['hang', 'hang'] }, 'ok');
+      const ds = new QueuedRESTDataSource({ pool: 'p', concurrency: 1 });
+      const a = ds.get('/a', null, { enQueue: true, retry: 1 });
+      const b = ds.get('/b', null, { enQueue: true, retry: 1 });
+
+      await assert.rejects(a, (e: any) => e?.extensions?.poolTimeout === true);
+      assert.strictEqual(countCalls('/a'), 1, 'a timeout must not be retried');
+      assert.strictEqual(await b, 'ok');
+    });
+
+    it('[concurrency 1, retry 1] a 503 IS retried once, then the queue continues', async () => {
+      installUpstream({ '/a': [503, 'ok'] }, 'ok');
+      const ds = new QueuedRESTDataSource({ pool: 'p', concurrency: 1 });
+      const a = ds.get('/a', null, { enQueue: true, retry: 1 });
+      const b = ds.get('/b', null, { enQueue: true });
+
+      assert.strictEqual(await a, 'ok');
+      assert.strictEqual(countCalls('/a'), 2, '503 -> one retry -> success');
+      assert.strictEqual(await b, 'ok');
+    });
+
+    it('[concurrency 5] runs at most 5 at once and starts the next the moment one finishes (no waiting for the other 4)', async () => {
+      installUpstream({}, 'hang'); // every call hangs until released
+      const ds = new QueuedRESTDataSource({ pool: 'p', concurrency: 5 });
+      const ps = Array.from({ length: 6 }, (_, i) =>
+        ds.get(`/k${i}`, null, { enQueue: true }),
+      );
+
+      await waitFor(() => calls.length === 5);
+      assert.strictEqual(active, 5);
+      assert.strictEqual(peak, 5);
+      assert.ok(!calls.some((c) => c.path === '/k5'), '6th must wait its turn');
+
+      // Finish ONE; the 6th must start immediately, not wait for the other four.
+      pending.find((p) => p.path === '/k0').release();
+      await waitFor(() => calls.some((c) => c.path === '/k5'));
+      assert.strictEqual(active, 5, '4 still held + the newly started 6th');
+
+      // Cleanup.
+      pending.slice().forEach((p) => p.release());
+      await Promise.all(ps);
+      assert.strictEqual(peak, 5, 'the cap held for the whole run');
+    });
+
+    it('[retry 5] stops retrying as soon as an attempt succeeds, then continues to the next', async () => {
+      installUpstream({ '/a': [503, 'ok'] }, 'ok'); // fail once, then succeed
+      const ds = new QueuedRESTDataSource({ pool: 'p', concurrency: 1 });
+      const a = ds.get('/a', null, { enQueue: true, retry: 5 });
+      const b = ds.get('/b', null, { enQueue: true });
+
+      assert.strictEqual(await a, 'ok');
+      assert.strictEqual(
+        countCalls('/a'),
+        2,
+        'second attempt succeeded -> no further retries',
+      );
+      assert.strictEqual(await b, 'ok');
+    });
+
+    it('[user abort] cancels every in-flight request and drains this request\'s queue without hitting upstream — but not the shared pool', async () => {
+      installUpstream({}, 'hang');
+      const ac = new AbortController();
+      const ds = new QueuedRESTDataSource({ pool: 'p', concurrency: 2 });
+      const ps = ['/a', '/b', '/c', '/d'].map((p) =>
+        ds.get(p, null, { enQueue: true, signal: ac.signal }),
+      );
+
+      await waitFor(() => calls.length === 2); // a,b in flight; c,d queued
+      assert.strictEqual(active, 2);
+
+      ac.abort();
+
+      // All four reject: the two in-flight are cancelled, the two queued dropped.
+      await Promise.all(ps.map((p) => assert.rejects(p)));
+      assert.strictEqual(
+        calls.length,
+        2,
+        'queued requests must not reach upstream after a user abort',
+      );
+      assert.ok(!calls.some((c) => c.path === '/c' || c.path === '/d'));
+
+      // The shared pool is untouched: a fresh request (its own per-request queue,
+      // a non-aborted signal) still works.
+      const ds2 = new QueuedRESTDataSource({ pool: 'p', concurrency: 2 });
+      const fresh = ds2.get('/fresh', null, { enQueue: true });
+      await waitFor(() => calls.some((c) => c.path === '/fresh'));
+      pending.find((p) => p.path === '/fresh').release();
+      assert.strictEqual(await fresh, 'ok');
+    });
+
+    it('[timeout] fails AS a timeout, not as a "user aborted" message', async () => {
+      setPoolTimeout('p', 40);
+      installUpstream({}, 'hang');
+      const ds = new QueuedRESTDataSource({ pool: 'p', concurrency: 1 });
+      await assert.rejects(
+        ds.get('/slow', null, { enQueue: true }),
+        (e: any) => {
+          assert.strictEqual(e?.extensions?.poolTimeout, true);
+          assert.match(e?.message ?? '', /timeout/i);
+          assert.doesNotMatch(e?.message ?? '', /user aborted/i);
+          return true;
+        },
+      );
     });
   });
 });

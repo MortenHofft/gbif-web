@@ -121,13 +121,15 @@ class QueuedRESTDataSource extends RESTDataSource {
   // queue keeps draining (depth is bounded separately by maxQueueDepth).
   #enqueue(init, retry, run) {
     const clientSignal = init.signal;
-    return this.requestQueue.add(() =>
-      runInPool(this.pool, () => {
-        // Don't start (or time) a request the client already abandoned while it
-        // was waiting in the queue.
-        if (clientSignal?.aborted) {
-          throw clientSignal.reason ?? new Error('Request aborted while queued');
-        }
+    return this.requestQueue.add(() => {
+      // A client that disconnected while this was waiting in the per-request
+      // queue: drop it without claiming a shared-pool slot or hitting upstream.
+      // (As in-flight requests finish/abort, the rest of the per-request queue
+      // drains the same way — so a user abort empties this request's queue.)
+      if (clientSignal?.aborted) {
+        throw clientSignal.reason ?? new Error('Request aborted while queued');
+      }
+      return runInPool(this.pool, () => {
         const { init: initWithTimeout, abortCause } = withPoolTimeout(
           this.pool,
           init,
@@ -150,8 +152,8 @@ class QueuedRESTDataSource extends RESTDataSource {
         ).catch((err) => {
           throw translate(err);
         });
-      }),
-    );
+      });
+    });
   }
 
   // GET is idempotent — the only method we retry.
