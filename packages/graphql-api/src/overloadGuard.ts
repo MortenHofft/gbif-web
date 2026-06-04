@@ -3,7 +3,6 @@ import v8 from 'node:v8';
 import { get } from 'lodash';
 import type { Request, Response, NextFunction } from 'express';
 import config from './config';
-import logger from './logger';
 
 /**
  * Pre-Apollo overload guard.
@@ -68,32 +67,6 @@ sampler.unref();
 const heapLimitBytes = v8.getHeapStatistics().heap_size_limit;
 let inFlight = 0;
 
-// Front-door sheds never reach the Apollo logging plugin, so they are logged
-// here. Like the pool sheds, they can arrive in floods, so we emit at most one
-// summary line per interval (the first one fires immediately so the onset is
-// visible) rather than a line per shed request.
-let shedSinceLastLog = 0;
-let lastShedLogAt = 0;
-const SHED_LOG_INTERVAL_MS = 1000;
-
-function logShed(reason: string) {
-  shedSinceLastLog += 1;
-  const now = Date.now();
-  if (now - lastShedLogAt >= SHED_LOG_INTERVAL_MS) {
-    logger.warn({
-      message: 'Overload guard shed requests (pre-Apollo 503)',
-      shedCount: shedSinceLastLog,
-      intervalMs: lastShedLogAt === 0 ? 0 : now - lastShedLogAt,
-      reason,
-      eventLoopDelayMs: Math.round(eventLoopDelayMs * 10) / 10,
-      inFlight,
-      heapUsedPercent: Math.round(heapUsedFraction() * 100),
-    });
-    shedSinceLastLog = 0;
-    lastShedLogAt = now;
-  }
-}
-
 function heapUsedFraction(): number {
   return process.memoryUsage().heapUsed / heapLimitBytes;
 }
@@ -145,7 +118,10 @@ export function overloadGuard(req: Request, res: Response, next: NextFunction) {
   if (settings.enabled) {
     const reason = overloadReason();
     if (reason) {
-      logShed(reason);
+      // Intentionally no application-level logging here: the guard's job is to do
+      // the minimum under overload, and these are clean HTTP 503s that the edge
+      // (Varnish/LB) already logs. The state that triggered shedding is available
+      // on /health (incl. sticky peakEventLoopDelayMs).
       res.setHeader('Retry-After', String(settings.retryAfterSeconds));
       res.status(503).json({
         error: 'Service overloaded, please retry shortly.',
