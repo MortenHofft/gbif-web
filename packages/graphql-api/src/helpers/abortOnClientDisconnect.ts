@@ -1,7 +1,8 @@
 import { setMaxListeners } from 'node:events';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-type Closable = Pick<IncomingMessage | ServerResponse, 'once'>;
+type ClosableReq = Pick<IncomingMessage, 'once'>;
+type ClosableRes = Pick<ServerResponse, 'once' | 'writableEnded'>;
 
 /**
  * Build the AbortController for a single GraphQL request. Its `signal` aborts as
@@ -15,22 +16,29 @@ type Closable = Pick<IncomingMessage | ServerResponse, 'once'>;
  * the response stream, or both — it varies by Node/Express version and by
  * whether the request body was fully read. Listening only on `req` (as we used
  * to) misses cases where it never fires, which is why a closed tab could leave
- * the queue draining to the upstream. We therefore listen on both; `abort()` is
- * idempotent, and a normal completion (which also emits `'close'`, after the
- * resolvers are done) is harmless.
+ * the queue draining to the upstream. We therefore listen on both.
+ *
+ * Both streams ALSO emit `'close'` on a normal completion (after the response is
+ * sent), so we abort only when the response did not finish — `!res.writableEnded`
+ * — to avoid aborting the signal once the work is already done.
  */
 export default function abortControllerForRequest(
-  req?: Closable,
-  res?: Closable,
+  req?: ClosableReq,
+  res?: ClosableRes,
 ): AbortController {
   const controller = new AbortController();
   // A single query can fan out into many resolvers that each add a listener to
   // this signal; raise the default cap (10) to avoid spurious leak warnings.
   setMaxListeners(100, controller.signal);
 
-  const abort = () => controller.abort();
-  req?.once('close', abort);
-  res?.once('close', abort);
+  // Only a premature close (client left before we finished responding) should
+  // abort; a 'close' after the response has been sent is a normal end.
+  const abortIfUnfinished = () => {
+    if (!res?.writableEnded) controller.abort();
+  };
+  req?.once('close', abortIfUnfinished);
+  res?.once('close', abortIfUnfinished);
 
   return controller;
 }
+
