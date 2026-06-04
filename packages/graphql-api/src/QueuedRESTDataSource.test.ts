@@ -16,6 +16,7 @@ const flush = () => new Promise((r) => setTimeout(r, 5));
 
 describe('QueuedRESTDataSource', () => {
   let originalGet;
+  let originalPost;
   let calls; // every call that reached the underlying get
   let pending; // calls currently held (not yet released/aborted)
   let active; // currently in-flight
@@ -23,6 +24,7 @@ describe('QueuedRESTDataSource', () => {
 
   beforeEach(() => {
     originalGet = RESTDataSource.prototype.get;
+    originalPost = RESTDataSource.prototype.post;
     calls = [];
     pending = [];
     active = 0;
@@ -69,6 +71,7 @@ describe('QueuedRESTDataSource', () => {
 
   afterEach(() => {
     RESTDataSource.prototype.get = originalGet;
+    RESTDataSource.prototype.post = originalPost;
   });
 
   it('passes non-enQueued requests straight through to the underlying get', async () => {
@@ -162,5 +165,98 @@ describe('QueuedRESTDataSource', () => {
     assert.strictEqual(calls.length, 1);
     calls[0].release();
     assert.strictEqual(await p, 'ok');
+  });
+
+  describe('retry (opt-in, GET-only)', () => {
+    // A get stub scripted to fail with the given outcomes, then succeed.
+    function scriptGet(outcomes: Array<number | 'net' | 'ok'>) {
+      const httpError = (status: number) => {
+        const e: any = new Error(`${status}: upstream`);
+        e.extensions = { http: { status } };
+        return e;
+      };
+      const netError = () => new Error('ECONNRESET'); // no http status
+      const fn: any = () => {
+        const outcome = outcomes[fn.calls] || 'ok';
+        fn.calls += 1;
+        if (outcome === 'ok') return Promise.resolve('ok');
+        if (outcome === 'net') return Promise.reject(netError());
+        return Promise.reject(httpError(outcome as number));
+      };
+      fn.calls = 0;
+      return fn;
+    }
+
+    it('retries a GET once on 5xx and then succeeds', async () => {
+      const stub = scriptGet([503]); // fail once, then ok
+      RESTDataSource.prototype.get = stub;
+      const ds = new QueuedRESTDataSource({ pool: 'testpool' });
+      const res = await ds.get('/x', null, { enQueue: true, retry: true });
+      assert.strictEqual(res, 'ok');
+      assert.strictEqual(stub.calls, 2, 'one retry => two attempts');
+    });
+
+    it('retries on a network error and on 429', async () => {
+      const netStub = scriptGet(['net']);
+      RESTDataSource.prototype.get = netStub;
+      const ds = new QueuedRESTDataSource({ pool: 'testpool' });
+      assert.strictEqual(await ds.get('/n', null, { enQueue: true, retry: true }), 'ok');
+      assert.strictEqual(netStub.calls, 2);
+
+      const rlStub = scriptGet([429]);
+      RESTDataSource.prototype.get = rlStub;
+      assert.strictEqual(await ds.get('/r', null, { enQueue: true, retry: true }), 'ok');
+      assert.strictEqual(rlStub.calls, 2);
+    });
+
+    it('does NOT retry a 4xx', async () => {
+      const stub = scriptGet([404, 404]);
+      RESTDataSource.prototype.get = stub;
+      const ds = new QueuedRESTDataSource({ pool: 'testpool' });
+      await assert.rejects(ds.get('/x', null, { enQueue: true, retry: true }));
+      assert.strictEqual(stub.calls, 1, '4xx must not be retried');
+    });
+
+    it('does NOT retry unless retry is opted in', async () => {
+      const stub = scriptGet([503]);
+      RESTDataSource.prototype.get = stub;
+      const ds = new QueuedRESTDataSource({ pool: 'testpool' });
+      await assert.rejects(ds.get('/x', null, { enQueue: true }));
+      assert.strictEqual(stub.calls, 1);
+    });
+
+    it('gives up after the configured number of retries', async () => {
+      const stub = scriptGet([503, 503]); // both attempts fail
+      RESTDataSource.prototype.get = stub;
+      const ds = new QueuedRESTDataSource({ pool: 'testpool' });
+      await assert.rejects(ds.get('/x', null, { enQueue: true, retry: true }));
+      assert.strictEqual(stub.calls, 2, 'initial + 1 retry, then give up');
+    });
+
+    it('stops retrying when the request is cancelled during backoff', async () => {
+      const stub = scriptGet([503]); // would succeed on retry, but we cancel
+      RESTDataSource.prototype.get = stub;
+      const ds = new QueuedRESTDataSource({ pool: 'testpool' });
+      const ac = new AbortController();
+      const p = ds.get('/x', null, { enQueue: true, retry: true, signal: ac.signal });
+      await flush(); // first attempt has failed; we're now in backoff
+      ac.abort();
+      await assert.rejects(p);
+      assert.strictEqual(stub.calls, 1, 'no retry after cancellation');
+    });
+
+    it('does NOT retry non-idempotent methods (POST)', async () => {
+      const stub: any = () => {
+        stub.calls += 1;
+        const e: any = new Error('503: upstream');
+        e.extensions = { http: { status: 503 } };
+        return Promise.reject(e);
+      };
+      stub.calls = 0;
+      RESTDataSource.prototype.post = stub;
+      const ds = new QueuedRESTDataSource({ pool: 'testpool' });
+      await assert.rejects(ds.post('/x', {}, { enQueue: true, retry: true }));
+      assert.strictEqual(stub.calls, 1, 'POST must not be retried');
+    });
   });
 });
