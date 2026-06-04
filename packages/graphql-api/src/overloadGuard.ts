@@ -43,7 +43,9 @@ const settings = {
   guardedPaths: (get(config, 'overloadProtection.guardedPaths', [
     '/graphql',
   ]) as string[]) ?? ['/graphql'],
-  retryAfterSeconds: Number(get(config, 'overloadProtection.retryAfterSeconds', 1)),
+  retryAfterSeconds: Number(
+    get(config, 'overloadProtection.retryAfterSeconds', 1),
+  ),
 };
 
 // The histogram is always enabled (it is cheap) so /health can report event-loop
