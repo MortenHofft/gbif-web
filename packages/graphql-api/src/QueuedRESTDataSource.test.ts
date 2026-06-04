@@ -1,7 +1,9 @@
 /* eslint-env mocha */
 import assert from 'assert';
+import { EventEmitter } from 'node:events';
 import { RESTDataSource } from '@/RESTDataSource';
 import QueuedRESTDataSource from '@/QueuedRESTDataSource';
+import abortControllerForRequest from '@/helpers/abortOnClientDisconnect';
 import config from '@/config';
 
 // An error shaped like the one node-fetch throws when an in-flight request is
@@ -536,6 +538,33 @@ describe('QueuedRESTDataSource', () => {
       await waitFor(() => calls.some((c) => c.path === '/fresh'));
       pending.find((p) => p.path === '/fresh').release();
       assert.strictEqual(await fresh, 'ok');
+    });
+
+    it('[client disconnect] closing the connection empties this request\'s queue and cancels in-flight calls (end to end)', async () => {
+      // End to end through the real disconnect wiring: a fake req/res whose
+      // 'close' drives the request's AbortController, exactly as in index.ts.
+      installUpstream({}, 'hang');
+      const req = new EventEmitter();
+      const res = new EventEmitter();
+      const controller = abortControllerForRequest(req as any, res as any);
+      const ds = new QueuedRESTDataSource({ pool: 'p', concurrency: 2 });
+      const ps = ['/a', '/b', '/c', '/d'].map((p) =>
+        ds.get(p, null, { enQueue: true, signal: controller.signal }),
+      );
+
+      await waitFor(() => calls.length === 2); // a,b in flight; c,d queued
+      assert.strictEqual(active, 2);
+
+      // The browser tab closes -> the connection closes.
+      res.emit('close');
+
+      await Promise.all(ps.map((p) => assert.rejects(p)));
+      assert.strictEqual(
+        calls.length,
+        2,
+        'no further upstream calls fire after the client disconnects',
+      );
+      assert.ok(!calls.some((c) => c.path === '/c' || c.path === '/d'));
     });
 
     it('[timeout] fails AS a timeout, names the endpoint, and is not a "user aborted" message', async () => {
