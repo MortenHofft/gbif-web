@@ -1,12 +1,18 @@
 import { ApolloServer } from '@apollo/server';
 import { ApolloServerPluginCacheControl } from '@apollo/server/plugin/cacheControl';
 import { ApolloServerPluginLandingPageDisabled } from '@apollo/server/plugin/disabled';
+import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
 import { expressMiddleware } from '@as-integrations/express4';
 import { InMemoryLRUCache } from '@apollo/utils.keyvaluecache';
 import bodyParser from 'body-parser';
 import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
+// Side-effect import: routes rejected promises from async Express handlers to
+// the error-handling middleware. Express 4 does not do this natively; remove
+// this once we upgrade to Express 5, which handles it built-in.
+import 'express-async-errors';
+import http from 'node:http';
 import { get } from 'lodash';
 import { setMaxListeners } from 'node:events';
 // recommended in the apollo docs https://github.com/stems/graphql-depth-limit
@@ -37,12 +43,22 @@ import overloadGuard from './overloadGuard';
 import { explicitNoCacheWhenErrorsPlugin } from './plugins/explicitNoCacheWhenErrorsPlugin';
 import headerBasedCachePlugin from './plugins/headerBasedCachePlugin';
 import loggingPlugin from './plugins/loggingPlugin';
+import { errorHandler, notFoundHandler } from './middleware';
+import installLifecycleHandlers from './gracefulShutdown';
+import logger from './logger';
 
 // we are doing this async as we need to load the various enumerations from the APIs
 // and generate the schema from those
 async function initializeServer() {
   // this is async as we generate parts of the schema from the live enumeration API
   const typeDefs = await getSchema();
+
+  // Create the Express app and a real http.Server up front so the Apollo drain
+  // plugin can hook the same server we listen on (see plugins below + graceful
+  // shutdown at the end of this function).
+  const app = express();
+  const httpServer = http.createServer(app);
+
   const server = new ApolloServer({
     cache: new InMemoryLRUCache(),
     typeDefs,
@@ -69,6 +85,10 @@ async function initializeServer() {
       loggingPlugin,
       headerBasedCachePlugin,
       explicitNoCacheWhenErrorsPlugin,
+      // Drains in-flight GraphQL operations and closes the HTTP server on
+      // server.stop() (called from graceful shutdown). Owns HTTP draining so we
+      // don't close httpServer ourselves.
+      ApolloServerPluginDrainHttpServer({ httpServer }),
     ],
     logger: console,
   });
@@ -115,7 +135,6 @@ async function initializeServer() {
     });
   };
 
-  const app = express();
   app.use(compression());
   app.use(
     cors({
@@ -162,11 +181,37 @@ async function initializeServer() {
   vsearchCtrl(app);
   sourceArchiveCtrl(app);
   citesController(app);
-  app.listen({ port: config.port }, () =>
+
+  // Must come after every route. The 404 handler catches unmatched paths; the
+  // error handler is the single place that turns thrown/rejected/next(err)
+  // errors from any Express route (GraphQL and non-GraphQL alike) into a logged,
+  // consistent JSON response.
+  app.use(notFoundHandler);
+  app.use(errorHandler);
+
+  // Align keep-alive timeouts with typical load balancers: headersTimeout must
+  // be greater than keepAliveTimeout, and both should exceed the LB idle timeout
+  // to avoid races that surface as sporadic 502s.
+  httpServer.keepAliveTimeout = 65_000;
+  httpServer.headersTimeout = 66_000;
+
+  httpServer.listen({ port: config.port }, () =>
     console.log(
       `🚀 Server ready at http://localhost:${config.port}/graphql`,
     ),
   );
+
+  // Wire process-level crash handlers + graceful shutdown for the whole app.
+  installLifecycleHandlers({ apolloServer: server, httpServer });
 }
 
-initializeServer();
+initializeServer().catch((err) => {
+  // A boot failure (e.g. the live enumeration API used to build the schema is
+  // unreachable) should fail loudly and exit non-zero so the orchestrator can
+  // retry, rather than surface as an opaque unhandled rejection.
+  logger.error({
+    message: 'Failed to initialize server',
+    err: { message: err?.message, stack: err?.stack },
+  });
+  process.exit(1);
+});

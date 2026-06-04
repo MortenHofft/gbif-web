@@ -72,8 +72,10 @@ const fileRotateTransport = new DailyRotateFile({
   // maxSize: '20m', // Disabled: size-based rotation appends .1, .2 suffixes to the end of filenames which breaks our log matching
   maxFiles: '14d',
   level,
-  handleExceptions: true,
-  handleRejections: true,
+  // Process-level uncaughtException/unhandledRejection handling is owned by
+  // gracefulShutdown.ts so that logging and the exit/drain decision live in one
+  // place. Letting winston also handle them here would double-log and (with
+  // exitOnError:false) leave the process running in an undefined state.
   format: winston.format.combine(
     addFixedFields(),
     winston.format.timestamp(),
@@ -84,8 +86,6 @@ const fileRotateTransport = new DailyRotateFile({
 // Configure the Console Transport for Development
 const consoleTransport = new winston.transports.Console({
   level,
-  handleExceptions: true,
-  handleRejections: true,
   format: winston.format.combine(
     addFixedFields(),
     winston.format.timestamp(),
