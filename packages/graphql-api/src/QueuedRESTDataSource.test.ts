@@ -294,6 +294,34 @@ describe('QueuedRESTDataSource', () => {
       });
     });
 
+    it('a timed-out request does not pre-expire its queued siblings (concurrency 1)', async () => {
+      // The reported bug: a dataset search where every result resolves its key
+      // fans out many enQueued GETs through a concurrency-1 queue. The first
+      // holds the only slot until it times out; the rest must still run, not be
+      // aborted while waiting.
+      setPoolTimeout('serialpool', 40);
+      const ds = new QueuedRESTDataSource({ pool: 'serialpool', concurrency: 1 });
+      const first = ds.get('/first', null, { enQueue: true }); // never released
+      const second = ds.get('/second', null, { enQueue: true });
+
+      // The first request exhausts its budget and surfaces as a timeout.
+      await assert.rejects(first, (err: any) => {
+        assert.strictEqual(err?.extensions?.poolTimeout, true);
+        return true;
+      });
+
+      // The second must now reach upstream with a fresh budget — it was only
+      // waiting in the queue, so its clock had not been running.
+      await flush();
+      const secondCall = calls.find((c) => c.path === '/second');
+      assert.ok(
+        secondCall,
+        'queued sibling must reach upstream, not expire while waiting',
+      );
+      secondCall.release();
+      assert.strictEqual(await second, 'ok');
+    });
+
     it('still reports a genuine client disconnect as an abort (not a timeout)', async () => {
       setPoolTimeout('clientpool', 5000); // long enough that it cannot fire here
       const ds = new QueuedRESTDataSource({ pool: 'clientpool' });

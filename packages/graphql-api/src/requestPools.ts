@@ -178,10 +178,15 @@ export interface PoolTimeoutResult<T> {
 /**
  * Return a copy of `init` whose `signal` aborts after the pool's timeout, in
  * addition to any signal already present (e.g. the per-request abort signal that
- * fires when the client disconnects). The timeout budget is created here, before
- * the request is enqueued, so it covers *both* time spent waiting in the queue
- * and time spent on the wire — a request can never be stuck longer than the
- * configured budget regardless of where the time goes.
+ * fires when the client disconnects).
+ *
+ * The timeout clock starts when this is called, so callers should call it when a
+ * request actually begins executing (i.e. once it holds a pool slot), not when
+ * it is enqueued — otherwise time spent waiting behind other requests would eat
+ * the wire-timeout budget and a slow request could expire its queued siblings
+ * before they run. It is the timeout firing on the *running* requests that
+ * recycles slots and keeps the queue draining; queue depth is bounded separately
+ * by `maxQueueDepth`.
  *
  * Also reports which signal aborted first (`abortCause`) so callers can surface
  * a timeout as a distinct, visible error rather than a generic abort.

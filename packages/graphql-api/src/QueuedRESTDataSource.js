@@ -108,41 +108,48 @@ class QueuedRESTDataSource extends RESTDataSource {
     }
   }
 
-  // Run through the per-request queue and the shared pool, with a total
-  // (queue + wire) timeout. Skip the upstream call entirely if the caller's
-  // signal already aborted while the job was waiting. `retry` (idempotent calls
-  // only) wraps the upstream attempt.
+  // Run through the per-request queue and the shared pool. `retry` (idempotent
+  // calls only) wraps the upstream attempt.
+  //
+  // The pool timeout is started *here*, when the slot is actually acquired —
+  // NOT when the request is enqueued. Otherwise time spent waiting behind other
+  // requests would burn the wire-timeout budget, so a single slow request could
+  // make every queued sibling expire before it ever runs (very visible with low
+  // concurrency, e.g. a dataset search where each result resolves its key). With
+  // the clock started at acquisition each request gets its full budget once it
+  // runs; the running requests still time out and recycle their slots, so the
+  // queue keeps draining (depth is bounded separately by maxQueueDepth).
   #enqueue(init, retry, run) {
-    const { init: initWithTimeout, abortCause } = withPoolTimeout(
-      this.pool,
-      init,
-    );
-    const { signal } = initWithTimeout;
-    // The fetch reports a timeout abort and a client disconnect identically
-    // (a generic abort/timeout error). When our pool timeout was the first
-    // cause, surface it as a distinct, visible 504 instead of a misleading
-    // "user aborted".
-    const translate = (err) => {
-      const abortLike =
-        err?.name === 'AbortError' || err?.name === 'TimeoutError';
-      if (abortLike && abortCause() === 'timeout') {
-        return new PoolTimeoutError(this.pool, poolTimeoutMs(this.pool));
-      }
-      return err;
-    };
+    const clientSignal = init.signal;
     return this.requestQueue.add(() =>
       runInPool(this.pool, () => {
-        if (signal?.aborted) {
-          if (abortCause() === 'timeout') {
-            throw new PoolTimeoutError(this.pool, poolTimeoutMs(this.pool));
-          }
-          throw signal.reason ?? new Error('Request aborted while queued');
+        // Don't start (or time) a request the client already abandoned while it
+        // was waiting in the queue.
+        if (clientSignal?.aborted) {
+          throw clientSignal.reason ?? new Error('Request aborted while queued');
         }
-        return this.#withRetry(retry, signal, () => run(initWithTimeout)).catch(
-          (err) => {
-            throw translate(err);
-          },
+        const { init: initWithTimeout, abortCause } = withPoolTimeout(
+          this.pool,
+          init,
         );
+        const { signal } = initWithTimeout;
+        // The fetch reports a timeout abort and a client disconnect identically
+        // (a generic abort/timeout error). When our pool timeout was the cause,
+        // surface it as a distinct, visible 504 instead of a misleading
+        // "user aborted".
+        const translate = (err) => {
+          const abortLike =
+            err?.name === 'AbortError' || err?.name === 'TimeoutError';
+          if (abortLike && abortCause() === 'timeout') {
+            return new PoolTimeoutError(this.pool, poolTimeoutMs(this.pool));
+          }
+          return err;
+        };
+        return this.#withRetry(retry, signal, () =>
+          run(initWithTimeout),
+        ).catch((err) => {
+          throw translate(err);
+        });
       }),
     );
   }
