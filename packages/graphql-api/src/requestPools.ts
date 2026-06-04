@@ -14,6 +14,9 @@ export class PoolOverloadError extends GraphQLError {
     super(`Service busy: the '${pool}' upstream is overloaded. Please retry.`, {
       extensions: {
         code: 'SERVICE_UNAVAILABLE',
+        // Distinguishes our deliberate load shedding from an upstream that
+        // genuinely returned 503 — the latter must still get full error logging.
+        loadShed: true,
         pool,
         queueDepth: depth,
         http: { status: 503 },

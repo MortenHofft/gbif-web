@@ -36,11 +36,12 @@ const loggingPlugin: ApolloServerPlugin = {
             (error.extensions?.http as { status?: number })?.status === 404,
         );
 
-        // Load-shed 503s are expected backpressure under overload, not faults.
+        // Our own load shedding is expected backpressure — log it cheaply. Match
+        // strictly on the marker we set in PoolOverloadError, NOT on a 503 status
+        // or SERVICE_UNAVAILABLE code, which an upstream can also produce and
+        // which we DO want fully logged.
         const isOverloadError = requestContext?.errors?.some(
-          (error) =>
-            error.extensions?.code === 'SERVICE_UNAVAILABLE' ||
-            (error.extensions?.http as { status?: number })?.status === 503,
+          (error) => error.extensions?.loadShed === true,
         );
 
         // Cheap, throttled accounting for shed requests — no payload
