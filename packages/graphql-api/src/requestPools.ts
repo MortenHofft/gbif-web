@@ -26,6 +26,36 @@ export class PoolOverloadError extends GraphQLError {
 }
 
 /**
+ * Thrown when the per-pool timeout (`withPoolTimeout`) aborts a request because
+ * an upstream took too long.
+ *
+ * This exists because the timeout aborts the request's AbortSignal, and the
+ * underlying fetch then throws a *generic* abort error indistinguishable from a
+ * client disconnect ("The user aborted a request."). Surfacing that raw would be
+ * misleading: a stuck upstream would be reported — and silently log-suppressed —
+ * as if the user simply navigated away. Translating to this distinct error keeps
+ * a real timeout visible (504) instead of hidden.
+ */
+export class PoolTimeoutError extends GraphQLError {
+  constructor(pool: PoolName, ms: number) {
+    super(
+      `Upstream timeout: the '${pool}' request exceeded ${ms}ms and was aborted.`,
+      {
+        extensions: {
+          code: 'GATEWAY_TIMEOUT',
+          // Marks an abort caused by our own pool timeout, so it is not mistaken
+          // for (and log-suppressed as) a benign client disconnect.
+          poolTimeout: true,
+          pool,
+          timeoutMs: ms,
+          http: { status: 504 },
+        },
+      },
+    );
+  }
+}
+
+/**
  * Per-upstream "bulkheads".
  *
  * Each upstream the GraphQL API talks to (es-api/occurrence, the experimental
@@ -130,6 +160,21 @@ export function runInPool<T>(pool: PoolName, fn: () => Promise<T>): Promise<T> {
   return queue.add(fn) as Promise<T>;
 }
 
+/** Which signal aborted a request first (or `none` if it did not abort). */
+export type AbortCause = 'client' | 'timeout' | 'none';
+
+export interface PoolTimeoutResult<T> {
+  /** A copy of `init` whose `signal` also aborts after the pool timeout. */
+  init: T;
+  /**
+   * Why the request aborted, determined by which underlying signal fired first.
+   * Call after a failure to tell a real upstream timeout (`timeout`) apart from
+   * a genuine client disconnect (`client`) — the underlying fetch reports both
+   * identically, so this is the only reliable discriminator.
+   */
+  abortCause: () => AbortCause;
+}
+
 /**
  * Return a copy of `init` whose `signal` aborts after the pool's timeout, in
  * addition to any signal already present (e.g. the per-request abort signal that
@@ -137,18 +182,39 @@ export function runInPool<T>(pool: PoolName, fn: () => Promise<T>): Promise<T> {
  * the request is enqueued, so it covers *both* time spent waiting in the queue
  * and time spent on the wire — a request can never be stuck longer than the
  * configured budget regardless of where the time goes.
+ *
+ * Also reports which signal aborted first (`abortCause`) so callers can surface
+ * a timeout as a distinct, visible error rather than a generic abort.
  */
 export function withPoolTimeout<T extends { signal?: AbortSignal }>(
   pool: PoolName,
   init: T,
-): T {
+): PoolTimeoutResult<T> {
+  const clientSignal = init.signal;
   const ms = poolTimeoutMs(pool);
-  if (!Number.isFinite(ms)) return init;
+  if (!Number.isFinite(ms)) {
+    return {
+      init,
+      abortCause: () => (clientSignal?.aborted ? 'client' : 'none'),
+    };
+  }
+
   const timeoutSignal = AbortSignal.timeout(ms);
-  const signal = init.signal
-    ? AbortSignal.any([init.signal, timeoutSignal])
+
+  // Record which signal fired first; the combined signal only tells us *that* it
+  // aborted, not which source caused it.
+  let cause: AbortCause = 'none';
+  const mark = (kind: 'client' | 'timeout') => () => {
+    if (cause === 'none') cause = kind;
+  };
+  timeoutSignal.addEventListener('abort', mark('timeout'), { once: true });
+  clientSignal?.addEventListener('abort', mark('client'), { once: true });
+
+  const signal = clientSignal
+    ? AbortSignal.any([clientSignal, timeoutSignal])
     : timeoutSignal;
-  return { ...init, signal };
+
+  return { init: { ...init, signal }, abortCause: () => cause };
 }
 
 /** Lightweight snapshot for diagnostics / health output. (-1 means unbounded.) */

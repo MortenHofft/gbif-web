@@ -2,6 +2,7 @@
 import assert from 'assert';
 import { RESTDataSource } from '@/RESTDataSource';
 import QueuedRESTDataSource from '@/QueuedRESTDataSource';
+import config from '@/config';
 
 // An error shaped like the one node-fetch throws when an in-flight request is
 // aborted via its signal.
@@ -257,6 +258,57 @@ describe('QueuedRESTDataSource', () => {
       const ds = new QueuedRESTDataSource({ pool: 'testpool' });
       await assert.rejects(ds.post('/x', {}, { enQueue: true, retry: true }));
       assert.strictEqual(stub.calls, 1, 'POST must not be retried');
+    });
+  });
+
+  describe('pool timeout vs client abort', () => {
+    let originalRequestPools;
+
+    beforeEach(() => {
+      originalRequestPools = (config as any).requestPools;
+    });
+    afterEach(() => {
+      (config as any).requestPools = originalRequestPools;
+    });
+
+    function setPoolTimeout(pool: string, ms: number) {
+      (config as any).requestPools = {
+        ...((config as any).requestPools || {}),
+        [pool]: { ...((config as any).requestPools?.[pool] || {}), timeoutMs: ms },
+      };
+    }
+
+    it('surfaces a pool timeout as a distinct 504, not "user aborted"', async () => {
+      setPoolTimeout('slowpool', 40);
+      const ds = new QueuedRESTDataSource({ pool: 'slowpool' });
+      // Never released: the stub holds until the pool timeout aborts the signal.
+      const p = ds.get('/slow', null, { enQueue: true });
+      await assert.rejects(p, (err: any) => {
+        assert.strictEqual(err?.extensions?.poolTimeout, true);
+        assert.strictEqual(err?.extensions?.http?.status, 504);
+        assert.ok(
+          !/user aborted/i.test(err?.message ?? ''),
+          'must not be reported as a user/client abort',
+        );
+        return true;
+      });
+    });
+
+    it('still reports a genuine client disconnect as an abort (not a timeout)', async () => {
+      setPoolTimeout('clientpool', 5000); // long enough that it cannot fire here
+      const ds = new QueuedRESTDataSource({ pool: 'clientpool' });
+      const ac = new AbortController();
+      const p = ds.get('/x', null, { enQueue: true, signal: ac.signal });
+      await flush();
+      ac.abort();
+      await assert.rejects(p, (err: any) => {
+        assert.notStrictEqual(
+          err?.extensions?.poolTimeout,
+          true,
+          'a client abort must not be relabelled as a pool timeout',
+        );
+        return true;
+      });
     });
   });
 });

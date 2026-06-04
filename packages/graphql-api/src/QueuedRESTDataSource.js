@@ -4,6 +4,8 @@ import {
   runInPool,
   withPoolTimeout,
   poolPerRequestConcurrency,
+  poolTimeoutMs,
+  PoolTimeoutError,
 } from '@/requestPools';
 
 // Default retry policy. Opt-in per call via `{ retry: true }` (1 retry) or
@@ -111,14 +113,36 @@ class QueuedRESTDataSource extends RESTDataSource {
   // signal already aborted while the job was waiting. `retry` (idempotent calls
   // only) wraps the upstream attempt.
   #enqueue(init, retry, run) {
-    const initWithTimeout = withPoolTimeout(this.pool, init);
+    const { init: initWithTimeout, abortCause } = withPoolTimeout(
+      this.pool,
+      init,
+    );
     const { signal } = initWithTimeout;
+    // The fetch reports a timeout abort and a client disconnect identically
+    // (a generic abort/timeout error). When our pool timeout was the first
+    // cause, surface it as a distinct, visible 504 instead of a misleading
+    // "user aborted".
+    const translate = (err) => {
+      const abortLike =
+        err?.name === 'AbortError' || err?.name === 'TimeoutError';
+      if (abortLike && abortCause() === 'timeout') {
+        return new PoolTimeoutError(this.pool, poolTimeoutMs(this.pool));
+      }
+      return err;
+    };
     return this.requestQueue.add(() =>
       runInPool(this.pool, () => {
         if (signal?.aborted) {
+          if (abortCause() === 'timeout') {
+            throw new PoolTimeoutError(this.pool, poolTimeoutMs(this.pool));
+          }
           throw signal.reason ?? new Error('Request aborted while queued');
         }
-        return this.#withRetry(retry, signal, () => run(initWithTimeout));
+        return this.#withRetry(retry, signal, () => run(initWithTimeout)).catch(
+          (err) => {
+            throw translate(err);
+          },
+        );
       }),
     );
   }

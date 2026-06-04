@@ -63,10 +63,24 @@ const loggingPlugin: ApolloServerPlugin = {
           return;
         }
 
-        const logLevel: 'warn' | 'error' = is404Error ? 'warn' : 'error';
-        const logMessage = is404Error
-          ? 'GraphQL 404 (Expected)'
-          : 'GraphQL Error';
+        // An upstream timeout (our pool timeout) is an operational event worth
+        // surfacing — but as a clear timeout, not the generic abort it would
+        // otherwise be suppressed as above.
+        const isUpstreamTimeout = requestContext?.errors?.some(
+          (error) =>
+            (error.extensions as { poolTimeout?: boolean })?.poolTimeout ===
+            true,
+        );
+
+        let logLevel: 'warn' | 'error' = 'error';
+        let logMessage = 'GraphQL Error';
+        if (isUpstreamTimeout) {
+          logLevel = 'warn';
+          logMessage = 'GraphQL Upstream Timeout (504)';
+        } else if (is404Error) {
+          logLevel = 'warn';
+          logMessage = 'GraphQL 404 (Expected)';
+        }
 
         logger[logLevel]({
           message: logMessage,
