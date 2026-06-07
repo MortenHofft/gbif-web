@@ -60,25 +60,23 @@ const SCENARIOS: Record<string, string> = {
 
   // GraphQL with a missing trailing closing brace — auto-repair should
   // append one and the call should succeed. Verifies tryRepairGraphQuery.
-  'missing-brace':
-    JSON.stringify({
-      kind: 'highcharts',
-      graphQuery:
-        'query Truncated($predicate: Predicate) { occurrenceSearch(predicate: $predicate) { facet { basisOfRecord(size: 20) { key count label } } } ',
-      jqQuery:
-        '{ chart: { type: "pie" }, series: [{ type: "pie", name: "Occurrences", colorByPoint: true, data: [.data.occurrenceSearch.facet.basisOfRecord[] | { name: (.label // .key), y: .count }] }] }',
-    }),
+  'missing-brace': JSON.stringify({
+    kind: 'highcharts',
+    graphQuery:
+      'query Truncated($predicate: Predicate) { occurrenceSearch(predicate: $predicate) { facet { basisOfRecord(size: 20) { key count label } } } ',
+    jqQuery:
+      '{ chart: { type: "pie" }, series: [{ type: "pie", name: "Occurrences", colorByPoint: true, data: [.data.occurrenceSearch.facet.basisOfRecord[] | { name: (.label // .key), y: .count }] }] }',
+  }),
 
   // Trailing garbage after a valid JSON object — extractFirstJsonObject
   // recovers, the call succeeds.
-  'bad-json-recoverable':
-    JSON.stringify({
-      kind: 'highcharts',
-      graphQuery:
-        'query OK($predicate: Predicate) { occurrenceSearch(predicate: $predicate) { facet { basisOfRecord(size: 20) { key count label } } } }',
-      jqQuery:
-        '{ chart: { type: "pie" }, series: [{ type: "pie", name: "Occurrences", colorByPoint: true, data: [.data.occurrenceSearch.facet.basisOfRecord[] | { name: (.label // .key), y: .count }] }] }',
-    }) + '\n}',
+  'bad-json-recoverable': `${JSON.stringify({
+    kind: 'highcharts',
+    graphQuery:
+      'query OK($predicate: Predicate) { occurrenceSearch(predicate: $predicate) { facet { basisOfRecord(size: 20) { key count label } } } }',
+    jqQuery:
+      '{ chart: { type: "pie" }, series: [{ type: "pie", name: "Occurrences", colorByPoint: true, data: [.data.occurrenceSearch.facet.basisOfRecord[] | { name: (.label // .key), y: .count }] }] }',
+  })}\n}`,
 
   // Free-text response with no JSON anywhere — both parse and recovery
   // fail; user sees the agent-json-parse error.
@@ -123,12 +121,14 @@ function pickScenario(query: string): string {
   if (cleaned in SCENARIOS) return cleaned;
   // eslint-disable-next-line no-console
   console.warn(
-    `[chart] debug agent received "${query}" — no matching scenario, falling back to "ok". Available: ${SCENARIO_KEYS.join(', ')}`,
+    `[chart] debug agent received "${query}" — no matching scenario, falling back to "ok". Available: ${SCENARIO_KEYS.join(
+      ', ',
+    )}`,
   );
   return 'ok';
 }
 
-export const debugAgent: Agent = {
+const debugAgent: Agent = {
   name: 'debug',
   isAvailable: () => true,
   async run({ query, queryId }) {
@@ -160,3 +160,5 @@ export const debugAgent: Agent = {
     });
   },
 };
+
+export default debugAgent;

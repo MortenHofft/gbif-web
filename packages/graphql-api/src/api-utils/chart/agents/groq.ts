@@ -13,7 +13,7 @@ const ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 // structured-output instructions reliably for this task.
 const DEFAULT_MODEL = 'llama-3.3-70b-versatile';
 
-export const groqAgent: Agent = {
+const groqAgent: Agent = {
   name: 'groq',
   isAvailable: () =>
     typeof config.groqApiKey === 'string' && config.groqApiKey.length > 0,
@@ -29,3 +29,5 @@ export const groqAgent: Agent = {
     });
   },
 };
+
+export default groqAgent;

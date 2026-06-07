@@ -11,7 +11,7 @@ const config = rawConfig as typeof rawConfig & {
 const ENDPOINT = 'https://api.mistral.ai/v1/chat/completions';
 const DEFAULT_MODEL = 'mistral-small-latest';
 
-export const mistralAgent: Agent = {
+const mistralAgent: Agent = {
   name: 'mistral',
   isAvailable: () =>
     typeof config.mistralApiKey === 'string' && config.mistralApiKey.length > 0,
@@ -27,3 +27,4 @@ export const mistralAgent: Agent = {
     });
   },
 };
+export default mistralAgent;

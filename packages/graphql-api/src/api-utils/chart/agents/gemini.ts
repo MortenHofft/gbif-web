@@ -48,9 +48,7 @@ function toGeminiBody(messages: ChatMessage[]) {
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
-  const thinkingBudget =
-    config.geminiThinkingBudget ?? DEFAULT_THINKING_BUDGET;
-  return {
+  const thinkingBudget =rturn {
     ...(systemInstruction
       ? { systemInstruction: { parts: [{ text: systemInstruction }] } }
       : {}),
@@ -67,7 +65,7 @@ function toGeminiBody(messages: ChatMessage[]) {
   };
 }
 
-export const geminiAgent: Agent = {
+const geminiAgent: Agent = {
   name: PROVIDER,
   isAvailable: () =>
     typeof config.geminiApiKey === 'string' && config.geminiApiKey.length > 0,
@@ -139,7 +137,11 @@ export const geminiAgent: Agent = {
           const thoughts = data.usageMetadata?.thoughtsTokenCount;
           const visible = data.usageMetadata?.candidatesTokenCount;
           throw new McpError(
-            `${PROVIDER} hit MAX_TOKENS before completing the response (thoughts: ${thoughts ?? '?'}, visible: ${visible ?? '?'}). Increase geminiMaxOutputTokens in .env, or lower geminiThinkingBudget.`,
+            `${PROVIDER} hit MAX_TOKENS before completing the response (thoughts: ${
+              thoughts ?? '?'
+            }, visible: ${
+              visible ?? '?'
+            }). Increase geminiMaxOutputTokens in .env, or lower geminiThinkingBudget.`,
             502,
             {
               provider: PROVIDER,
@@ -167,3 +169,6 @@ export const geminiAgent: Agent = {
     });
   },
 };
+
+export default geminiAgent;
+

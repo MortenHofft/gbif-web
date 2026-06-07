@@ -40,7 +40,7 @@ const FAKE_JQ_QUERY = `{
 // implementation and as a zero-config fallback when no real provider is set
 // up. It also doubles as a useful baseline when comparing real-agent output
 // during experiments.
-export const mockAgent: Agent = {
+const mockAgent: Agent = {
   name: 'mock',
   isAvailable: () => true,
   async run({ query, queryId }) {
@@ -70,3 +70,5 @@ export const mockAgent: Agent = {
     };
   },
 };
+
+export default mockAgent;

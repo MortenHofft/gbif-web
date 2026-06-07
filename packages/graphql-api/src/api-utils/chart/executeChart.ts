@@ -1,6 +1,5 @@
 import { parse as parseGraphql } from 'graphql';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const jq = require('node-jq');
+import jq from 'node-jq';
 import rawConfig from '@/config';
 import { McpError } from './errors';
 import {
@@ -11,6 +10,7 @@ import {
   setChartEntry,
   validateOutput,
 } from './store';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 
 // Loopback to our own /graphql endpoint. We used to call
 // apolloServer.executeOperation in-process for efficiency, but that path
@@ -24,7 +24,7 @@ const chartConfig = rawConfig as typeof rawConfig & {
   port?: number;
 };
 const baseUrl =
-  chartConfig.origin ?? `http://127.0.0.1:${chartConfig.port ?? 4002}`;
+  chartConfig.origin ?? `http://localhost:${chartConfig.port ?? 4222}`;
 const GRAPHQL_URL = `${baseUrl}/graphql`;
 
 // GraphQL error objects from the /graphql HTTP endpoint carry a full
@@ -134,7 +134,9 @@ function pipelineError(
   }
   if (stage === 'parse-jq-output' && extras.jqOutput) {
     // eslint-disable-next-line no-console
-    console.error(`[chart] jq output:\n${String(extras.jqOutput).slice(0, 2000)}`);
+    console.error(
+      `[chart] jq output:\n${String(extras.jqOutput).slice(0, 2000)}`,
+    );
   }
   return new McpError(message, status, {
     stage,
@@ -168,7 +170,9 @@ async function runChart({
   if (repaired) {
     // eslint-disable-next-line no-console
     console.warn(
-      `[chart] graphQuery auto-repaired (+${repaired.length - graphQuery.length} chars). Original missing closing brace(s).`,
+      `[chart] graphQuery auto-repaired (+${
+        repaired.length - graphQuery.length
+      } chars). Original missing closing brace(s).`,
     );
     graphQuery = repaired;
   }
