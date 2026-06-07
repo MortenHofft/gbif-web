@@ -48,7 +48,8 @@ function toGeminiBody(messages: ChatMessage[]) {
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
-  const thinkingBudget =rturn {
+  const thinkingBudget = config.geminiThinkingBudget ?? DEFAULT_THINKING_BUDGET;
+  return {
     ...(systemInstruction
       ? { systemInstruction: { parts: [{ text: systemInstruction }] } }
       : {}),
@@ -171,4 +172,3 @@ const geminiAgent: Agent = {
 };
 
 export default geminiAgent;
-

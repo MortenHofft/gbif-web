@@ -186,6 +186,7 @@ jqQuery — derives the year range from the data so the gradient doesn't collaps
 Notes:
 - \`$y\` captures the outer year bucket so the inner expression can reach back for the key when building feature properties.
 - For "many groups × small N" (50 years × 2 = 100 features), bucket colour into ~5–7 decade bands rather than 50 distinct colours. Long legends are unreadable.
+- The resulting chart config must be pure JSON, so the output cannot contain any functions.
 
 # Complete worked example (chart)
 

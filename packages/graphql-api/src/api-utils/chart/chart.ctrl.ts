@@ -68,8 +68,7 @@ export default function chartController(app: Application) {
       const charts = getChartConfig(queryId);
       return res.json({ queryId, charts, llm });
     } catch (error) {
-      const query =
-        typeof req.body?.q === 'string' ? req.body.q : undefined;
+      const query = typeof req.body?.q === 'string' ? req.body.q : undefined;
       return respondWithError(res, 'Chart query error', error, { query });
     }
   });

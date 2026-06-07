@@ -98,7 +98,9 @@ export async function runChartFromAgentJson({
   }
   // kind is optional for back-compat; defaults to highcharts.
   const kind =
-    obj.kind === 'geojson' || obj.kind === 'highcharts' ? obj.kind : 'highcharts';
+    obj.kind === 'geojson' || obj.kind === 'highcharts'
+      ? obj.kind
+      : 'highcharts';
 
   // Wrap executeChart errors so the agent's provider/model context is
   // attached alongside the pipeline-stage details. Flatten the inner
@@ -149,8 +151,11 @@ function truncateForDetails(value: unknown): unknown {
   } catch {
     return '[unserialisable]';
   }
+
   if (!s || s.length <= MAX_DETAIL_LEN) return value;
-  return `${s.slice(0, MAX_DETAIL_LEN)}\n...[truncated, ${s.length} total chars]`;
+  return `${s.slice(0, MAX_DETAIL_LEN)}\n...[truncated, ${
+    s.length
+  } total chars]`;
 }
 
 // Finds the first balanced { ... } in text, respecting JSON string literals

@@ -1,9 +1,9 @@
 import rawConfig from '@/config';
-import { debugAgent } from './agents/debug';
-import { geminiAgent } from './agents/gemini';
-import { groqAgent } from './agents/groq';
-import { mistralAgent } from './agents/mistral';
-import { mockAgent } from './agents/mock';
+import debugAgent from './agents/debug';
+import geminiAgent from './agents/gemini';
+import groqAgent from './agents/groq';
+import mistralAgent from './agents/mistral';
+import mockAgent from './agents/mock';
 import { Agent, AgentArgs, AgentResult } from './agents/types';
 
 const config = rawConfig as typeof rawConfig & {

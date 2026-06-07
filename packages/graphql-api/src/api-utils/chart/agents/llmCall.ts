@@ -65,11 +65,14 @@ export async function runWithRetry({
   let llmTotalMs = 0;
   const startMs = Date.now();
 
+  // eslint-disable-next-line no-plusplus
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const llmStart = Date.now();
+    // eslint-disable-next-line no-await-in-loop
     const { text, rawModel, usage } = await caller.call(messages);
     llmTotalMs += Date.now() - llmStart;
     try {
+      // eslint-disable-next-line no-await-in-loop
       const result = await runChartFromAgentJson({
         provider: caller.provider,
         model: rawModel ?? caller.model,
@@ -77,9 +80,9 @@ export async function runWithRetry({
         text,
         queryId,
       });
-      const existingTimings =
-        ((result.raw as { timings?: Record<string, unknown> } | undefined)
-          ?.timings ?? {}) as Record<string, unknown>;
+      const existingTimings = ((
+        result.raw as { timings?: Record<string, unknown> } | undefined
+      )?.timings ?? {}) as Record<string, unknown>;
       return {
         ...result,
         raw: {
@@ -96,10 +99,7 @@ export async function runWithRetry({
       lastError =
         err instanceof McpError
           ? err
-          : new McpError(
-              err instanceof Error ? err.message : String(err),
-              500,
-            );
+          : new McpError(err instanceof Error ? err.message : String(err), 500);
       if (attempt >= maxAttempts) throw lastError;
       // eslint-disable-next-line no-console
       console.warn(
@@ -115,7 +115,9 @@ export async function runWithRetry({
       console.warn(
         `[chart] ${caller.provider} retry feedback:\n${
           feedback.length > 2000
-            ? feedback.slice(0, 2000) + `\n...[truncated, ${feedback.length} total chars]`
+            ? `${feedback.slice(0, 2000)}\n...[truncated, ${
+                feedback.length
+              } total chars]`
             : feedback
         }`,
       );
@@ -146,7 +148,10 @@ const truncate = (s: string, limit: number) =>
 const stringField = (d: Details, key: string): string | undefined =>
   typeof d[key] === 'string' ? (d[key] as string) : undefined;
 
-const stageFeedbackers: Record<string, (d: Details, err: McpError) => string[]> = {
+const stageFeedbackers: Record<
+  string,
+  (d: Details, err: McpError) => string[]
+> = {
   jq: (d, err) => {
     const lines: string[] = [];
     if (d.graphqlData) {
@@ -164,7 +169,7 @@ const stageFeedbackers: Record<string, (d: Details, err: McpError) => string[]> 
     const jqQuery = stringField(d, 'jqQuery');
     if (jqQuery && /'[^']*'/.test(jqQuery)) {
       lines.push(
-        "IMPORTANT: your jq uses single quotes ('...'), which are NOT valid in jq. Replace EVERY single-quoted string with a double-quoted string (\"...\").",
+        'IMPORTANT: your jq uses single quotes (\'...\'), which are NOT valid in jq. Replace EVERY single-quoted string with a double-quoted string ("...").',
       );
     } else if (
       /unexpected\s+\/\//i.test(err.message) ||
@@ -174,7 +179,7 @@ const stageFeedbackers: Record<string, (d: Details, err: McpError) => string[]> 
       // syntax error when used unparenthesized as an object-literal value
       // (it clashes with the `,` separator). Tell the model to wrap it.
       lines.push(
-        'IMPORTANT: jq\'s `//` (alternative) operator must be parenthesised when used as an object value. Write `{ name: (.label // .key) }`, NOT `{ name: .label // .key }`. The same applies to any compound expression (if/then/end, expressions containing `,` or `|`) used as an object-literal value.',
+        "IMPORTANT: jq's `//` (alternative) operator must be parenthesised when used as an object value. Write `{ name: (.label // .key) }`, NOT `{ name: .label // .key }`. The same applies to any compound expression (if/then/end, expressions containing `,` or `|`) used as an object-literal value.",
       );
     } else if (/Unix shell quoting|INVALID_CHARACTER/.test(err.message)) {
       lines.push(
@@ -185,11 +190,21 @@ const stageFeedbackers: Record<string, (d: Details, err: McpError) => string[]> 
   },
   graphql: (d) =>
     d.errors
-      ? [`GraphQL errors:\n${truncate(JSON.stringify(d.errors, null, 2), 1000)}`]
+      ? [
+          `GraphQL errors:\n${truncate(
+            JSON.stringify(d.errors, null, 2),
+            1000,
+          )}`,
+        ]
       : [],
   'parse-jq-output': (d) =>
     d.jqOutput
-      ? [`Your jq produced this non-JSON output:\n${truncate(String(d.jqOutput), 1000)}`]
+      ? [
+          `Your jq produced this non-JSON output:\n${truncate(
+            String(d.jqOutput),
+            1000,
+          )}`,
+        ]
       : [],
   highcharts: (d) =>
     d.output
@@ -211,7 +226,12 @@ const stageFeedbackers: Record<string, (d: Details, err: McpError) => string[]> 
       : [],
   'agent-json-parse': (d) =>
     typeof d.content === 'string'
-      ? [`Your raw response (which we could not parse as JSON):\n${truncate(d.content, 1000)}`]
+      ? [
+          `Your raw response (which we could not parse as JSON):\n${truncate(
+            d.content,
+            1000,
+          )}`,
+        ]
       : [],
   // Fires when the model returned a JSON object but the shape is wrong —
   // typically `jqQuery` came back as a nested JSON object instead of a string
@@ -226,7 +246,9 @@ const stageFeedbackers: Record<string, (d: Details, err: McpError) => string[]> 
         typeof d.parsed === 'string'
           ? d.parsed
           : JSON.stringify(d.parsed, null, 2);
-      lines.push(`Your previous response (truncated):\n${truncate(repr, 1000)}`);
+      lines.push(
+        `Your previous response (truncated):\n${truncate(repr, 1000)}`,
+      );
     }
     return lines;
   },
@@ -248,9 +270,9 @@ function buildFeedback(err: McpError): string {
   if (jqQuery) lines.push(`\nYour previous jqQuery:\n${jqQuery}`);
 
   const stageHints = stage ? stageFeedbackers[stage]?.(d, err) ?? [] : [];
-  for (const hint of stageHints) {
+  stageHints.forEach((hint) => {
     lines.push(`\n${hint}`);
-  }
+  });
 
   lines.push(
     '\nProduce a corrected JSON object with "graphQuery" and "jqQuery" string fields. Output ONLY the JSON object, no prose or code fences.',
