@@ -112,7 +112,11 @@ const ContentWrapper = React.forwardRef(
               <Button
                 size="sm"
                 variant="ghost"
-                className="g-flex-none"
+                aria-label={formatMessage({
+                  id: 'filterSupport.backToFilterList',
+                  defaultMessage: 'Back to filter list',
+                })}
+                className="g-flex-none g-min-w-11 g-min-h-11 g-justify-center"
                 onClick={() => {
                   if (typeof onApply === 'function') onApply({ keepOpen: true });
                   setActiveFilterHandle(null);
@@ -143,24 +147,32 @@ function Group({
   filters: Filters;
   onSelect: (filterHandle: string) => void;
 }) {
+  const intl = useIntl();
   const header = title ?? (name ? `dashboard.group.${name}` : undefined);
   return (
     <CommandGroup heading={header ? <FormattedMessage id={header} /> : undefined}>
       {Object.values(filters)
         .filter((filter) => filter.group === name)
         .sort(sortFilters)
-        .map((filter) => (
-          <CommandItem
-            key={filter.handle}
-            value={filter.translatedFilterName}
-            className="g-flex g-items-center g-justify-between g-w-full"
-            onSelect={() => {
-              onSelect(filter.handle);
-            }}
-          >
-            {filter.translatedFilterName}
-          </CommandItem>
-        ))}
+        .map((filter) => {
+          const rawAlias = intl.messages[`filterAliases.${filter.handle}`];
+          const aliases = typeof rawAlias === 'string' ? rawAlias : '';
+          const searchValue = aliases
+            ? `${filter.translatedFilterName} ${aliases}`
+            : filter.translatedFilterName;
+          return (
+            <CommandItem
+              key={filter.handle}
+              value={searchValue}
+              className="g-flex g-items-center g-justify-between g-w-full"
+              onSelect={() => {
+                onSelect(filter.handle);
+              }}
+            >
+              {filter.translatedFilterName}
+            </CommandItem>
+          );
+        })}
     </CommandGroup>
   );
 }

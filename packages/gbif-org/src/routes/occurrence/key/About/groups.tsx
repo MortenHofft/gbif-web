@@ -130,6 +130,7 @@ export function Groups({
 
 export function Group({
   label,
+  defaultMessage,
   children,
   description,
   id,
@@ -137,6 +138,7 @@ export function Group({
   ...props
 }: {
   label: string;
+  defaultMessage?: string;
   id: string;
   description?: React.ReactNode;
   children: React.ReactNode;
@@ -146,7 +148,7 @@ export function Group({
     <Card className={cn('g-mb-4', className)} id={id}>
       <CardHeader>
         <CardTitle>
-          <FormattedMessage id={label} />
+          <FormattedMessage id={label} defaultMessage={defaultMessage} />
         </CardTitle>
         {description && <CardDescription dir="auto">{description}</CardDescription>}
       </CardHeader>
@@ -887,7 +889,19 @@ function Issues({ occurrence }: { occurrence: OccurrenceQuery['occurrence'] }) {
     <Group
       label="occurrenceDetails.groups.issues"
       id="issues"
-      description={<FormattedMessage id="occurrenceDetails.issuesHelpText" />}
+      description={
+        <>
+          <FormattedMessage id="occurrenceDetails.issuesHelpText" />{' '}
+          <a
+            href="https://techdocs.gbif.org/en/data-use/occurrence-issues-and-flags"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="g-underline"
+          >
+            <FormattedMessage id="occurrenceDetails.issuesLearnMore" />
+          </a>
+        </>
+      }
     >
       {(occurrence?.issues?.length ?? 0) === 0 ? (
         <div>

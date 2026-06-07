@@ -4,6 +4,7 @@ import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import fsp from 'node:fs/promises';
+import { createServer as createHttpServer } from 'node:http';
 import { merge } from 'ts-deepmerge';
 import { loadEnv } from 'vite';
 import logger from './config/logger.mjs';
@@ -24,6 +25,11 @@ const getRedirect = createGetRedirect(env);
 
 async function main() {
   const app = express();
+  // Share a single HTTP server between Express and Vite's HMR. Without this, Vite's
+  // middleware mode spins up its own server for HMR on a different port, and the
+  // browser-side HMR client can't reach it — repeated WS reconnect failures cause
+  // @vite/client to fall back to full reloads in a loop when PORT is not the default.
+  const httpServer = createHttpServer(app);
 
   // Add middleware for parsing requests
   app.use(
@@ -90,7 +96,10 @@ async function main() {
 
     viteDevServer = await vite.createServer({
       root: process.cwd(),
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: { server: httpServer },
+      },
       appType: 'custom',
       configFile: './gbif/vite.config.ts',
     });
@@ -150,8 +159,15 @@ async function main() {
       }
 
       try {
-        const { appHtml, headHtml, htmlAttributes, bodyAttributes, statusCode, cacheControl } =
-          await render(req);
+        const {
+          appHtml,
+          headHtml,
+          htmlAttributes,
+          bodyAttributes,
+          statusCode,
+          cacheControl,
+          rootDir,
+        } = await render(req);
         if (cacheControl) {
           res.set('Cache-Control', cacheControl);
         }
@@ -169,6 +185,10 @@ async function main() {
           .replace(
             '<body style="margin: 0; padding: 0" class="gbif">',
             `<body ${bodyAttributes} style="margin: 0; padding: 0" class="gbif">`
+          )
+          .replace(
+            '<div id="app" class="gbif">',
+            `<div id="app" class="gbif" dir="${rootDir ?? 'ltr'}">`
           )
           .replace('<!--head-html-->', headHtml)
           .replace('<!--app-html-->', appHtml);
@@ -237,7 +257,7 @@ async function main() {
     }
   });
 
-  app.listen(PORT, () => {
+  httpServer.listen(PORT, () => {
     logger.info('Server started successfully', { port: PORT, environment: env.NODE_ENV });
   });
 

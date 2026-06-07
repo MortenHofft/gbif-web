@@ -37,10 +37,18 @@ const CommandDialog = ({ children, ...props }: CommandDialogProps) => {
 
 const CommandInput = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.Input>,
-  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
->(({ className, ...props }, ref) => (
-  <div className="g-flex g-items-center g-border-b g-px-3" cmdk-input-wrapper="g-">
-    <MagnifyingGlassIcon className="g-me-2 g-h-4 g-w-4 g-shrink-0 g-opacity-50" />
+  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input> & {
+    wrapperClassName?: string;
+    iconClassName?: string;
+  }
+>(({ className, wrapperClassName, iconClassName, ...props }, ref) => (
+  <div
+    className={cn('g-flex g-items-center g-border-b g-px-3', wrapperClassName)}
+    cmdk-input-wrapper="g-"
+  >
+    <MagnifyingGlassIcon
+      className={cn('g-me-2 g-h-4 g-w-4 g-shrink-0 g-opacity-50', iconClassName)}
+    />
     <CommandPrimitive.Input
       ref={ref}
       className={cn(
@@ -111,7 +119,7 @@ const CommandItem = React.forwardRef<
   <CommandPrimitive.Item
     ref={ref}
     className={cn(
-      "g-relative g-flex g-cursor-default g-select-none g-items-center g-rounded-sm g-px-2 g-py-1.5 g-text-sm g-outline-none aria-selected:g-bg-accent aria-selected:g-text-accent-foreground data-[disabled='true']:g-pointer-events-none data-[disabled='true']:g-opacity-50",
+      "g-relative g-flex g-cursor-default g-select-none g-items-center g-rounded-sm g-px-2 g-py-1.5 g-text-base sm:g-text-sm g-outline-none aria-selected:g-bg-accent aria-selected:g-text-accent-foreground data-[disabled='true']:g-pointer-events-none data-[disabled='true']:g-opacity-50",
       className
     )}
     {...props}

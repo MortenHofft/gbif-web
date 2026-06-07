@@ -1,9 +1,10 @@
 import { Button } from '@/components/ui/button';
 import { DynamicLink, useI18n } from '@/reactRouterPlugins';
 import { cn } from '@/utils/shadcn';
+import { PortalContainerContext } from '@/utils/getPortalContainer';
 import * as Dialog from '@radix-ui/react-dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { FaChevronLeft as LeftIcon, FaChevronRight as RightIcon } from 'react-icons/fa';
 import { IoClose as CloseIcon } from 'react-icons/io5';
 import { FormattedMessage } from 'react-intl';
@@ -31,6 +32,8 @@ export function Drawer({
   screenReaderTitle,
   screenReaderDescription,
 }: Props) {
+  const { locale } = useI18n();
+  const [contentNode, setContentNode] = useState<HTMLElement | null>(null);
   useEffect(() => {
     function handleKeypress(e: KeyboardEvent) {
       if (!isOpen) return;
@@ -58,24 +61,28 @@ export function Drawer({
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && close()}>
       <Dialog.Portal>
         <Dialog.Overlay
+          dir={locale.textDirection}
           className="gbif g-fixed g-w-full g-h-dvh g-end-0 g-top-0 g-bg-gray-500 g-transition-all g-bg-opacity-50"
           style={{ zIndex: 'var(--drawerZIndex)' }}
         >
           <Dialog.Content
+            ref={setContentNode}
             onCloseAutoFocus={onCloseAutoFocus}
             style={{ maxWidth: '95%', width: '1200px' }}
             className="drawer-popover-container g-fixed g-h-dvh g-end-0 g-top-0 g-bg-white g-flex g-justify-end g-transition-all g-z-50"
           >
-            <VisuallyHidden>
-              <Dialog.Title>{screenReaderTitle}</Dialog.Title>(
-              <Dialog.Description>{screenReaderDescription}</Dialog.Description>)
-            </VisuallyHidden>
-            <div className="g-flex g-flex-col g-bg-white g-w-full">
-              <div className="g-overflow-y-auto g-overflow-x-hidden g-flex-grow g-w-full">
-                {children}
+            <PortalContainerContext.Provider value={contentNode}>
+              <VisuallyHidden>
+                <Dialog.Title>{screenReaderTitle}</Dialog.Title>(
+                <Dialog.Description>{screenReaderDescription}</Dialog.Description>)
+              </VisuallyHidden>
+              <div className="g-flex g-flex-col g-bg-white g-w-full">
+                <div className="g-overflow-y-auto g-overflow-x-hidden g-flex-grow g-w-full">
+                  {children}
+                </div>
+                <BottomBar viewOnGbifHref={viewOnGbifHref} next={next} previous={previous} />
               </div>
-              <BottomBar viewOnGbifHref={viewOnGbifHref} next={next} previous={previous} />
-            </div>
+            </PortalContainerContext.Provider>
           </Dialog.Content>
         </Dialog.Overlay>
       </Dialog.Portal>

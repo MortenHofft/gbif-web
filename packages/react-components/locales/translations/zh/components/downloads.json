@@ -46,6 +46,7 @@
     "filterApplied": "筛选于 {DATE}",
     "query": "",
     "rerunQuery": "重新运行查询",
+    "complexPredicateWarning": "",
     "postpone": "推迟删除",
     "deleteDownload": "删除下载",
     "tellUs": "告诉我们您的用途",
@@ -210,7 +211,7 @@
         "PARENT_EVENT_ID": "父事件ID",
         "RECORDED_BY": "记录者",
         "BASIS_OF_RECORD": "记录基础",
-        "BIOSTRATIGRAPHY": "",
+        "BIOSTRATIGRAPHY": "生物地层学",
         "DATASET_KEY": "数据集"
       }
     }
@@ -275,8 +276,8 @@
     "extensions": "扩展",
     "selectAdditionalExtensions": "",
     "nExtensionsSelected": "",
-    "selectAll": "",
-    "deselectAll": "",
+    "selectAll": "全选",
+    "deselectAll": "取消全选",
     "extensionsInfoMessage": "",
     "format": "格式",
     "csvDelimiter": "",
