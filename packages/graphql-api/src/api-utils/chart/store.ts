@@ -22,6 +22,10 @@ export interface ChartConfig {
   predicate?: Predicate;
   query?: string;
   charts: ChartEntry[];
+  // The agent's exact, unparsed text output for this query. Persisted so the
+  // browser debug panel (GET /chart/key/:key) can always show what the LLM
+  // actually returned, alongside the parsed graphQuery / jqQuery.
+  llmResponse?: string;
 }
 
 const chartCache = new NodeCache({ stdTTL: 1200, checkperiod: 40 });
@@ -36,6 +40,16 @@ export function getChartConfig(key: string): ChartConfig | undefined {
 
 export function getAllKeys(): string[] {
   return chartCache.keys();
+}
+
+// Records the agent's raw text output on the config so the browser debug
+// panel can surface it. Best-effort: silently no-ops if the config has
+// expired out of the cache (the chart already failed in that case).
+export function setLlmResponse(queryId: string, text: string): void {
+  const existing = chartCache.get<ChartConfig>(queryId);
+  if (!existing) return;
+  existing.llmResponse = text;
+  chartCache.set(queryId, existing);
 }
 
 export function addChart(queryId: string, chart: ChartEntry): void {
@@ -102,7 +116,8 @@ function validateGeoJson(value: unknown): ValidationResult {
   if (obj.type !== 'FeatureCollection') {
     return {
       valid: false,
-      error: 'GeoJSON output must be a FeatureCollection (type: "FeatureCollection")',
+      error:
+        'GeoJSON output must be a FeatureCollection (type: "FeatureCollection")',
     };
   }
   if (!Array.isArray(obj.features)) {

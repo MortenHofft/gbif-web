@@ -1,6 +1,16 @@
-import { McpError } from '../errors';
+import { ChartRefusalError, isChartRefusalCode, McpError } from '../errors';
 import { executeChart } from '../executeChart';
+import { setLlmResponse } from '../store';
 import { AgentResult } from './types';
+
+// Fallback user-facing text per refusal code, used when the model returns the
+// code but no (or an empty) "message" field.
+const REFUSAL_FALLBACK_MESSAGE: Record<string, string> = {
+  NOT_A_CHART:
+    "That doesn't look like a request for a chart or a map of GBIF occurrence data.",
+  UNABLE_TO_FIND_RELEVANT_DATA:
+    "We don't have the data needed to answer that question.",
+};
 
 export interface RunChartFromJsonArgs {
   // Identifier used in logs and AgentResult.provider (e.g. 'mistral', 'gemini').
@@ -83,7 +93,27 @@ export async function runChartFromAgentJson({
     kind?: unknown;
     graphQuery?: unknown;
     jqQuery?: unknown;
+    error?: unknown;
+    message?: unknown;
   };
+
+  // The model can deliberately refuse rather than emit a chart config — either
+  // the query isn't a visualization request (NOT_A_CHART) or we don't hold the
+  // requested data (UNABLE_TO_FIND_RELEVANT_DATA). This is a valid, terminal
+  // answer: throw a ChartRefusalError so runWithRetry skips the corrective
+  // retry loop and chart.ctrl.ts surfaces the code to the client.
+  if (isChartRefusalCode(obj.error)) {
+    const message =
+      typeof obj.message === 'string' && obj.message.trim().length > 0
+        ? obj.message
+        : REFUSAL_FALLBACK_MESSAGE[obj.error];
+    throw new ChartRefusalError(obj.error, message, {
+      provider,
+      model,
+      llmResponse: text,
+    });
+  }
+
   if (typeof obj.graphQuery !== 'string' || typeof obj.jqQuery !== 'string') {
     throw new McpError(
       `${provider} response missing string graphQuery or jqQuery`,
@@ -114,6 +144,9 @@ export async function runChartFromAgentJson({
       kind,
       queryId,
     });
+    // Persist the exact model output so the browser debug panel (served from
+    // GET /chart/key/:key) can always show what the LLM actually returned.
+    setLlmResponse(queryId, text);
     return {
       provider,
       raw: {
@@ -122,6 +155,9 @@ export async function runChartFromAgentJson({
         kind,
         graphQuery: obj.graphQuery,
         jqQuery: obj.jqQuery,
+        // The agent's exact, unparsed output. Always included in the debug
+        // payload returned to the browser.
+        llmResponse: text,
         // Pipeline-stage timings. runWithRetry will add llmMs / attempts /
         // totalMs alongside these before returning to the client.
         timings,

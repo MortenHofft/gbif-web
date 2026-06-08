@@ -31,6 +31,22 @@ type ChartConfigResponse = {
   query?: string;
   predicate?: unknown;
   charts: ChartEntry[];
+  // The agent's exact text output for this query, surfaced in the debug panel.
+  llmResponse?: string;
+};
+
+// Codes the chart agent can return instead of building a visualization. Kept
+// in sync with CHART_REFUSAL_CODES in the graphql-api chart module.
+const REFUSAL_CODES = ['NOT_A_CHART', 'UNABLE_TO_FIND_RELEVANT_DATA'] as const;
+type RefusalCode = (typeof REFUSAL_CODES)[number];
+const isRefusalCode = (value: unknown): value is RefusalCode =>
+  typeof value === 'string' && (REFUSAL_CODES as readonly string[]).includes(value);
+
+// Error/refusal body shape returned by the chart endpoints.
+type ChartErrorBody = {
+  message?: string;
+  code?: string;
+  details?: { llmResponse?: unknown };
 };
 
 type Props = {
@@ -66,6 +82,15 @@ function CustomChartForm({
   const [value, setValue] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [hasError, setHasError] = useState(false);
+  // Set when the agent deliberately declined (not a chart request, or no data
+  // for it). Distinct from hasError: rephrasing helps, "try again" doesn't.
+  const [refusal, setRefusal] = useState<{
+    code: RefusalCode;
+    message: string;
+  } | null>(null);
+  // The agent's exact text output, shown in a collapsible debug panel whenever
+  // the server returns one (on refusal or on a hard failure).
+  const [llmDebug, setLlmDebug] = useState<string | null>(null);
   const mountedRef = useRef(true);
   // Assign true on every mount — useRef persists across remounts but doesn't
   // reset on its own, and under React strict mode (or a parent re-render
@@ -84,6 +109,8 @@ function CustomChartForm({
     if (!q || submitting) return;
     setSubmitting(true);
     setHasError(false);
+    setRefusal(null);
+    setLlmDebug(null);
     try {
       const url = new URL(
         '/chart/query',
@@ -95,8 +122,26 @@ function CustomChartForm({
         body: JSON.stringify({ q, predicate }),
       });
       if (!response.ok) {
-        const body = await response.text().catch(() => '');
-        throw new Error(`${response.status} ${response.statusText}: ${body.slice(0, 500)}`);
+        const body = (await response.json().catch(() => null)) as
+          | ChartErrorBody
+          | null;
+        const llm =
+          typeof body?.details?.llmResponse === 'string'
+            ? body.details.llmResponse
+            : null;
+        const code = body?.code;
+        // A deliberate refusal: show the agent's tailored message, not the
+        // generic "try again" error. Still terminal — no queryId is produced.
+        if (isRefusalCode(code)) {
+          if (!mountedRef.current) return;
+          setRefusal({ code, message: body?.message ?? '' });
+          setLlmDebug(llm);
+          return;
+        }
+        if (mountedRef.current) setLlmDebug(llm);
+        throw new Error(
+          body?.message || `${response.status} ${response.statusText}`,
+        );
       }
       const data = (await response.json()) as { queryId?: string };
       if (!mountedRef.current) return;
@@ -161,6 +206,39 @@ function CustomChartForm({
               defaultMessage="Something went wrong while creating the chart. Please try again."
             />
           </div>
+        )}
+        {refusal && (
+          <div className="g-text-sm g-text-amber-800 g-bg-amber-50 g-border g-border-solid g-border-amber-200 g-rounded g-px-2 g-py-2 g-mt-2 g-flex g-items-start g-gap-2">
+            <MdWarning className="g-flex-none g-mt-0.5" />
+            <span>
+              {refusal.message ? (
+                refusal.message
+              ) : refusal.code === 'UNABLE_TO_FIND_RELEVANT_DATA' ? (
+                <FormattedMessage
+                  id="dashboard.customChart.noData"
+                  defaultMessage="We don't have the data needed to answer that question. Try a different breakdown."
+                />
+              ) : (
+                <FormattedMessage
+                  id="dashboard.customChart.notAChart"
+                  defaultMessage="That doesn't look like a request for a chart or a map. Try describing a visualization of the occurrence data."
+                />
+              )}
+            </span>
+          </div>
+        )}
+        {llmDebug && (
+          <details className="g-mt-2 g-text-xs">
+            <summary className="g-cursor-pointer g-text-slate-500">
+              <FormattedMessage
+                id="dashboard.customChart.llmDebug"
+                defaultMessage="LLM response (debug)"
+              />
+            </summary>
+            <pre className="g-bg-slate-50 g-border g-border-solid g-border-slate-200 g-rounded g-p-2 g-mt-1 g-font-mono g-overflow-x-auto g-whitespace-pre-wrap g-break-words">
+              {llmDebug}
+            </pre>
+          </details>
         )}
       </CardContent>
     </Card>
@@ -352,6 +430,19 @@ function CustomChartView({
                 {firstChart.jqQuery}
               </pre>
             </details>
+            {chartData?.llmResponse && (
+              <details className="g-mt-1">
+                <summary className="g-cursor-pointer g-text-slate-500 g-mb-1">
+                  <FormattedMessage
+                    id="dashboard.customChart.llmDebug"
+                    defaultMessage="LLM response (debug)"
+                  />
+                </summary>
+                <pre className="g-bg-slate-50 g-border g-border-solid g-border-slate-200 g-rounded g-p-2 g-font-mono g-overflow-x-auto g-whitespace-pre-wrap g-break-words">
+                  {chartData.llmResponse}
+                </pre>
+              </details>
+            )}
           </div>
         )}
 

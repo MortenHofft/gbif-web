@@ -17,7 +17,7 @@
 import { Application, Response } from 'express';
 import hash from 'object-hash';
 import ask from './agent';
-import { McpError } from './errors';
+import { ChartRefusalError, McpError } from './errors';
 import { refreshChart } from './executeChart';
 import { createChartConfig, getAllKeys, getChartConfig } from './store';
 
@@ -30,6 +30,11 @@ const REFRESH_PATH = '/chart/key/:key/refresh';
 // and the api log see the same shape. Optional `extra` is merged into
 // details — used by the query route to attach the original user query
 // alongside whatever provider/model/stage info the agent surfaced.
+//
+// A ChartRefusalError is a deliberate "we can't chart that" answer rather than
+// a failure: its `code` (NOT_A_CHART / UNABLE_TO_FIND_RELEVANT_DATA) is lifted
+// to the top level of the response so the client can show a tailored message.
+// `details.llmResponse` (the agent's exact output) rides along for debugging.
 function respondWithError(
   res: Response,
   context: string,
@@ -41,13 +46,14 @@ function respondWithError(
   const status = error instanceof McpError ? error.status : 500;
   const message =
     error instanceof Error ? error.message : 'Internal Server Error';
+  const code = error instanceof ChartRefusalError ? error.code : undefined;
   const baseDetails = error instanceof McpError ? error.details : undefined;
   const baseObj =
     baseDetails && typeof baseDetails === 'object'
       ? (baseDetails as Record<string, unknown>)
       : {};
   const details = extra ? { ...baseObj, ...extra } : baseDetails;
-  return res.status(status).json({ message, details });
+  return res.status(status).json({ message, code, details });
 }
 
 export default function chartController(app: Application) {

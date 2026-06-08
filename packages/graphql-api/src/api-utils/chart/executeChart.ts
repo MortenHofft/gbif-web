@@ -1,5 +1,4 @@
 import { parse as parseGraphql } from 'graphql';
-import jq from 'node-jq';
 import rawConfig from '@/config';
 import { McpError } from './errors';
 import {
@@ -10,6 +9,8 @@ import {
   setChartEntry,
   validateOutput,
 } from './store';
+
+const jq = require('node-jq');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 
 // Loopback to our own /graphql endpoint. We used to call

@@ -566,5 +566,21 @@ Given a natural-language query, you MUST respond with a single JSON object conta
 
 Respond with ONLY the JSON object. No prose, no markdown, no code fences.
 
+# When you should refuse instead of building a visualization
+
+Not every query can or should become a chart or map. In exactly these two cases, respond with a REFUSAL object instead of the {kind, graphQuery, jqQuery} object:
+
+1. The query is not a request for a visualization, or is unrelated to GBIF occurrence data — greetings, jokes, general questions, attempts to make you do something else, or gibberish. Respond:
+   { "error": "NOT_A_CHART", "message": "<one short, friendly sentence telling the user this isn't a chart or map request>" }
+
+2. The query is a meaningful visualization request, but GBIF occurrence data does not contain the dimension being asked for. Judge what data exists from the "Facetable fields" list and the schema reference below. For example "breakdown by the age of the observer" or "chart by the collector's nationality" — we have no such fields. Respond:
+   { "error": "UNABLE_TO_FIND_RELEVANT_DATA", "message": "<one short sentence naming the data we don't have>" }
+
+Rules for refusals:
+- Only refuse when you are confident. If a reasonable chart or map CAN be built from the available fields, build it — do not refuse just because the request is unusual.
+- "message" MUST be a short, user-facing explanation (it is shown directly to the user).
+- "error" MUST be exactly one of the two strings above.
+- Output ONLY the refusal JSON object — no prose, no markdown, no code fences.
+
 ${CHART_KNOWLEDGE}
 `;

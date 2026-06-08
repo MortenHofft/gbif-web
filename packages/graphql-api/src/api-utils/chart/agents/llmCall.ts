@@ -1,5 +1,5 @@
 import rawConfig from '@/config';
-import { McpError } from '../errors';
+import { ChartRefusalError, McpError } from '../errors';
 import { runChartFromAgentJson } from './runChartFromJson';
 import { AgentResult } from './types';
 
@@ -96,10 +96,16 @@ export async function runWithRetry({
         },
       };
     } catch (err) {
+      // A deliberate refusal is a terminal answer — there's nothing to
+      // correct, so don't burn a retry. It already carries the raw LLM text.
+      if (err instanceof ChartRefusalError) throw err;
       lastError =
         err instanceof McpError
           ? err
           : new McpError(err instanceof Error ? err.message : String(err), 500);
+      // Always thread the exact model output back to the caller so the browser
+      // debug message includes it regardless of which stage failed.
+      attachLlmResponse(lastError, text);
       if (attempt >= maxAttempts) throw lastError;
       // eslint-disable-next-line no-console
       console.warn(
@@ -130,6 +136,20 @@ export async function runWithRetry({
   throw (
     lastError ?? new McpError('Agent retry loop exited without result', 500)
   );
+}
+
+// Attaches the model's raw text to an error's details under `llmResponse`
+// (without clobbering a more specific value a stage may already have set, e.g.
+// the parse-stage `content`). Ensures the HTTP error response the browser
+// receives always carries the exact LLM output for debugging.
+function attachLlmResponse(err: McpError, text: string): void {
+  const details =
+    err.details && typeof err.details === 'object'
+      ? (err.details as Record<string, unknown>)
+      : {};
+  if (details.llmResponse === undefined) details.llmResponse = text;
+  // eslint-disable-next-line no-param-reassign
+  err.details = details;
 }
 
 // -----------------------------------------------------------------------------
