@@ -3,11 +3,7 @@ import isEqual from 'fast-deep-equal';
 import { parse, print } from 'graphql';
 import HighchartsReact from 'highcharts-react-official';
 import { FormattedMessage } from 'react-intl';
-import {
-  BsArrowClockwise,
-  BsArrowCounterclockwise,
-  BsInfoCircleFill,
-} from 'react-icons/bs';
+import { BsArrowClockwise, BsArrowCounterclockwise, BsInfoCircleFill } from 'react-icons/bs';
 import { MdWarning } from 'react-icons/md';
 import { useConfig } from '@/config/config';
 import { SearchInput } from '@/components/searchInput';
@@ -16,6 +12,7 @@ import { Card, CardContent, CardTitle } from '@/components/ui/smallCard';
 import { CardHeader } from '@/components/dashboard/shared';
 import Highcharts from '@/components/dashboard/charts/highcharts';
 import MapView from './MapView';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 type OutputKind = 'highcharts' | 'geojson';
 
@@ -67,17 +64,18 @@ export default function CustomChart({ queryId, predicate, setProps }: Props) {
   if (!queryId) {
     return <CustomChartForm predicate={predicate} setProps={setProps} />;
   }
-  return <CustomChartView queryId={queryId} predicate={predicate} />;
+  return (
+    <ErrorBoundary>
+      <CustomChartView queryId={queryId} predicate={predicate} />
+    </ErrorBoundary>
+  );
 }
 
 // In-place form shown until the user has submitted a query. Posts to
 // /chart/query, then hands the returned queryId back via setProps so the
 // parent re-renders this component with queryId set — which switches to
 // CustomChartView and fetches the chart.
-function CustomChartForm({
-  predicate,
-  setProps,
-}: Pick<Props, 'predicate' | 'setProps'>) {
+function CustomChartForm({ predicate, setProps }: Pick<Props, 'predicate' | 'setProps'>) {
   const config = useConfig();
   const [value, setValue] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -112,23 +110,16 @@ function CustomChartForm({
     setRefusal(null);
     setLlmDebug(null);
     try {
-      const url = new URL(
-        '/chart/query',
-        config.graphqlEndpoint,
-      ).toString();
+      const url = new URL('/chart/query', config.graphqlEndpoint).toString();
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ q, predicate }),
       });
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as
-          | ChartErrorBody
-          | null;
+        const body = (await response.json().catch(() => null)) as ChartErrorBody | null;
         const llm =
-          typeof body?.details?.llmResponse === 'string'
-            ? body.details.llmResponse
-            : null;
+          typeof body?.details?.llmResponse === 'string' ? body.details.llmResponse : null;
         const code = body?.code;
         // A deliberate refusal: show the agent's tailored message, not the
         // generic "try again" error. Still terminal — no queryId is produced.
@@ -139,9 +130,7 @@ function CustomChartForm({
           return;
         }
         if (mountedRef.current) setLlmDebug(llm);
-        throw new Error(
-          body?.message || `${response.status} ${response.statusText}`,
-        );
+        throw new Error(body?.message || `${response.status} ${response.statusText}`);
       }
       const data = (await response.json()) as { queryId?: string };
       if (!mountedRef.current) return;
@@ -168,10 +157,7 @@ function CustomChartForm({
     <Card loading={submitting}>
       <CardHeader options={null}>
         <CardTitle>
-          <FormattedMessage
-            id="dashboard.customChart"
-            defaultMessage="Custom chart"
-          />
+          <FormattedMessage id="dashboard.customChart" defaultMessage="Custom chart" />
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -263,7 +249,7 @@ function CustomChartView({
     let cancelled = false;
     const url = new URL(
       `/chart/key/${encodeURIComponent(queryId)}`,
-      config.graphqlEndpoint,
+      config.graphqlEndpoint
     ).toString();
 
     setLoading(true);
@@ -271,9 +257,7 @@ function CustomChartView({
     fetch(url)
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error(
-            `Failed to fetch chart (${response.status} ${response.statusText})`,
-          );
+          throw new Error(`Failed to fetch chart (${response.status} ${response.statusText})`);
         }
         return (await response.json()) as ChartConfigResponse;
       })
@@ -302,7 +286,7 @@ function CustomChartView({
     try {
       const url = new URL(
         `/chart/key/${encodeURIComponent(queryId)}/refresh`,
-        config.graphqlEndpoint,
+        config.graphqlEndpoint
       ).toString();
       const response = await fetch(url, {
         method: 'POST',
@@ -313,9 +297,7 @@ function CustomChartView({
         const body = (await response.json().catch(() => ({}))) as {
           message?: string;
         };
-        throw new Error(
-          body.message || `Refresh failed (${response.status})`,
-        );
+        throw new Error(body.message || `Refresh failed (${response.status})`);
       }
       setVersion((v) => v + 1);
     } catch (err) {
@@ -345,17 +327,12 @@ function CustomChartView({
   // render the chart we're currently showing. After a refresh, this is the
   // refreshed predicate; before any refresh, it equals the original predicate.
   const filtersDiffer =
-    chartData != null &&
-    !isEqual(normalize(predicate), normalize(renderedPredicate));
+    chartData != null && !isEqual(normalize(predicate), normalize(renderedPredicate));
   const isRestored =
-    chartData != null &&
-    isEqual(normalize(renderedPredicate), normalize(originalPredicate));
+    chartData != null && isEqual(normalize(renderedPredicate), normalize(originalPredicate));
 
   const title = chartData?.query ?? (
-    <FormattedMessage
-      id="dashboard.customChart"
-      defaultMessage="Custom chart"
-    />
+    <FormattedMessage id="dashboard.customChart" defaultMessage="Custom chart" />
   );
 
   const headerActions = (
@@ -398,9 +375,7 @@ function CustomChartView({
         <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        {error && !loading && (
-          <div className="g-text-sm g-text-red-600 g-mb-2">{error}</div>
-        )}
+        {error && !loading && <div className="g-text-sm g-text-red-600 g-mb-2">{error}</div>}
 
         {filtersDiffer && !error && (
           <div className="g-text-xs g-text-amber-800 g-bg-amber-50 g-border g-border-solid g-border-amber-200 g-rounded g-px-2 g-py-1 g-mb-2 g-flex g-items-center g-gap-1">
@@ -415,17 +390,13 @@ function CustomChartView({
         {showSource && firstChart && (
           <div className="g-mb-2 g-text-xs">
             <details open>
-              <summary className="g-cursor-pointer g-text-slate-500 g-mb-1">
-                GraphQL
-              </summary>
+              <summary className="g-cursor-pointer g-text-slate-500 g-mb-1">GraphQL</summary>
               <pre className="g-bg-slate-50 g-border g-border-solid g-border-slate-200 g-rounded g-p-2 g-font-mono g-overflow-x-auto">
                 {formattedGraphQuery}
               </pre>
             </details>
             <details className="g-mt-1">
-              <summary className="g-cursor-pointer g-text-slate-500 g-mb-1">
-                jq
-              </summary>
+              <summary className="g-cursor-pointer g-text-slate-500 g-mb-1">jq</summary>
               <pre className="g-bg-slate-50 g-border g-border-solid g-border-slate-200 g-rounded g-p-2 g-font-mono g-overflow-x-auto g-whitespace-pre-wrap g-break-words">
                 {firstChart.jqQuery}
               </pre>
@@ -454,14 +425,9 @@ function CustomChartView({
             />
           </div>
         )}
-        {!error && !loading && output && kind === 'geojson' && (
-          <MapView geojson={output} />
-        )}
+        {!error && !loading && output && kind === 'geojson' && <MapView geojson={output} />}
         {!error && !loading && output && kind === 'highcharts' && (
-          <HighchartsReact
-            highcharts={Highcharts}
-            options={output as Highcharts.Options}
-          />
+          <HighchartsReact highcharts={Highcharts} options={output as Highcharts.Options} />
         )}
       </CardContent>
     </Card>

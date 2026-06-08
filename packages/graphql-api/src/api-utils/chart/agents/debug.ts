@@ -29,6 +29,14 @@ const SCENARIOS: Record<string, string> = {
       '{ chart: { type: "pie" }, title: { text: "Breakdown by basis of record" }, series: [{ type: "pie", name: "Occurrences", colorByPoint: true, data: [.data.occurrenceSearch.facet.basisOfRecord[] | { name: (.label // .key), y: .count }] }] }',
   }),
 
+  test: JSON.stringify({
+    kind: 'highcharts',
+    graphQuery:
+      'query CountriesByYear($predicate: Predicate) { occurrenceSearch(predicate: $predicate) { facet { countryCode(size: 12) { key count label occurrences { facet { year(size: 50) { key count } } } } } } }',
+    jqQuery:
+      '.data.occurrenceSearch.facet.countryCode as $cc | ([$cc[] | (.occurrences.facet.year // [])[] | (.key | tonumber)] | unique) as $all | ($all | max) as $ymax | ([$all[] | select(. > $ymax - 50)] | sort) as $years | { chart: { type: "streamgraph" }, title: { text: "Occurrences by country over the last 50 years" }, xAxis: { categories: [$years[] | tostring], type: "category", tickInterval: 5 }, yAxis: { visible: false }, plotOptions: { series: { marker: { enabled: false } } }, series: [$cc[] as $c | { type: "streamgraph", name: ($c.label // $c.key), data: [$years[] as $y | (($c.occurrences.facet.year // []) | map(select((.key | tonumber) == $y)) | (.[0].count // 0))] }] }',
+  }),
+
   // Hits the GraphQL schema-validation path: facets don't accept sortBy.
   'graphql-error': JSON.stringify({
     kind: 'highcharts',
