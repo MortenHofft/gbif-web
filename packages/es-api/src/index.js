@@ -5,21 +5,47 @@ const _ = require('lodash');
 const cors = require('cors');
 const config = require('./config');
 var queue = require('express-queue');
-const { loggingMiddleware, errorLoggingMiddleware } = require('./middleware');
+const {
+  loggingMiddleware,
+  errorLoggingMiddleware,
+  sheddingQueue,
+} = require('./middleware');
 const normalizePredicate = require('./requestAdapter/util/normalizePredicate');
+
+const rejectHandler = (req, res) => {
+  res.status(429);
+  res.json({
+    error: 429,
+    message:
+      'Too many concurrent requests. This threshold is shared across users, so it is not only your requests.',
+  });
+};
 
 const queueOptions = {
   activeLimit: 10,
   queuedLimit: 2000,
-  rejectHandler: (req, res) => {
-    res.status(429);
-    res.json({
-      error: 429,
-      message:
-        'Too many concurrent requests. This threshold is shared across users, so it is not only your requests.',
-    });
-  },
+  rejectHandler,
 };
+
+// Occurrence search is the heaviest, most contended upstream, so it gets a
+// dedicated FIFO queue that sheds load by priority when its backlog grows. It
+// never reorders requests (so nothing starves), but once the waiting queue is
+// long it drops the least important requests — both incoming and already
+// waiting — based on the `x-client-priority` header Varnish attaches (lower =
+// more important). The bands below come from `queue.shedBands` (default: over
+// 80 waiting -> drop priority >= 50; over 200 -> drop priority > 30); an empty
+// list disables shedding. A single shared instance serves both GET and POST
+// /occurrence so the backlog/shedding spans the whole endpoint.
+const occurrenceQueue = sheddingQueue({
+  activeLimit: _.get(config, 'queue.activeLimit', 10),
+  queuedLimit: _.get(config, 'queue.queuedLimit', 2000),
+  shedBands: _.get(config, 'queue.shedBands', [
+    { queueAbove: 200, maxPriority: 30 },
+    { queueAbove: 80, maxPriority: 49 },
+  ]),
+  defaultPriority: _.get(config, 'queue.defaultPriority', 100),
+  rejectHandler,
+});
 
 let content, literature, occurrence, eventOccurrence, dataset, event;
 if (config.content) {
@@ -124,13 +150,13 @@ if (occurrence) {
 
   app.post(
     '/occurrence',
-    queue(queueOptions),
+    occurrenceQueue,
     temporaryAuthMiddleware,
     asyncMiddleware(searchResource(occurrence)),
   );
   app.get(
     '/occurrence',
-    queue(queueOptions),
+    occurrenceQueue,
     temporaryAuthMiddleware,
     asyncMiddleware(searchResource(occurrence)),
   );
