@@ -13,6 +13,7 @@ import depthLimit from 'graphql-depth-limit';
 
 // Local imports
 import config from './config';
+import { buildCorsOptions } from './cors';
 import createContext from './createContext';
 import health from './health';
 import { graphqlExplorer, hashMiddleware } from './middleware';
@@ -115,11 +116,9 @@ async function initializeServer() {
 
   const app = express();
   app.use(compression());
-  app.use(
-    cors({
-      methods: 'GET,POST,OPTIONS',
-    }),
-  );
+  // CORS policy. Production locks the allowed Origins down to a configured
+  // allowlist; the sandbox/non-prod environments stay open. See ./cors.ts.
+  app.use(cors(buildCorsOptions()));
   // Shed load (fast 503) before the expensive per-request work — body parsing,
   // GraphQL parse/validate, context build. Only guards configured paths
   // (default /graphql) and never /health. No-op unless enabled in config.

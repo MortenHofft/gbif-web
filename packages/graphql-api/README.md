@@ -114,6 +114,29 @@ https://developer.github.com/v4/guides/resource-limitations/
 * recommended in the Apollo docs: https://blog.apollographql.com/securing-your-graphql-api-from-malicious-queries-16130a324a6b
 * https://leapgraph.com/graphql-api-security
 
+### CORS origin allowlist
+The API ships an Origin allowlist (see `src/cors.ts`, configured via the `cors`
+block in `.env`). In non-production environments all origins are allowed so the
+public sandbox stays open; in production only the configured origins may call the
+API from a browser.
+
+```yaml
+cors:
+  # allowAllOrigins: false        # defaults to (environment !== 'prod')
+  allowedOrigins:
+    - "https://www.gbif.org"
+    - "*.gbif.org"                 # any subdomain, plus the apex gbif.org
+```
+
+**This only constrains browsers.** CORS is enforced by the browser, so it stops a
+third-party web page from calling the API with a user's session, but it does
+*not* stop non-browser clients (curl, scripts, server-to-server) — they can omit
+or spoof the `Origin` header. Requests without an `Origin` header are always
+allowed through. Treat the allowlist as a guard against casual embedding/abuse,
+not as authentication or rate limiting. For real protection, combine it with the
+measures below (rate limiting, query cost/depth limits, persisted queries, and/or
+API keys).
+
 ### Autentication
 We could allow anonymous API usage for the REST API as we always have, but require login on the GraphQL API, or at least put limitations on non-authorized users. There could be a hierarchy?
 
