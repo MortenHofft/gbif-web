@@ -8,7 +8,7 @@ var queue = require('express-queue');
 const {
   loggingMiddleware,
   errorLoggingMiddleware,
-  sheddingQueue,
+  admissionGate,
 } = require('./middleware');
 const normalizePredicate = require('./requestAdapter/util/normalizePredicate');
 
@@ -27,22 +27,19 @@ const queueOptions = {
   rejectHandler,
 };
 
-// Occurrence search is the heaviest, most contended upstream, so it gets a
-// dedicated FIFO queue that sheds load by priority when its backlog grows. It
-// never reorders requests (so nothing starves), but once the waiting queue is
-// long it drops the least important requests — both incoming and already
-// waiting — based on the `x-client-priority` header Varnish attaches (lower =
-// more important). The bands below come from `queue.shedBands` (default: over
-// 80 waiting -> drop priority >= 50; over 200 -> drop priority > 30); an empty
-// list disables shedding. A single shared instance serves both GET and POST
-// /occurrence so the backlog/shedding spans the whole endpoint.
-const occurrenceQueue = sheddingQueue({
-  activeLimit: _.get(config, 'queue.activeLimit', 10),
-  queuedLimit: _.get(config, 'queue.queuedLimit', 2000),
-  shedBands: _.get(config, 'queue.shedBands', [
-    { queueAbove: 200, maxPriority: 30 },
-    { queueAbove: 80, maxPriority: 49 },
-  ]),
+// Occurrence search is the heaviest, most contended upstream. It keeps a plain
+// FIFO queue (so requests are served in arrival order and nothing starves), but
+// gets a priority admission gate in front: once the backlog is deep, the least
+// important incoming requests are rejected based on the `x-client-priority`
+// header Varnish attaches (lower = more important). The bands come from
+// `queue.shedBands` in config and default to none (no shedding). Already-queued
+// requests are never evicted — they drain naturally. A single shared queue
+// instance serves both GET and POST /occurrence so the backlog spans the whole
+// endpoint, and one gate reads its depth.
+const occurrenceQueue = queue(queueOptions);
+const occurrenceGate = admissionGate({
+  getQueueLength: () => occurrenceQueue.queue.getLength(),
+  shedBands: _.get(config, 'queue.shedBands', []),
   defaultPriority: _.get(config, 'queue.defaultPriority', 100),
   rejectHandler,
 });
@@ -150,12 +147,14 @@ if (occurrence) {
 
   app.post(
     '/occurrence',
+    occurrenceGate,
     occurrenceQueue,
     temporaryAuthMiddleware,
     asyncMiddleware(searchResource(occurrence)),
   );
   app.get(
     '/occurrence',
+    occurrenceGate,
     occurrenceQueue,
     temporaryAuthMiddleware,
     asyncMiddleware(searchResource(occurrence)),

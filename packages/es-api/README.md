@@ -73,21 +73,20 @@ event:
   maxResultWindow: 100000
   index: event
 
-# Optional. Controls the shared occurrence request queue. The queue stays FIFO,
-# but when the backlog grows it sheds the least important requests (rejecting
-# incoming ones and evicting waiting ones) based on the `x-client-priority`
-# header (1-100, lower = more important) that Varnish attaches and the
-# graphql-api forwards.
+# Optional. The occurrence request queue stays plain FIFO, but a priority
+# admission gate in front of it can reject the least important *incoming*
+# requests once the backlog is deep, based on the `x-client-priority` header
+# (1-100, lower = more important) that Varnish attaches and the graphql-api
+# forwards. Already-queued requests are never evicted — they drain naturally.
 queue:
-  activeLimit: 10        # max concurrent occurrence searches
-  queuedLimit: 2000      # hard cap: backlog beyond this is rejected with 429
   defaultPriority: 100   # used when the header is missing/invalid
-  # While the backlog exceeds `queueAbove`, only priority <= `maxPriority` is
-  # kept. Most severe band wins. Empty list = no shedding (plain FIFO).
+  # While the backlog exceeds `queueAbove`, requests with priority > `maxPriority`
+  # are rejected (429). Most severe band wins. Omit `shedBands` (or leave it
+  # empty) to disable shedding entirely — the default.
   shedBands:
-    - queueAbove: 80     # over 80 waiting -> drop priority >= 50
-      maxPriority: 49
-    - queueAbove: 200    # over 200 waiting -> drop priority > 30
+    - queueAbove: 100    # over 100 waiting -> reject priority > 50
+      maxPriority: 50
+    - queueAbove: 200    # over 200 waiting -> reject priority > 30
       maxPriority: 30
 
 port: 4001
