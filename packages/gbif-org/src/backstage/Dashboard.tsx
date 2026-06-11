@@ -4,6 +4,7 @@ import {
   fetchHealth,
   fetchSettings,
   NotAuthorisedError,
+  SettingsPatch,
 } from './api';
 import { HealthResult, Settings, SettingsResult } from './types';
 
@@ -153,14 +154,16 @@ function settingsToForm(s: Settings): FormState {
 
 // Build the settings payload from form state. Only well-formed numbers are
 // included; blanks are dropped so they are left unchanged.
-function formToSettings(form: FormState, enabled: boolean): Partial<Settings> {
+function formToSettings(form: FormState, enabled: boolean): SettingsPatch {
   const num = (v: string) => (v.trim() === '' ? undefined : Number(v));
-  const overload: Record<string, unknown> = { enabled };
+  const overload: SettingsPatch['overload'] = { enabled };
   Object.entries(form.overload).forEach(([k, v]) => {
     const n = num(v);
-    if (n !== undefined && Number.isFinite(n)) overload[k] = n;
+    if (n !== undefined && Number.isFinite(n)) {
+      (overload as Record<string, number | boolean>)[k] = n;
+    }
   });
-  const pools: Record<string, Record<string, number>> = {};
+  const pools: NonNullable<SettingsPatch['pools']> = {};
   Object.entries(form.pools).forEach(([name, fields]) => {
     const out: Record<string, number> = {};
     Object.entries(fields).forEach(([k, v]) => {
@@ -169,11 +172,7 @@ function formToSettings(form: FormState, enabled: boolean): Partial<Settings> {
     });
     if (Object.keys(out).length) pools[name] = out;
   });
-  return {
-    logLevel: form.logLevel,
-    overload: overload as Settings['overload'],
-    pools: pools as Settings['pools'],
-  };
+  return { logLevel: form.logLevel, overload, pools };
 }
 
 function SettingsEditor({
@@ -190,6 +189,7 @@ function SettingsEditor({
   const [enabled, setEnabled] = useState<boolean>(seed?.overload.enabled ?? false);
   const [targets, setTargets] = useState<string[]>([]); // empty = all
   const [submitting, setSubmitting] = useState(false);
+  const [togglingGuard, setTogglingGuard] = useState(false);
   const [applyResults, setApplyResults] = useState<SettingsResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -227,6 +227,29 @@ function SettingsEditor({
       setSubmitting(false);
     }
   }, [form, enabled, targets, onApplied]);
+
+  // The on/off switch applies immediately to the targeted instances (a switch
+  // that did nothing until a separate "Apply" is confusing). Optimistic, with
+  // revert on failure.
+  const toggleGuard = useCallback(async () => {
+    const next = !enabled;
+    setEnabled(next);
+    setTogglingGuard(true);
+    setError(null);
+    try {
+      const { results } = await applySettings(
+        { overload: { enabled: next } },
+        targets.length ? targets : undefined
+      );
+      setApplyResults(results);
+      onApplied();
+    } catch (e) {
+      setEnabled(!next); // revert
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setTogglingGuard(false);
+    }
+  }, [enabled, targets, onApplied]);
 
   if (!form) {
     return (
@@ -270,18 +293,19 @@ function SettingsEditor({
         </label>
         <label className="g-flex g-flex-col g-gap-1">
           <span className="g-text-[11px] g-uppercase g-tracking-wide g-text-zinc-500">
-            overload guard
+            overload guard <span className="g-normal-case g-text-zinc-600">(applies now)</span>
           </span>
           <button
             type="button"
-            onClick={() => setEnabled((v) => !v)}
-            className={`g-rounded g-px-2 g-py-1 g-text-sm g-border ${
+            disabled={togglingGuard}
+            onClick={toggleGuard}
+            className={`g-rounded g-px-2 g-py-1 g-text-sm g-border disabled:g-opacity-60 ${
               enabled
                 ? 'g-border-emerald-700 g-bg-emerald-900/40 g-text-emerald-300'
                 : 'g-border-zinc-700 g-bg-zinc-900 g-text-zinc-400'
             }`}
           >
-            {enabled ? 'enabled' : 'disabled'}
+            {togglingGuard ? 'applying…' : enabled ? 'enabled' : 'disabled'}
           </button>
         </label>
       </div>

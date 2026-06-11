@@ -1,4 +1,11 @@
-import { HealthResult, Settings, SettingsResult } from './types';
+import { HealthResult, PoolSettings, Settings, SettingsResult } from './types';
+
+// A partial update: any subset of fields, at any depth, may be sent.
+export type SettingsPatch = {
+  logLevel?: string;
+  overload?: Partial<Settings['overload']>;
+  pools?: Record<string, Partial<PoolSettings>>;
+};
 
 // All calls go to the gbif-org server's /api/admin/* endpoints, which gate on
 // the session cookie and fan out to the GraphQL instances. The browser never
@@ -35,7 +42,7 @@ export function fetchSettings(): Promise<{ results: SettingsResult[] }> {
 }
 
 export async function applySettings(
-  settings: Partial<Settings>,
+  settings: SettingsPatch,
   targets?: string[]
 ): Promise<{ results: SettingsResult[] }> {
   const response = await fetch('/api/admin/settings', {
