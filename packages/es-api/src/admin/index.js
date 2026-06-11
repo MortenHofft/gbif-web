@@ -32,11 +32,19 @@ const adminUsers = Array.isArray(config.adminUsers) ? config.adminUsers : [];
 const adminRoles = Array.isArray(config.adminRoles) ? config.adminRoles : [];
 const secret = config.graphqlJwtSecret;
 
-// Verify the Bearer GraphQL JWT and return { userName, roles } or null.
+// Verify the Bearer GraphQL JWT. Returns { user } on success, otherwise
+// { error } describing why (for server-side logging — never sent to the client).
 function resolveUser(authorization) {
-  if (typeof authorization !== 'string' || authorization === '') return null;
+  if (typeof authorization !== 'string' || authorization === '') {
+    return { error: 'no Authorization header' };
+  }
   const [type, value] = authorization.split(' ');
-  if (type !== 'Bearer' || !value || !secret) return null;
+  if (type !== 'Bearer' || !value) {
+    return { error: 'Authorization header is not a Bearer token' };
+  }
+  if (!secret) {
+    return { error: 'graphqlJwtSecret is not configured on this es-api instance' };
+  }
   try {
     const decoded = jwt.verify(value, secret, { algorithms: ['HS256'] });
     let roles = [];
@@ -50,9 +58,11 @@ function resolveUser(authorization) {
         roles = [];
       }
     }
-    return { userName: decoded.userName, roles };
+    return { user: { userName: decoded.userName, roles } };
   } catch (err) {
-    return null;
+    // Most often: the secret here does not match the one gbif-org signs with
+    // (GRAPHQL_JWT_SECRET), which surfaces as "invalid signature".
+    return { error: `token verification failed: ${err.message}` };
   }
 }
 
@@ -65,9 +75,20 @@ function isAuthorised(user) {
 
 function requireAdmin(req, res, next) {
   res.setHeader('Cache-Control', 'no-store');
-  const user = resolveUser(req.headers.authorization || req.headers.Authorization);
+  const { user, error } = resolveUser(
+    req.headers.authorization || req.headers.Authorization,
+  );
   if (!isAuthorised(user)) {
-    // Uniform 403 — do not distinguish "not authenticated" from "not allowed".
+    // Log the precise reason so a 403 is debuggable; the response stays generic.
+    logger.warn('admin endpoint rejected request', {
+      reason:
+        error ||
+        `user '${user && user.userName}' is not in adminUsers/adminRoles`,
+      userName: user && user.userName,
+      adminUsersConfigured: adminUsers.length,
+      adminRolesConfigured: adminRoles.length,
+      secretConfigured: !!secret,
+    });
     res.status(403).json({ error: 'Forbidden' });
     return;
   }
