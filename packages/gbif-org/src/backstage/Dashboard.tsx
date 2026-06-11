@@ -687,6 +687,16 @@ function EsSettingsEditor({
       <div className="g-text-[11px] g-uppercase g-tracking-wide g-text-zinc-500 g-mb-2">
         priority shedding
       </div>
+      <div className="g-mb-3 g-rounded g-border g-border-zinc-800 g-bg-zinc-900/50 g-px-3 g-py-2 g-text-[11px] g-leading-relaxed g-text-zinc-400">
+        Load-based, not a per-request ACL. While a queue&apos;s <b>backlog</b> (waiting
+        requests) exceeds <code className="g-text-zinc-300">queueAbove</code>, incoming
+        requests with priority <i>worse</i> than{' '}
+        <code className="g-text-zinc-300">maxPriority</code> get a 429. Priority is 1–100,{' '}
+        <b>lower = more important</b>. A backlog only forms once a queue&apos;s{' '}
+        <code className="g-text-zinc-300">concurrencyLimit</code> is saturated, so under
+        light load nothing is shed even with <code className="g-text-zinc-300">queueAbove: 0</code>.
+        To test, drop the queue&apos;s concurrency and send concurrent requests.
+      </div>
       <div className="g-space-y-3 g-mb-4">
         {Object.entries(form.shedding).map(([name, fields]) => (
           <div key={name} className="g-rounded g-border g-border-zinc-800 g-p-3">
