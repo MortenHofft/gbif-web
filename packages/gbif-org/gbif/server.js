@@ -146,7 +146,8 @@ async function main() {
     next();
   });
 
-  // 404 the backstage page for non-admins before it can be server-rendered.
+  // Non-admins hitting the backstage page get the site's normal 404 (the guard
+  // reroutes them into the standard not-found flow before SSR).
   registerBackstagePageGuard(app);
 
   // Handle server-side rendering.

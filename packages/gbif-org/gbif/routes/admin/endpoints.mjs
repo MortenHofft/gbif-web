@@ -118,10 +118,13 @@ async function fanOut(nodes, perNode) {
   );
 }
 
-// Guard the backstage *page* (HTML) so it 404s for non-admins before SSR — the
-// dashboard route is never rendered (and its chunk never referenced) for anyone
-// not authorised, keeping the surface invisible. Matches any path segment named
-// "backstage" so it works regardless of an i18n locale prefix.
+// Guard the backstage *page* (HTML) so non-admins get the site's NORMAL 404 —
+// not the dashboard, and not a blank response. The backstage route is only ever
+// rendered for authorised admins; for everyone else we rewrite the request to a
+// non-existent path so it falls through the standard not-found flow (the same
+// 404 page, chrome and status as any unknown URL). The browser URL is
+// unchanged. Matches any path segment named "backstage" so it works regardless
+// of an i18n locale prefix.
 function isBackstagePath(pathname) {
   return pathname.split('/').includes('backstage');
 }
@@ -137,8 +140,12 @@ export function registerPageGuard(app) {
         next();
         return;
       }
-      // Empty 404: deliberately give nothing away to non-admins.
-      res.status(404).end();
+      // Not authorised: route through the normal not-found handling (SSR reads
+      // originalUrl) so the user sees the regular 404 page. No redirect — the
+      // address bar still shows the backstage path.
+      req.url = '/backstage-not-found';
+      req.originalUrl = '/backstage-not-found';
+      next();
     });
   });
 }
