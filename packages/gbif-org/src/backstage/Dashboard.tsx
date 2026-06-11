@@ -695,7 +695,10 @@ function EsSettingsEditor({
         <b>lower = more important</b>. A backlog only forms once a queue&apos;s{' '}
         <code className="g-text-zinc-300">concurrencyLimit</code> is saturated, so under
         light load nothing is shed even with <code className="g-text-zinc-300">queueAbove: 0</code>.
-        To test, drop the queue&apos;s concurrency and send concurrent requests.
+        To test, drop the queue&apos;s concurrency and send concurrent requests. Use{' '}
+        <code className="g-text-zinc-300">queueAbove: -1</code> for an unconditional cutoff —
+        reject priority worse than <code className="g-text-zinc-300">maxPriority</code> at all
+        times, even when idle.
       </div>
       <div className="g-space-y-3 g-mb-4">
         {Object.entries(form.shedding).map(([name, fields]) => (
