@@ -69,3 +69,47 @@ export type NodeResult<T> = {
 
 export type HealthResult = NodeResult<{ health?: Health }>;
 export type SettingsResult = NodeResult<{ settings?: Settings }>;
+
+// --- es-api (monitoring only) ----------------------------------------------
+// The es-api exposes a different /health shape: `queues` (not requestPools),
+// `eventLoop` (not overload), plus priority shedding info per queue.
+
+export type EsShedding = {
+  rejecting?: boolean;
+  maxPriority?: number | null;
+  bands?: unknown[];
+};
+
+export type EsQueue = {
+  waiting: number;
+  running: number;
+  currentQueueSize: number;
+  largestSeenQueueSize: number;
+  concurrencyLimit: number;
+  maxQueueSize: number;
+  served: number;
+  failed: number;
+  aborted: number;
+  rejected: number;
+  queueFullNow?: boolean;
+  shedding?: EsShedding;
+};
+
+export type EsHealth = {
+  status?: string;
+  nagiosString?: string;
+  uptimeSeconds?: number;
+  inflight?: number;
+  rejecting?: boolean;
+  priorityCounts?: Record<string, number>;
+  queues?: Record<string, EsQueue>;
+  eventLoop?: {
+    eventLoopDelayMs?: number;
+    eventLoopDelayMaxMs?: number;
+    peakEventLoopDelayMs?: number;
+    slowEventLoopCount?: number;
+    lastSlowEventLoop?: string | null;
+  };
+};
+
+export type EsHealthResult = NodeResult<{ health?: EsHealth }>;

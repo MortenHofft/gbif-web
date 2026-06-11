@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   applySettings,
+  fetchEsHealth,
   fetchHealth,
   fetchSettings,
   NotAuthorisedError,
   SettingsPatch,
 } from './api';
-import { HealthResult, Settings, SettingsResult } from './types';
+import { EsHealthResult, HealthResult, Settings, SettingsResult } from './types';
 
 const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
 
@@ -73,6 +74,9 @@ function HealthCard({ result }: { result: HealthResult }) {
               <th className="g-text-left g-font-normal">pool</th>
               <th className="g-text-right g-font-normal">wait</th>
               <th className="g-text-right g-font-normal">run</th>
+              <th className="g-text-right g-font-normal" title="largest queue size seen since start">
+                peak
+              </th>
               <th className="g-text-right g-font-normal">conc</th>
               <th className="g-text-right g-font-normal">rej</th>
             </tr>
@@ -83,9 +87,108 @@ function HealthCard({ result }: { result: HealthResult }) {
                 <td className="g-text-left g-text-zinc-400">{name}</td>
                 <td className="g-text-right" >{p.waiting}</td>
                 <td className="g-text-right">{p.running}</td>
+                <td className="g-text-right">{p.largestSeenQueueSize}</td>
                 <td className="g-text-right">{fmtLimit(p.concurrencyLimit)}</td>
                 <td className={`g-text-right ${p.rejected > 0 ? 'g-text-amber-400' : ''}`}>
                   {p.rejected}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {h.nagiosString && (
+        <div className="g-mt-2 g-text-[10px] g-text-zinc-600 g-break-words">{h.nagiosString}</div>
+      )}
+    </div>
+  );
+}
+
+function EsHealthCard({ result }: { result: EsHealthResult }) {
+  if (!result.ok || !result.health) {
+    return (
+      <div className="g-rounded-lg g-border g-border-red-900/60 g-bg-red-950/30 g-p-4">
+        <div className="g-font-medium g-text-red-300">{result.node}</div>
+        <div className="g-mt-1 g-text-xs g-text-red-400 g-break-all">
+          unreachable{result.status ? ` (${result.status})` : ''}
+        </div>
+      </div>
+    );
+  }
+  const h = result.health;
+  const el = h.eventLoop ?? {};
+  const queues = h.queues ?? {};
+  const priorities = h.priorityCounts ?? {};
+  return (
+    <div className="g-rounded-lg g-border g-border-zinc-800 g-bg-zinc-950 g-p-4">
+      <div className="g-flex g-items-center g-justify-between">
+        <div className="g-font-medium g-text-zinc-100">{result.node}</div>
+        <span
+          className={`g-text-[11px] g-rounded g-px-1.5 g-py-0.5 ${
+            h.rejecting
+              ? 'g-bg-red-900/50 g-text-red-300'
+              : 'g-bg-emerald-900/40 g-text-emerald-300'
+          }`}
+        >
+          {h.rejecting ? 'shedding' : h.status ?? 'ok'}
+        </span>
+      </div>
+      <div className="g-mt-3 g-grid g-grid-cols-3 g-gap-3">
+        <Stat label="uptime" value={`${h.uptimeSeconds ?? '—'}s`} />
+        <Stat label="inflight" value={h.inflight ?? '—'} />
+        <Stat
+          label="priority"
+          value={
+            Object.keys(priorities).length
+              ? Object.entries(priorities)
+                  .map(([k, v]) => `${k}:${v}`)
+                  .join(' ')
+              : '—'
+          }
+        />
+        <Stat label="loop ms" value={el.eventLoopDelayMs ?? '—'} />
+        <Stat label="loop max" value={el.eventLoopDelayMaxMs ?? '—'} />
+        <Stat
+          label="loop peak"
+          value={el.peakEventLoopDelayMs ?? '—'}
+          warn={(el.peakEventLoopDelayMs ?? 0) > 1000}
+        />
+      </div>
+      <div className="g-mt-3 g-border-t g-border-zinc-800 g-pt-2">
+        <div className="g-text-[11px] g-uppercase g-tracking-wide g-text-zinc-500 g-mb-1">queues</div>
+        <table className="g-w-full g-text-xs g-tabular-nums">
+          <thead>
+            <tr className="g-text-zinc-500">
+              <th className="g-text-left g-font-normal">queue</th>
+              <th className="g-text-right g-font-normal">wait</th>
+              <th className="g-text-right g-font-normal">run</th>
+              <th className="g-text-right g-font-normal" title="largest queue size seen since start">
+                peak
+              </th>
+              <th className="g-text-right g-font-normal">conc</th>
+              <th className="g-text-right g-font-normal">maxQ</th>
+              <th className="g-text-right g-font-normal">served</th>
+              <th className="g-text-right g-font-normal">rej</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(queues).map(([name, q]) => (
+              <tr key={name} className="g-text-zinc-300">
+                <td
+                  className={`g-text-left ${
+                    q.queueFullNow ? 'g-text-amber-400' : 'g-text-zinc-400'
+                  }`}
+                >
+                  {name}
+                </td>
+                <td className="g-text-right">{q.waiting}</td>
+                <td className="g-text-right">{q.running}</td>
+                <td className="g-text-right">{q.largestSeenQueueSize}</td>
+                <td className="g-text-right">{fmtLimit(q.concurrencyLimit)}</td>
+                <td className="g-text-right">{fmtLimit(q.maxQueueSize)}</td>
+                <td className="g-text-right">{q.served}</td>
+                <td className={`g-text-right ${q.rejected > 0 ? 'g-text-amber-400' : ''}`}>
+                  {q.rejected}
                 </td>
               </tr>
             ))}
@@ -421,6 +524,7 @@ function SettingsEditor({
 export default function Dashboard() {
   const [healthResults, setHealthResults] = useState<HealthResult[]>([]);
   const [settingsResults, setSettingsResults] = useState<SettingsResult[]>([]);
+  const [esResults, setEsResults] = useState<EsHealthResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [unauthorised, setUnauthorised] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -437,6 +541,11 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
+    // es-api is monitoring-only and independent: a failure here must not blank
+    // out the GraphQL view.
+    fetchEsHealth()
+      .then((r) => setEsResults(r.results))
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -445,6 +554,9 @@ export default function Dashboard() {
     const id = setInterval(() => {
       fetchHealth()
         .then((h) => setHealthResults(h.results))
+        .catch(() => undefined);
+      fetchEsHealth()
+        .then((r) => setEsResults(r.results))
         .catch(() => undefined);
     }, 10000);
     return () => clearInterval(id);
@@ -484,6 +596,17 @@ export default function Dashboard() {
 
       {settingsResults.length > 0 && (
         <SettingsEditor settingsResults={settingsResults} onApplied={load} />
+      )}
+
+      {esResults.length > 0 && (
+        <section className="g-space-y-4 g-pt-2">
+          <h1 className="g-text-lg g-font-semibold g-text-zinc-100">es-api</h1>
+          <div className="g-grid g-grid-cols-1 lg:g-grid-cols-2 g-gap-4">
+            {esResults.map((r) => (
+              <EsHealthCard key={r.url} result={r} />
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );

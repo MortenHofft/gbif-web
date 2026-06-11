@@ -1,4 +1,10 @@
-import { HealthResult, PoolSettings, Settings, SettingsResult } from './types';
+import {
+  EsHealthResult,
+  HealthResult,
+  PoolSettings,
+  Settings,
+  SettingsResult,
+} from './types';
 
 // A partial update: any subset of fields, at any depth, may be sent.
 export type SettingsPatch = {
@@ -35,6 +41,10 @@ export function fetchNodes(): Promise<{ nodes: { label: string; url: string }[] 
 
 export function fetchHealth(): Promise<{ results: HealthResult[] }> {
   return getJson('/api/admin/health');
+}
+
+export function fetchEsHealth(): Promise<{ results: EsHealthResult[] }> {
+  return getJson('/api/admin/es-health');
 }
 
 export function fetchSettings(): Promise<{ results: SettingsResult[] }> {
