@@ -1,5 +1,8 @@
 import {
   EsHealthResult,
+  EsQueueLimits,
+  EsSettingsResult,
+  EsShedConfig,
   HealthResult,
   PoolSettings,
   Settings,
@@ -11,6 +14,12 @@ export type SettingsPatch = {
   logLevel?: string;
   overload?: Partial<Settings['overload']>;
   pools?: Record<string, Partial<PoolSettings>>;
+};
+
+export type EsSettingsPatch = {
+  logLevel?: string;
+  queues?: Record<string, Partial<EsQueueLimits>>;
+  shedding?: Record<string, Partial<EsShedConfig>>;
 };
 
 // All calls go to the gbif-org server's /api/admin/* endpoints, which gate on
@@ -45,6 +54,25 @@ export function fetchHealth(): Promise<{ results: HealthResult[] }> {
 
 export function fetchEsHealth(): Promise<{ results: EsHealthResult[] }> {
   return getJson('/api/admin/es-health');
+}
+
+export function fetchEsSettings(): Promise<{ results: EsSettingsResult[] }> {
+  return getJson('/api/admin/es-settings');
+}
+
+export async function applyEsSettings(
+  settings: EsSettingsPatch,
+  targets?: string[]
+): Promise<{ results: EsSettingsResult[] }> {
+  const response = await fetch('/api/admin/es-settings', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ settings, targets }),
+  });
+  if (response.status === 404) throw new NotAuthorisedError();
+  if (!response.ok) throw new Error(`Update failed (${response.status})`);
+  return response.json() as Promise<{ results: EsSettingsResult[] }>;
 }
 
 export function fetchSettings(): Promise<{ results: SettingsResult[] }> {

@@ -1,13 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  applyEsSettings,
   applySettings,
+  EsSettingsPatch,
   fetchEsHealth,
+  fetchEsSettings,
   fetchHealth,
   fetchSettings,
   NotAuthorisedError,
   SettingsPatch,
 } from './api';
-import { EsHealthResult, HealthResult, Settings, SettingsResult } from './types';
+import {
+  EsHealthResult,
+  EsSettings,
+  EsSettingsResult,
+  HealthResult,
+  Settings,
+  SettingsResult,
+} from './types';
 
 const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
 
@@ -521,10 +531,260 @@ function SettingsEditor({
   );
 }
 
+type EsForm = {
+  logLevel: string;
+  queues: Record<string, { concurrencyLimit: string; maxQueueSize: string }>;
+  shedding: Record<string, { defaultPriority: string; bandsText: string }>;
+};
+
+function esSettingsToForm(s: EsSettings): EsForm {
+  return {
+    logLevel: s.logLevel,
+    queues: Object.fromEntries(
+      Object.entries(s.queues).map(([name, q]) => [
+        name,
+        { concurrencyLimit: String(q.concurrencyLimit), maxQueueSize: String(q.maxQueueSize) },
+      ])
+    ),
+    shedding: Object.fromEntries(
+      Object.entries(s.shedding).map(([name, sh]) => [
+        name,
+        {
+          defaultPriority: String(sh.defaultPriority),
+          bandsText: JSON.stringify(sh.bands ?? []),
+        },
+      ])
+    ),
+  };
+}
+
+// Build the es-api patch from the form. Throws on invalid bands JSON so the
+// caller can surface it instead of silently dropping the change.
+function esFormToPatch(form: EsForm): EsSettingsPatch {
+  const num = (v: string) => (v.trim() === '' ? undefined : Number(v));
+  const queues: NonNullable<EsSettingsPatch['queues']> = {};
+  Object.entries(form.queues).forEach(([name, fields]) => {
+    const out: Record<string, number> = {};
+    Object.entries(fields).forEach(([k, v]) => {
+      const n = num(v);
+      if (n !== undefined && Number.isFinite(n)) out[k] = n;
+    });
+    if (Object.keys(out).length) queues[name] = out;
+  });
+  const shedding: NonNullable<EsSettingsPatch['shedding']> = {};
+  Object.entries(form.shedding).forEach(([name, fields]) => {
+    const patch: { defaultPriority?: number; bands?: { queueAbove: number; maxPriority: number }[] } =
+      {};
+    const dp = num(fields.defaultPriority);
+    if (dp !== undefined && Number.isFinite(dp)) patch.defaultPriority = dp;
+    if (fields.bandsText.trim() !== '') {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(fields.bandsText);
+      } catch {
+        throw new Error(`Invalid bands JSON for "${name}"`);
+      }
+      if (!Array.isArray(parsed)) throw new Error(`Bands for "${name}" must be an array`);
+      patch.bands = parsed as { queueAbove: number; maxPriority: number }[];
+    }
+    if (Object.keys(patch).length) shedding[name] = patch;
+  });
+  return { logLevel: form.logLevel, queues, shedding };
+}
+
+function EsSettingsEditor({
+  results,
+  onApplied,
+}: {
+  results: EsSettingsResult[];
+  onApplied: () => void;
+}) {
+  const okResults = results.filter((r) => r.ok && r.settings);
+  const seed = okResults[0]?.settings;
+  const [form, setForm] = useState<EsForm | null>(seed ? esSettingsToForm(seed) : null);
+  const [targets, setTargets] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [applyResults, setApplyResults] = useState<EsSettingsResult[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!form && seed) setForm(esSettingsToForm(seed));
+  }, [seed, form]);
+
+  const submit = useCallback(async () => {
+    if (!form) return;
+    setSubmitting(true);
+    setError(null);
+    setApplyResults(null);
+    try {
+      const patch = esFormToPatch(form);
+      const { results: r } = await applyEsSettings(patch, targets.length ? targets : undefined);
+      setApplyResults(r);
+      onApplied();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSubmitting(false);
+    }
+  }, [form, targets, onApplied]);
+
+  if (!form) {
+    return (
+      <div className="g-rounded-lg g-border g-border-zinc-800 g-bg-zinc-950 g-p-4 g-text-sm g-text-zinc-400">
+        No reachable es-api instance to read settings from.
+      </div>
+    );
+  }
+
+  return (
+    <div className="g-rounded-lg g-border g-border-zinc-800 g-bg-zinc-950 g-p-4">
+      <div className="g-flex g-items-center g-justify-between g-mb-4">
+        <h2 className="g-text-sm g-font-semibold g-text-zinc-100">Adjust es-api settings</h2>
+        <span className="g-text-[11px] g-text-zinc-500">live &amp; ephemeral — reset on restart</span>
+      </div>
+
+      <div className="g-grid g-grid-cols-2 sm:g-grid-cols-4 g-gap-3 g-mb-4">
+        <label className="g-flex g-flex-col g-gap-1">
+          <span className="g-text-[11px] g-uppercase g-tracking-wide g-text-zinc-500">log level</span>
+          <select
+            value={form.logLevel}
+            onChange={(e) => setForm({ ...form, logLevel: e.target.value })}
+            className="g-rounded g-border g-border-zinc-700 g-bg-zinc-900 g-px-2 g-py-1 g-text-sm g-text-zinc-100 focus:g-border-amber-500 focus:g-outline-none"
+          >
+            {LOG_LEVELS.map((l) => (
+              <option key={l} value={l}>
+                {l}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="g-text-[11px] g-uppercase g-tracking-wide g-text-zinc-500 g-mb-2">queues</div>
+      <div className="g-space-y-3 g-mb-4">
+        {Object.entries(form.queues).map(([name, fields]) => (
+          <div key={name} className="g-rounded g-border g-border-zinc-800 g-p-3">
+            <div className="g-text-sm g-text-zinc-300 g-mb-2">{name}</div>
+            <div className="g-grid g-grid-cols-2 sm:g-grid-cols-4 g-gap-3">
+              {Object.keys(fields).map((k) => (
+                <NumberField
+                  key={k}
+                  label={k}
+                  value={fields[k as keyof typeof fields]}
+                  onChange={(v) =>
+                    setForm({
+                      ...form,
+                      queues: { ...form.queues, [name]: { ...fields, [k]: v } },
+                    })
+                  }
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="g-text-[11px] g-uppercase g-tracking-wide g-text-zinc-500 g-mb-2">
+        priority shedding
+      </div>
+      <div className="g-space-y-3 g-mb-4">
+        {Object.entries(form.shedding).map(([name, fields]) => (
+          <div key={name} className="g-rounded g-border g-border-zinc-800 g-p-3">
+            <div className="g-text-sm g-text-zinc-300 g-mb-2">{name}</div>
+            <div className="g-grid g-grid-cols-1 sm:g-grid-cols-3 g-gap-3">
+              <NumberField
+                label="defaultPriority"
+                value={fields.defaultPriority}
+                onChange={(v) =>
+                  setForm({
+                    ...form,
+                    shedding: { ...form.shedding, [name]: { ...fields, defaultPriority: v } },
+                  })
+                }
+              />
+              <label className="g-flex g-flex-col g-gap-1 sm:g-col-span-2">
+                <span className="g-text-[11px] g-uppercase g-tracking-wide g-text-zinc-500">
+                  bands (JSON: [{'{'} queueAbove, maxPriority {'}'}])
+                </span>
+                <textarea
+                  rows={2}
+                  value={fields.bandsText}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      shedding: {
+                        ...form.shedding,
+                        [name]: { ...fields, bandsText: e.target.value },
+                      },
+                    })
+                  }
+                  className="g-w-full g-rounded g-border g-border-zinc-700 g-bg-zinc-900 g-px-2 g-py-1 g-text-xs g-font-mono g-text-zinc-100 focus:g-border-amber-500 focus:g-outline-none"
+                />
+              </label>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="g-text-[11px] g-uppercase g-tracking-wide g-text-zinc-500 g-mb-2">apply to</div>
+      <div className="g-flex g-flex-wrap g-gap-3 g-mb-4">
+        <label className="g-flex g-items-center g-gap-2 g-text-sm">
+          <input type="checkbox" checked={targets.length === 0} onChange={() => setTargets([])} />
+          all instances
+        </label>
+        {results.map((r) => (
+          <label key={r.url} className="g-flex g-items-center g-gap-2 g-text-sm g-text-zinc-300">
+            <input
+              type="checkbox"
+              checked={targets.includes(r.url)}
+              onChange={(e) =>
+                setTargets((prev) =>
+                  e.target.checked ? [...prev, r.url] : prev.filter((u) => u !== r.url)
+                )
+              }
+            />
+            {r.node}
+          </label>
+        ))}
+      </div>
+
+      <div className="g-flex g-items-center g-gap-3">
+        <button
+          type="button"
+          disabled={submitting}
+          onClick={submit}
+          className="g-rounded g-bg-amber-500 g-px-4 g-py-1.5 g-text-sm g-font-medium g-text-zinc-950 hover:g-bg-amber-400 disabled:g-opacity-50"
+        >
+          {submitting ? 'applying…' : 'Apply'}
+        </button>
+        {error && <span className="g-text-sm g-text-red-400">{error}</span>}
+      </div>
+
+      {applyResults && (
+        <div className="g-mt-4 g-space-y-1">
+          {applyResults.map((r) => (
+            <div key={r.url} className="g-text-xs">
+              <span className="g-text-zinc-400">{r.node}: </span>
+              {r.skipped ? (
+                <span className="g-text-zinc-600">skipped</span>
+              ) : r.ok ? (
+                <span className="g-text-emerald-400">applied</span>
+              ) : (
+                <span className="g-text-red-400">failed{r.status ? ` (${r.status})` : ''}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [healthResults, setHealthResults] = useState<HealthResult[]>([]);
   const [settingsResults, setSettingsResults] = useState<SettingsResult[]>([]);
   const [esResults, setEsResults] = useState<EsHealthResult[]>([]);
+  const [esSettingsResults, setEsSettingsResults] = useState<EsSettingsResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [unauthorised, setUnauthorised] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -541,10 +801,12 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-    // es-api is monitoring-only and independent: a failure here must not blank
-    // out the GraphQL view.
+    // es-api is independent: a failure here must not blank out the GraphQL view.
     fetchEsHealth()
       .then((r) => setEsResults(r.results))
+      .catch(() => undefined);
+    fetchEsSettings()
+      .then((r) => setEsSettingsResults(r.results))
       .catch(() => undefined);
   }, []);
 
@@ -606,6 +868,9 @@ export default function Dashboard() {
               <EsHealthCard key={r.url} result={r} />
             ))}
           </div>
+          {esSettingsResults.length > 0 && (
+            <EsSettingsEditor results={esSettingsResults} onApplied={load} />
+          )}
         </section>
       )}
     </div>

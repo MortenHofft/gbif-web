@@ -113,3 +113,15 @@ export type EsHealth = {
 };
 
 export type EsHealthResult = NodeResult<{ health?: EsHealth }>;
+
+export type EsBand = { queueAbove: number; maxPriority: number };
+export type EsQueueLimits = { concurrencyLimit: number; maxQueueSize: number };
+export type EsShedConfig = { defaultPriority: number; bands: EsBand[] };
+
+export type EsSettings = {
+  logLevel: string;
+  queues: Record<string, EsQueueLimits>;
+  shedding: Record<string, EsShedConfig>;
+};
+
+export type EsSettingsResult = NodeResult<{ settings?: EsSettings }>;

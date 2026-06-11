@@ -175,6 +175,58 @@ export function register(app) {
     res.json({ results });
   });
 
+  // Read: each es-api instance's current editable settings (auth: the es-api
+  // validates the same GraphQL JWT we mint here).
+  app.get('/api/admin/es-settings', appendUser, requireAdmin, async (req, res) => {
+    const token = generateGraphQLToken(req.user);
+    const results = await fanOut(getEsNodes(), async (node) => {
+      const { status, ok, body } = await fetchNodeJson(`${node.url}/admin/settings`, {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      return ok
+        ? { ok: true, status, settings: body?.settings ?? body }
+        : { ok: false, status, error: body };
+    });
+    res.json({ results });
+  });
+
+  // Write: apply a settings patch to the targeted es-api instances (default all).
+  // Body: { settings: {...}, targets?: string[] (instance urls) }
+  app.post('/api/admin/es-settings', appendUser, requireAdmin, async (req, res) => {
+    const { settings, targets } = req.body ?? {};
+    if (!settings || typeof settings !== 'object') {
+      res.status(400).json({ error: 'Missing "settings" object in body' });
+      return;
+    }
+    const token = generateGraphQLToken(req.user);
+    const targetSet = Array.isArray(targets) && targets.length ? new Set(targets) : null;
+
+    const results = await fanOut(getEsNodes(), async (node) => {
+      if (targetSet && !targetSet.has(node.url)) {
+        return { ok: true, skipped: true };
+      }
+      const { status, ok, body } = await fetchNodeJson(`${node.url}/admin/settings`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(settings),
+      });
+      return ok
+        ? { ok: true, status, settings: body?.settings ?? body }
+        : { ok: false, status, error: body };
+    });
+
+    logger.info('admin fanned settings change to es-api instances', {
+      actor: req.user?.userName,
+      targets: targetSet ? [...targetSet] : 'all',
+      settings,
+    });
+
+    res.json({ results });
+  });
+
   // Read: each instance's current editable settings.
   app.get('/api/admin/settings', appendUser, requireAdmin, async (req, res) => {
     const token = generateGraphQLToken(req.user);
