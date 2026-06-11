@@ -67,14 +67,89 @@ function counted(name) {
 }
 
 // Register an express-queue instance under an endpoint name. `limits` is echoed
-// back on /health for context (express-queue does not expose them).
-function registerQueue(name, queue, limits = {}) {
+// back on /health for context (express-queue does not expose them). `liveConfig`
+// is the options object passed to express-queue/mini-queue; mini-queue reads
+// `activeLimit`/`queuedLimit` from it live on every admission decision, so
+// mutating it (see setQueueLimits) changes the limits at runtime — no restart.
+function registerQueue(name, queue, limits = {}, liveConfig) {
   queues.set(name, {
     queue,
     concurrencyLimit: limits.concurrencyLimit,
     maxQueueSize: limits.maxQueueSize,
+    liveConfig: liveConfig || null,
   });
   counted(name);
+}
+
+// A non-positive / null / 'unbounded' value means "no limit".
+function toLimit(v) {
+  if (v === null || v === undefined || v === 'unbounded') return Infinity;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return Infinity;
+  return n;
+}
+
+function getQueueNames() {
+  return Array.from(queues.keys());
+}
+
+// The editable per-queue limits (Infinity reported as -1, mirroring /health).
+function getQueueLimits() {
+  const out = {};
+  queues.forEach(({ concurrencyLimit, maxQueueSize }, name) => {
+    out[name] = {
+      concurrencyLimit: unbounded(concurrencyLimit),
+      maxQueueSize: unbounded(maxQueueSize),
+    };
+  });
+  return out;
+}
+
+// Apply a runtime override to a queue's limits. Updates both the echoed value
+// (for /health) and the live mini-queue config (mini-queue uses -1 for
+// "unbounded"). Ephemeral: resets on restart.
+function setQueueLimits(name, patch = {}) {
+  const entry = queues.get(name);
+  if (!entry) {
+    throw new Error(`Unknown queue '${name}'. Known: ${getQueueNames().join(', ')}.`);
+  }
+  if ('concurrencyLimit' in patch) {
+    const n = toLimit(patch.concurrencyLimit);
+    entry.concurrencyLimit = n;
+    if (entry.liveConfig) entry.liveConfig.activeLimit = Number.isFinite(n) ? n : -1;
+  }
+  if ('maxQueueSize' in patch) {
+    const n = toLimit(patch.maxQueueSize);
+    entry.maxQueueSize = n;
+    if (entry.liveConfig) entry.liveConfig.queuedLimit = Number.isFinite(n) ? n : -1;
+  }
+  return getQueueLimits()[name];
+}
+
+// The editable shedding config per gate (defaultPriority + bands).
+function getShedSettings() {
+  const out = {};
+  gates.forEach((gate, name) => {
+    if (callable(gate, 'getConfig')) out[name] = gate.getConfig();
+  });
+  return out;
+}
+
+// Apply a runtime override to a gate's shedding config.
+function setShedSettings(name, patch = {}) {
+  const gate = gates.get(name);
+  if (!gate) {
+    throw new Error(
+      `Unknown gate '${name}'. Known: ${Array.from(gates.keys()).join(', ')}.`,
+    );
+  }
+  if ('defaultPriority' in patch && callable(gate, 'setDefaultPriority')) {
+    gate.setDefaultPriority(patch.defaultPriority);
+  }
+  if ('bands' in patch && callable(gate, 'setBands')) {
+    gate.setBands(patch.bands);
+  }
+  return callable(gate, 'getConfig') ? gate.getConfig() : null;
 }
 
 // Register a priority admission gate (see middleware/admissionGate.js) so its
@@ -223,4 +298,9 @@ module.exports = {
   getPriorityCounts,
   getQueueSizes,
   getStats,
+  getQueueNames,
+  getQueueLimits,
+  setQueueLimits,
+  getShedSettings,
+  setShedSettings,
 };

@@ -117,4 +117,22 @@ logger.logError = (error, meta = {}) => {
   });
 };
 
+// Runtime log-level control (used by the admin endpoint). Winston's level is
+// mutable, but each transport carries its own level, so set both.
+const VALID_LOG_LEVELS = ['debug', 'info', 'warn', 'error'];
+logger.getLogLevel = () => logger.level;
+logger.setLogLevel = (next) => {
+  const normalized = String(next).toLowerCase();
+  if (!VALID_LOG_LEVELS.includes(normalized)) {
+    throw new Error(
+      `Invalid log level '${next}'. Expected one of: ${VALID_LOG_LEVELS.join(', ')}.`,
+    );
+  }
+  logger.level = normalized;
+  logger.transports.forEach((transport) => {
+    transport.level = normalized;
+  });
+  return normalized;
+};
+
 module.exports = logger;

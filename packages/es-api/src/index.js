@@ -56,14 +56,18 @@ function rejectResponse(res) {
 // express-queue invokes our `next` only once the request has acquired a slot
 // (is being processed), and the response's finish/close tells us the outcome.
 function makeQueue(name, concurrencyLimit = ACTIVE_LIMIT) {
-  const q = queue({
+  // Held by reference: mini-queue reads activeLimit/queuedLimit off this object
+  // live on every admission decision, so the admin endpoint can retune the
+  // queue at runtime by mutating it (see metrics.setQueueLimits).
+  const queueConfig = {
     activeLimit: concurrencyLimit,
     queuedLimit: QUEUED_LIMIT,
     rejectHandler: (req, res) => {
       recordRejection(name);
       rejectResponse(res);
     },
-  });
+  };
+  const q = queue(queueConfig);
 
   const middleware = (req, res, next) => {
     q(req, res, (err) => {
@@ -88,10 +92,15 @@ function makeQueue(name, concurrencyLimit = ACTIVE_LIMIT) {
   // Preserve the introspection handle the gate and /health read.
   middleware.queue = q.queue;
 
-  registerQueue(name, middleware, {
-    concurrencyLimit,
-    maxQueueSize: QUEUED_LIMIT,
-  });
+  registerQueue(
+    name,
+    middleware,
+    {
+      concurrencyLimit,
+      maxQueueSize: QUEUED_LIMIT,
+    },
+    queueConfig,
+  );
   return middleware;
 }
 
@@ -475,6 +484,10 @@ function metaOnly(resource) {
 }
 
 app.get('/health', health);
+
+// Authenticated runtime settings API (log level, queue limits, shedding).
+// Enforces its own admin auth via the shared GraphQL JWT.
+require('./admin')(app);
 
 app.get('*', unknownRouteHandler);
 app.use(errorHandler);
