@@ -105,6 +105,31 @@ async function fanOut(perNode) {
   );
 }
 
+// Guard the backstage *page* (HTML) so it 404s for non-admins before SSR — the
+// dashboard route is never rendered (and its chunk never referenced) for anyone
+// not authorised, keeping the surface invisible. Matches any path segment named
+// "backstage" so it works regardless of an i18n locale prefix.
+function isBackstagePath(pathname) {
+  return pathname.split('/').includes('backstage');
+}
+
+export function registerPageGuard(app) {
+  app.use((req, res, next) => {
+    if (!isBackstagePath(req.path)) {
+      next();
+      return;
+    }
+    appendUser(req, res, () => {
+      if (isAuthorisedAdmin(req.user)) {
+        next();
+        return;
+      }
+      // Empty 404: deliberately give nothing away to non-admins.
+      res.status(404).end();
+    });
+  });
+}
+
 export function register(app) {
   // List the instances under management (so the UI can render one column each).
   app.get('/api/admin/nodes', appendUser, requireAdmin, (req, res) => {
