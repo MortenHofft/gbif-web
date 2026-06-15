@@ -41,9 +41,14 @@ const isAbsoluteEndpoint = (countPart: string) => countPart.startsWith('http');
 const isRelativeEndpoint = (countPart: string) => countPart.startsWith('/api/');
 
 const createEndpoint = (countPart: string): string => {
+  // Absolute URLs and relative /api/ endpoints (e.g. the /api/resource/search proxy)
+  // are used as-is so the request goes through our own backend rather than hitting
+  // the content search API directly from the browser.
   if (isAbsoluteEndpoint(countPart)) return countPart;
+  if (isRelativeEndpoint(countPart)) return countPart;
+  // Fallback: a bare query string is routed through the resource search proxy.
   const queryParams = countPart.split('?')[1];
-  return `${import.meta.env.PUBLIC_CONTENT_SEARCH}?${queryParams}`;
+  return `/api/resource/search?${queryParams}`;
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> => {
