@@ -18,6 +18,7 @@ export class ResourceAPI extends QueuedRESTDataSource {
     request.headers.referer = this.context.referer;
     request.headers['x-client-priority'] = this.context.clientPriority;
     request.headers['x-gbif-site-url'] = this.context.siteUrl;
+    request.headers['x-request-id'] = this.context.requestId;
     request.agent = getDefaultAgent(this.baseURL, path);
   }
 
@@ -58,6 +59,7 @@ export class ResourceSearchAPI extends RESTDataSource {
     request.headers.referer = this.context.referer;
     request.headers['x-client-priority'] = this.context.clientPriority;
     request.headers['x-gbif-site-url'] = this.context.siteUrl;
+    request.headers['x-request-id'] = this.context.requestId;
     request.agent = getDefaultAgent(this.baseURL, path);
   }
 

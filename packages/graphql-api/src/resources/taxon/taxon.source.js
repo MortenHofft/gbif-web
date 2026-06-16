@@ -18,6 +18,7 @@ class TaxonAPI extends QueuedRESTDataSource {
     request.headers['referer'] = this.context.referer;
     request.headers['x-client-priority'] = this.context.clientPriority;
     request.headers['x-gbif-site-url'] = this.context.siteUrl;
+    request.headers['x-request-id'] = this.context.requestId;
     request.agent = getTaxonAgent(this.baseURL, path);
   }
 
