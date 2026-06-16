@@ -122,6 +122,9 @@ async function initializeServer() {
       // their logs correlate with ours. Read from the request store rather than
       // regenerated here so the logged and forwarded ids match.
       requestId: getRequestLogContext()?.requestId,
+      // The originating client IP, if a proxy set it on the incoming request.
+      // Forwarded as-is to upstream APIs when present (see willSendRequest).
+      clientIp: get(req, 'headers.x-client-ip') || null,
       locale: get(req, 'headers.locale') || 'en-GB',
       preview: get(req, 'headers.preview') === 'true',
       queryId: res ? res.get('X-Graphql-query-ID') : null,
