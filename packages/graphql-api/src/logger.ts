@@ -62,9 +62,7 @@ const addFixedFields = winston.format((info) => {
   };
 });
 
-// Merge request-scoped fields (e.g. the originating page's `siteUrl`) into every
-// log line emitted while handling a request, so the source page can be traced
-// across all logs for that request without threading it through each call site.
+// Merge request-scoped fields (siteUrl, requestId) into every log line for the request.
 const addRequestContext = winston.format((info) => {
   const requestContext = getRequestLogContext();
   if (!requestContext) return info;
