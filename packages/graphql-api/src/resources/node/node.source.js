@@ -13,10 +13,10 @@ export class NodeAPI extends RESTDataSource {
 
   willSendRequest(path, request) {
     request.headers['User-Agent'] = this.context.userAgent;
-    request.headers['referer'] = this.context.referer;
-    request.headers['x-client-priority'] = this.context.clientPriority;
-    request.headers['x-gbif-site-url'] = this.context.siteUrl;
-    request.headers['x-request-id'] = this.context.requestId;
+    if (this.context.referer) request.headers['referer'] = this.context.referer;
+    if (this.context.clientPriority) request.headers['x-client-priority'] = this.context.clientPriority;
+    if (this.context.siteUrl) request.headers['x-gbif-site-url'] = this.context.siteUrl;
+    if (this.context.requestId) request.headers['x-request-id'] = this.context.requestId;
     if (this.context.clientIp) request.headers['x-client-ip'] = this.context.clientIp;
     request.agent = getDefaultAgent(this.baseURL, path);
   }
@@ -80,10 +80,10 @@ export class NodeDirectoryAPI extends RESTDataSource {
     const header = createSignedGetHeader(path, this.config);
     Object.keys(header).forEach((x) => { request.headers[x] = header[x]; });
     request.headers['User-Agent'] = this.context.userAgent;
-    request.headers['referer'] = this.context.referer;
-    request.headers['x-client-priority'] = this.context.clientPriority;
-    request.headers['x-gbif-site-url'] = this.context.siteUrl;
-    request.headers['x-request-id'] = this.context.requestId;
+    if (this.context.referer) request.headers['referer'] = this.context.referer;
+    if (this.context.clientPriority) request.headers['x-client-priority'] = this.context.clientPriority;
+    if (this.context.siteUrl) request.headers['x-gbif-site-url'] = this.context.siteUrl;
+    if (this.context.requestId) request.headers['x-request-id'] = this.context.requestId;
     if (this.context.clientIp) request.headers['x-client-ip'] = this.context.clientIp;
     request.agent = getDefaultAgent(this.baseURL, path);
   }
