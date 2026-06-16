@@ -142,15 +142,15 @@ app.use(cors());
 app.use(compression());
 // Open a request-scoped store so logger.js can stamp every log line for this
 // request. Reuse the upstream x-request-id (forwarded by graphql-api) so logs
-// correlate across services; generate one for direct callers.
+// correlate across services; generate one for direct callers. Also stashed on
+// req so asyncMiddleware can re-establish it after express-queue (which runs
+// queued requests in another request's async context and loses the store).
 app.use((req, _res, next) => {
-  requestContextStorage.run(
-    {
-      requestId: req.headers['x-request-id'] || randomUUID(),
-      siteUrl: req.headers['x-gbif-site-url'] || null,
-    },
-    () => next(),
-  );
+  req.logContext = {
+    requestId: req.headers['x-request-id'] || randomUUID(),
+    siteUrl: req.headers['x-gbif-site-url'] || null,
+  };
+  requestContextStorage.run(req.logContext, () => next());
 });
 app.use(express.static('public'));
 app.use(bodyParser.json({ limit: '1mb' }));

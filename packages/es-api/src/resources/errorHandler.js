@@ -1,3 +1,5 @@
+const { requestContextStorage } = require('../requestContext');
+
 class ResponseError extends Error {
   constructor(statusCode, displayName, message) {
     super();
@@ -35,6 +37,10 @@ function unknownRouteHandler(req, res) {
 
 function asyncMiddleware(fn) {
   return (req, res, next) => {
+    // express-queue dispatches queued requests in another request's async
+    // context, losing the request-scoped log store. Re-establish it here (after
+    // the queue, before the handler) so logs are attributed to the right request.
+    if (req.logContext) requestContextStorage.enterWith(req.logContext);
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 }
