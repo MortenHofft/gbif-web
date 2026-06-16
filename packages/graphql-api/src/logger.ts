@@ -67,10 +67,11 @@ const addFixedFields = winston.format((info) => {
 // across all logs for that request without threading it through each call site.
 const addRequestContext = winston.format((info) => {
   const requestContext = getRequestLogContext();
-  if (requestContext?.siteUrl) {
-    return { ...info, siteUrl: requestContext.siteUrl };
-  }
-  return info;
+  if (!requestContext) return info;
+  const fields: Record<string, unknown> = {};
+  if (requestContext.requestId) fields.requestId = requestContext.requestId;
+  if (requestContext.siteUrl) fields.siteUrl = requestContext.siteUrl;
+  return { ...info, ...fields };
 });
 
 const level = debugLevel;

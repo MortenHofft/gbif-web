@@ -6,6 +6,7 @@ import { InMemoryLRUCache } from '@apollo/utils.keyvaluecache';
 import bodyParser from 'body-parser';
 import compression from 'compression';
 import cors from 'cors';
+import { randomUUID } from 'crypto';
 import express from 'express';
 import { get } from 'lodash';
 // recommended in the apollo docs https://github.com/stems/graphql-depth-limit
@@ -130,13 +131,18 @@ async function initializeServer() {
       methods: 'GET,POST,OPTIONS',
     }),
   );
-  // Open a request-scoped store carrying the originating page URL so every log
-  // line written while handling this request can include it (see logger.ts).
-  // Placed early so even load-shed/overload logs are attributed. next() runs
-  // inside the store, so all downstream async work inherits it.
+  // Open a request-scoped store carrying a request id and the originating page
+  // URL so every log line written while handling this request can include them
+  // (see logger.ts). Placed early so even load-shed/overload logs are
+  // attributed. next() runs inside the store, so all downstream async work
+  // inherits it. Reuse an upstream x-request-id (e.g. from Varnish/a proxy) when
+  // present so logs correlate across services; otherwise generate one.
   app.use((req, _res, next) => {
     requestContextStorage.run(
-      { siteUrl: get(req, 'headers.x-gbif-site-url') || null },
+      {
+        requestId: get(req, 'headers.x-request-id') || randomUUID(),
+        siteUrl: get(req, 'headers.x-gbif-site-url') || null,
+      },
       () => next(),
     );
   });

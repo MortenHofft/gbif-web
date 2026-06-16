@@ -4,6 +4,10 @@ import { AsyncLocalStorage } from 'async_hooks';
 // request is being handled. Kept intentionally small — this is request-scoped
 // observability metadata, not application state.
 export type RequestLogContext = {
+  // A unique id for the request, used to correlate all log lines belonging to
+  // the same request. Reused from an upstream `x-request-id` when present,
+  // otherwise generated per request.
+  requestId?: string;
   // The full URL of the page that issued the request, sent by the portal as the
   // `x-gbif-site-url` header. Null when the header is absent.
   siteUrl?: string | null;
