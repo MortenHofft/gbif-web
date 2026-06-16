@@ -15,6 +15,7 @@ export class NodeAPI extends RESTDataSource {
     request.headers['User-Agent'] = this.context.userAgent;
     request.headers['referer'] = this.context.referer;
     request.headers['x-client-priority'] = this.context.clientPriority;
+    request.headers['x-gbif-site-url'] = this.context.siteUrl;
     request.agent = getDefaultAgent(this.baseURL, path);
   }
 
@@ -79,6 +80,7 @@ export class NodeDirectoryAPI extends RESTDataSource {
     request.headers['User-Agent'] = this.context.userAgent;
     request.headers['referer'] = this.context.referer;
     request.headers['x-client-priority'] = this.context.clientPriority;
+    request.headers['x-gbif-site-url'] = this.context.siteUrl;
     request.agent = getDefaultAgent(this.baseURL, path);
   }
 

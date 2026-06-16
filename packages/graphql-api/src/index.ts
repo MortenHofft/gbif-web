@@ -14,6 +14,7 @@ import depthLimit from 'graphql-depth-limit';
 // Local imports
 import config from './config';
 import createContext from './createContext';
+import { requestContextStorage } from './requestContext';
 import health from './health';
 import adminController from './admin';
 import { graphqlExplorer, hashMiddleware } from './middleware';
@@ -111,6 +112,10 @@ async function initializeServer() {
       // We forward it to the upstream APIs so they can prioritise/shed under load
       // — most importantly the es-api behind occurrence search. null when absent.
       clientPriority: get(req, 'headers.x-client-priority') || null,
+      // The full URL of the page that issued the request (sent by the portal).
+      // Forwarded to upstream APIs (see each data source's willSendRequest) so
+      // they can attribute traffic to the exact source page. null when absent.
+      siteUrl: get(req, 'headers.x-gbif-site-url') || null,
       locale: get(req, 'headers.locale') || 'en-GB',
       preview: get(req, 'headers.preview') === 'true',
       queryId: res ? res.get('X-Graphql-query-ID') : null,
@@ -125,6 +130,16 @@ async function initializeServer() {
       methods: 'GET,POST,OPTIONS',
     }),
   );
+  // Open a request-scoped store carrying the originating page URL so every log
+  // line written while handling this request can include it (see logger.ts).
+  // Placed early so even load-shed/overload logs are attributed. next() runs
+  // inside the store, so all downstream async work inherits it.
+  app.use((req, _res, next) => {
+    requestContextStorage.run(
+      { siteUrl: get(req, 'headers.x-gbif-site-url') || null },
+      () => next(),
+    );
+  });
   // Shed load (fast 503) before the expensive per-request work — body parsing,
   // GraphQL parse/validate, context build. Only guards configured paths
   // (default /graphql) and never /health. No-op unless enabled in config.

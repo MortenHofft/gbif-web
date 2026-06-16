@@ -3,6 +3,7 @@ import path from 'path';
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import config from './config';
+import { getRequestLogContext } from './requestContext';
 
 // Get environment and service information
 const env = process.env.NODE_ENV || 'local';
@@ -61,6 +62,17 @@ const addFixedFields = winston.format((info) => {
   };
 });
 
+// Merge request-scoped fields (e.g. the originating page's `siteUrl`) into every
+// log line emitted while handling a request, so the source page can be traced
+// across all logs for that request without threading it through each call site.
+const addRequestContext = winston.format((info) => {
+  const requestContext = getRequestLogContext();
+  if (requestContext?.siteUrl) {
+    return { ...info, siteUrl: requestContext.siteUrl };
+  }
+  return info;
+});
+
 const level = debugLevel;
 console.log(`Logger level set to: ${level}`);
 
@@ -76,6 +88,7 @@ const fileRotateTransport = new DailyRotateFile({
   handleRejections: true,
   format: winston.format.combine(
     addFixedFields(),
+    addRequestContext(),
     winston.format.timestamp(),
     ecsFormat({ convertReqRes: true }),
   ),
@@ -88,6 +101,7 @@ const consoleTransport = new winston.transports.Console({
   handleRejections: true,
   format: winston.format.combine(
     addFixedFields(),
+    addRequestContext(),
     winston.format.timestamp(),
     colorizedJsonFormat,
   ),

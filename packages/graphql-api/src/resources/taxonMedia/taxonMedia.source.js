@@ -14,6 +14,7 @@ export default class TaxonMediaAPI extends RESTDataSource {
     request.headers['User-Agent'] = this.context.userAgent;
     request.headers['referer'] = this.context.referer;
     request.headers['x-client-priority'] = this.context.clientPriority;
+    request.headers['x-gbif-site-url'] = this.context.siteUrl;
     request.headers['Accept'] = 'application/json';
     request.agent = getDefaultAgent(this.baseURL, path);
   }
