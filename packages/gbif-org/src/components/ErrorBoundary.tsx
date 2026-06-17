@@ -1,3 +1,4 @@
+import { useConfig } from '@/config/config';
 import { OccurrenceSortBy, SortOrder } from '@/gql/graphql';
 import { reportClientError } from '@/utils/errorReporting';
 import { cn } from '@/utils/shadcn';
@@ -20,13 +21,15 @@ interface ErrorBoundaryProps {
   debugTitle?: string;
   additionalDebugInfo?: string;
   fallback?: React.ReactNode;
+  /** When false, errors are not reported to telemetry. Defaults to isGBIFOrg from config. */
+  enableTelemetry?: boolean;
 }
 
 interface ErrorBoundaryState {
   error: Error | null;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundaryClass extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps | Readonly<ErrorBoundaryProps>) {
     super(props);
     this.state = { error: null };
@@ -38,14 +41,15 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error(error, errorInfo);
-    // Report React render errors to our telemetry endpoint (-> ECS logs -> Kibana).
-    reportClientError(error, {
-      kind: 'react',
-      context: {
-        componentStack: errorInfo?.componentStack,
-        debugTitle: this.props.debugTitle,
-      },
-    });
+    if (this.props.enableTelemetry) {
+      reportClientError(error, {
+        kind: 'react',
+        context: {
+          componentStack: errorInfo?.componentStack,
+          debugTitle: this.props.debugTitle,
+        },
+      });
+    }
   }
 
   componentDidUpdate(prevProps: Readonly<ErrorBoundaryProps>) {
@@ -274,6 +278,19 @@ export function ErrorBlock(props) {
 
 export function ErrorPage(props) {
   return <ErrorComponent {...props} type="PAGE" />;
+}
+
+// Wrap the class component so callers don't need to supply enableTelemetry explicitly.
+// Reading isGBIFOrg from config here means hosted-portal (HP) instances of the shared
+// component never report errors to gbif.org telemetry — they get false by default.
+function ErrorBoundary(props: ErrorBoundaryProps) {
+  const { isGBIFOrg } = useConfig();
+  return (
+    <ErrorBoundaryClass
+      {...props}
+      enableTelemetry={props.enableTelemetry ?? isGBIFOrg}
+    />
+  );
 }
 
 export { ErrorBoundary };
