@@ -88,6 +88,7 @@ const loggingPlugin: ApolloServerPlugin = {
           timeInCopenhagen: date.toLocaleString('en-GB', {
             timeZone: 'Europe/Copenhagen',
           }),
+          statusCode: requestContext?.response?.http?.status,
           request: {
             operationName: requestContext?.request?.operationName,
             query: requestContext?.request?.query,
@@ -120,6 +121,7 @@ const loggingPlugin: ApolloServerPlugin = {
           timeInCopenhagen: date.toLocaleString('en-GB', {
             timeZone: 'Europe/Copenhagen',
           }),
+          statusCode: requestContext?.response?.http?.status,
           executionTimeMs: Math.round(elapsedMilliseconds),
           request: {
             operationName: requestContext?.request?.operationName,
