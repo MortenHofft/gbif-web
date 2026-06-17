@@ -143,7 +143,7 @@ export function appendUser(req, res, next) {
             next();
           })
           .catch(function (err) {
-            logger.logError(err, 'Error fetching user by username in appendUser middleware');
+            logger.logError(err, { context: 'appendUser', message: 'Error fetching user by username in appendUser middleware' });
             removeTokenCookie(res);
             delete req.user;
             next();

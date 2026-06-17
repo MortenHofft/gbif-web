@@ -112,11 +112,12 @@ logger.on('error', (err) => {
 logger.info('initialising log');
 
 logger.logError = (error, meta = {}) => {
+  const metaObj = typeof meta === 'string' ? { context: meta } : meta;
   logger.error(error.message || 'An error occurred', {
     error,
     error_message: error.message,
     error_stack: error.stack,
-    ...meta,
+    ...metaObj,
   });
 };
 
