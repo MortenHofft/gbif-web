@@ -10,7 +10,8 @@ class StatusPageAPI extends RESTDataSource {
   willSendRequest(path, request) {
     request.headers['User-Agent'] = this.context.userAgent;
     if (this.baseURL) {
-      request.agent = getDefaultAgent(this.baseURL, path);
+      // Use a function so the correct agent is selected per-hop (handles HTTP→HTTPS redirects)
+      request.agent = (url) => getDefaultAgent(url.href, '');
     }
   }
 
