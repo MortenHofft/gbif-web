@@ -6,6 +6,7 @@ const cors = require('cors');
 const config = require('./config');
 var queue = require('express-queue');
 const { loggingMiddleware, errorLoggingMiddleware, admissionGate } = require('./middleware');
+const { randomUUID } = require('crypto');
 const {
   registerQueue,
   registerGate,
@@ -138,6 +139,16 @@ const {
 const app = express();
 app.use(cors());
 app.use(compression());
+// Attach per-request logging fields to req. Reuse the upstream x-request-id
+// (forwarded by graphql-api) so logs correlate across services; generate one
+// for direct callers. The request/error log middlewares read these off req.
+app.use((req, _res, next) => {
+  req.logContext = {
+    requestId: req.headers['x-request-id'] || `esapi-${randomUUID()}`,
+    siteUrl: req.headers['x-gbif-site-url'] || null,
+  };
+  next();
+});
 app.use(express.static('public'));
 app.use(bodyParser.json({ limit: '1mb' }));
 

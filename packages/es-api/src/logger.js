@@ -86,7 +86,11 @@ const consoleTransport = new winston.transports.Console({
   level,
   handleExceptions: true,
   handleRejections: true,
-  format: winston.format.combine(addFixedFields(), winston.format.timestamp(), colorizedJsonFormat),
+  format: winston.format.combine(
+    addFixedFields(),
+    winston.format.timestamp(),
+    colorizedJsonFormat,
+  ),
 });
 
 // Create the Winston Logger instance
