@@ -17,6 +17,9 @@ export default defineConfig(({ command }) => {
     plugins: [react()],
     build: {
       emptyOutDir: true,
+      // Emit source maps so production bundles can be mapped back to the
+      // original source (the build script already compresses the `.map` files).
+      sourcemap: true,
       outDir: './dist/gbif/client',
       rollupOptions: {
         input: {

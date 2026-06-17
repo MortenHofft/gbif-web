@@ -20,6 +20,8 @@ tmp/
 **/.env
 **/.env.**.*
 **/.env.*
+# but keep committed example files
+!**/.env.example
 /packages/mcp/elasticsearch/
 **/venv
 **/elasticsearch
