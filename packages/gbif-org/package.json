@@ -26,6 +26,7 @@
   "dependencies": {
     "@elastic/ecs-winston-format": "^1.5.3",
     "@hello-pangea/dnd": "^17.0.0",
+    "@jridgewell/trace-mapping": "^0.3.25",
     "@hookform/resolvers": "^3.3.4",
     "@mapbox/mapbox-gl-draw": "^1.5.1",
     "@mapbox/mapbox-gl-draw-static-mode": "^1.0.1",

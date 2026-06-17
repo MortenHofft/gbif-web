@@ -8,6 +8,7 @@ import { createServer as createHttpServer } from 'node:http';
 import { merge } from 'ts-deepmerge';
 import { loadEnv } from 'vite';
 import logger from './config/logger.mjs';
+import { symbolicate } from './utils/symbolicate.mjs';
 import { helmetConfig } from './helmetConfig.js';
 import { register as registerRobots } from './routes/robots/index.mjs';
 import { register as registerSitemaps } from './routes/sitemaps/endpoints.mjs';
@@ -236,7 +237,16 @@ async function main() {
             ? e
             : new Error(typeof e === 'string' ? e : 'Server-side render failed');
         if (status >= 500) {
-          logger.logError(renderError, { url, status });
+          const sym = symbolicate(renderError.stack ?? '');
+          const symMeta =
+            sym.resolved > 0
+              ? {
+                  error_stack: sym.stack,
+                  error_stack_minified: renderError.stack,
+                  source_location: sym.topFrame,
+                }
+              : {};
+          logger.logError(renderError, { url, status, ...symMeta });
         } else {
           logger.warn(`Server-side render returned ${status} for ${url}`, {
             url,
@@ -274,10 +284,21 @@ async function main() {
         viteDevServer.ssrFixStacktrace(error);
       }
 
-      logger.logError(error instanceof Error ? error : new Error(String(error)), {
+      const outerError = error instanceof Error ? error : new Error(String(error));
+      const outerSym = symbolicate(outerError.stack ?? '');
+      const outerSymMeta =
+        outerSym.resolved > 0
+          ? {
+              error_stack: outerSym.stack,
+              error_stack_minified: outerError.stack,
+              source_location: outerSym.topFrame,
+            }
+          : {};
+      logger.logError(outerError, {
         url,
         status: 500,
         message: 'Failed to load SSR template or render module',
+        ...outerSymMeta,
       });
       res.status(500).end(error.stack);
     }
