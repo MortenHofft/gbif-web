@@ -62,14 +62,16 @@ const addFixedFields = winston.format((info) => {
   };
 });
 
-// Merge request-scoped fields (requestId, siteUrl) into every log line for the request.
+// Merge request-scoped fields (requestId, siteUrl) into every log line for the
+// request. Best-effort: a value already on the log (set explicitly from req)
+// wins, since AsyncLocalStorage can be broken by express-queue.
 const addRequestContext = winston.format((info) => {
   const requestContext = getRequestLogContext();
   if (!requestContext) return info;
-  const fields = {};
-  if (requestContext.requestId) fields.requestId = requestContext.requestId;
-  if (requestContext.siteUrl) fields.siteUrl = requestContext.siteUrl;
-  return { ...info, ...fields };
+  const out = { ...info };
+  if (requestContext.requestId && out.requestId == null) out.requestId = requestContext.requestId;
+  if (requestContext.siteUrl && out.siteUrl == null) out.siteUrl = requestContext.siteUrl;
+  return out;
 });
 
 const level = debugLevel;
