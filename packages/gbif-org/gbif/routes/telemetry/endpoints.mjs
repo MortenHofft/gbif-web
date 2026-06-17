@@ -12,6 +12,7 @@
 
 import { secretEnv } from '../../envConfig.mjs';
 import logger from '../../config/logger.mjs';
+import { symbolicate } from './symbolicate.mjs';
 
 // --- Configuration -------------------------------------------------------------
 
@@ -109,6 +110,79 @@ function isIgnored(message) {
   return IGNORED_MESSAGES.some((ignored) => message.includes(ignored));
 }
 
+// Build the structured log fields from a validated body, symbolicating the stack.
+// Kept separate so it runs *after* the response has been sent - symbolication
+// reads source maps from disk and should never delay the client.
+function logClientError(body, ip) {
+  let context;
+  if (body.context && typeof body.context === 'object') {
+    try {
+      const serialised = JSON.stringify(body.context);
+      if (serialised && serialised.length <= MAX_CONTEXT_CHARS) {
+        context = JSON.parse(scrub(serialised));
+      }
+    } catch {
+      /* ignore malformed context */
+    }
+  }
+
+  const message = asString(body.message, MAX_MESSAGE);
+  const rawStack = asString(body.stack, MAX_STACK);
+
+  // Resolve minified frames to original source. Best-effort: on any miss we keep
+  // the raw stack and flag the document so dashboards can tell them apart.
+  let stackTrace = rawStack;
+  let minifiedStack;
+  let symbolicated = 'false';
+  let sourceLocation;
+  let codeContext;
+  if (rawStack) {
+    try {
+      const mapped = symbolicate(rawStack);
+      if (mapped.resolved > 0) {
+        stackTrace = asString(mapped.stack, MAX_STACK);
+        minifiedStack = rawStack; // keep the original for reference
+        symbolicated = mapped.resolved === mapped.total ? 'true' : 'partial';
+        sourceLocation = mapped.topFrame;
+        codeContext = asString(mapped.snippet, MAX_CONTEXT_CHARS);
+      }
+    } catch {
+      /* fall back to the raw stack */
+    }
+  }
+
+  // Structured ECS-friendly fields so Kibana dashboards can facet cleanly.
+  logger.error(`client error: ${message}`, {
+    class: 'client',
+    event: { kind: 'client-error', category: 'web', module: 'telemetry' },
+    error: {
+      type: asString(body.name, 200),
+      message,
+      stack_trace: stackTrace,
+      stack_trace_minified: minifiedStack,
+      source_location: sourceLocation,
+    },
+    code_context: codeContext,
+    url: {
+      full: asString(body.url, MAX_URL),
+      path: asString(body.pathname, MAX_URL),
+    },
+    http: { request: { referrer: asString(body.referrer, MAX_URL) } },
+    user_agent: { original: asString(body.userAgent, MAX_UA) },
+    client: { ip },
+    labels: {
+      telemetry_kind: asString(body.kind, 50) ?? 'manual',
+      release: asString(body.release, 100) ?? 'unknown',
+      language: asString(body.language, 20),
+      symbolicated,
+    },
+    source: asString(body.source, MAX_URL),
+    lineno: asInt(body.lineno),
+    colno: asInt(body.colno),
+    context,
+  });
+}
+
 // --- Route ---------------------------------------------------------------------
 
 function handleError(req, res) {
@@ -116,71 +190,39 @@ function handleError(req, res) {
   // and we intentionally do not reveal whether an event was kept or dropped.
   res.set('Cache-Control', 'no-store');
 
-  try {
-    const body = req.body;
-    if (!body || typeof body !== 'object' || Array.isArray(body)) {
-      return res.status(400).end();
-    }
+  const body = req.body;
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return res.status(400).end();
+  }
+  if (!asString(body.message, MAX_MESSAGE)) {
+    return res.status(400).end();
+  }
 
-    const message = asString(body.message, MAX_MESSAGE);
-    if (!message) return res.status(400).end();
-    if (isIgnored(message)) return res.status(204).end();
+  // Decide whether to keep the event, but respond 204 either way so a client
+  // can't tell (and can't be used to probe) what we drop.
+  const message = asString(body.message, MAX_MESSAGE);
+  const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+  const keep =
+    !isIgnored(message) &&
+    !rateLimited(ip) &&
+    !(SAMPLE_RATE < 1 && Math.random() > SAMPLE_RATE);
 
-    const ip = req.ip || req.connection?.remoteAddress || 'unknown';
-    if (rateLimited(ip)) return res.status(204).end();
-    if (SAMPLE_RATE < 1 && Math.random() > SAMPLE_RATE) return res.status(204).end();
+  res.status(204).end();
 
-    let context;
-    if (body.context && typeof body.context === 'object') {
+  // Symbolicate + log after the response is on its way. Never throw.
+  if (keep) {
+    try {
+      logClientError(body, ip);
+    } catch (err) {
       try {
-        const serialised = JSON.stringify(body.context);
-        if (serialised && serialised.length <= MAX_CONTEXT_CHARS) {
-          context = JSON.parse(scrub(serialised));
-        }
+        logger.logError(err instanceof Error ? err : new Error('telemetry ingest failed'), {
+          class: 'web',
+          event: { kind: 'telemetry-ingest-error' },
+        });
       } catch {
-        /* ignore malformed context */
+        /* last resort: give up silently */
       }
     }
-
-    // Structured ECS-friendly fields so Kibana dashboards can facet cleanly.
-    logger.error(`client error: ${message}`, {
-      class: 'client',
-      event: { kind: 'client-error', category: 'web', module: 'telemetry' },
-      error: {
-        type: asString(body.name, 200),
-        message,
-        stack_trace: asString(body.stack, MAX_STACK),
-      },
-      url: {
-        full: asString(body.url, MAX_URL),
-        path: asString(body.pathname, MAX_URL),
-      },
-      http: { request: { referrer: asString(body.referrer, MAX_URL) } },
-      user_agent: { original: asString(body.userAgent, MAX_UA) },
-      client: { ip },
-      labels: {
-        telemetry_kind: asString(body.kind, 50) ?? 'manual',
-        release: asString(body.release, 100) ?? 'unknown',
-        language: asString(body.language, 20),
-      },
-      source: asString(body.source, MAX_URL),
-      lineno: asInt(body.lineno),
-      colno: asInt(body.colno),
-      context,
-    });
-
-    return res.status(204).end();
-  } catch (err) {
-    // The ingest endpoint must never take the server down. Log and move on.
-    try {
-      logger.logError(err instanceof Error ? err : new Error('telemetry ingest failed'), {
-        class: 'web',
-        event: { kind: 'telemetry-ingest-error' },
-      });
-    } catch {
-      /* last resort: give up silently */
-    }
-    return res.status(204).end();
   }
 }
 

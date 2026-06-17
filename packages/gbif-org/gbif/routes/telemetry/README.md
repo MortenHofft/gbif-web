@@ -92,16 +92,41 @@ Useful starting visualisations:
 - **Alert** — Kibana alerting rule on the count of the filter exceeding a
   threshold per 5 minutes.
 
-## Readable stack traces (source maps)
+## Readable stack traces (server-side symbolication)
 
-In production the bundle is minified, so `error.stack_trace` will reference
-minified files (`index-abc123.js:1:2345`). To get readable traces you need the
-Vite-generated `.map` files. Options, cheapest first:
+The endpoint resolves minified stacks back to original source automatically, so
+`error.stack_trace` reads like `src/routes/foo.tsx:42:10` instead of
+`index-abc123.js:1:2345`. How it works:
 
-1. Keep the `dist/**/*.map` files from each build as a build artdefact and
-   symbolicate on demand when investigating an error.
-2. Add an Elasticsearch ingest pipeline / small post-processor that resolves
-   frames against the uploaded source maps.
+1. `gbif/vite.config.ts` builds with `sourcemap: 'hidden'` — `.map` files are
+   emitted but **not** referenced by a `//# sourceMappingURL` comment, so the
+   browser never fetches them and they are not advertised publicly.
+2. `scripts/extract-sourcemaps.mjs` (run from the `build` script) moves every
+   client `.map` out of the publicly-served `dist/gbif/client` into a private
+   `dist/sourcemaps/` directory. **The maps must never be served publicly** —
+   they contain full source. They are git-ignored and read only by the server.
+3. `symbolicate.mjs` lazily loads each chunk's map (LRU-cached
+   `@jridgewell/trace-mapping`) and rewrites the stack. It runs *after* the
+   `204` response, so it never delays the client. Any failure falls back to the
+   raw stack — an error is never lost to symbolication.
 
-This is the main feature you trade away versus a turnkey tool like Sentry, which
-uploads source maps and symbolicates automatically.
+Resulting fields:
+
+| Field | Notes |
+| --- | --- |
+| `error.stack_trace` | symbolicated when possible, else raw |
+| `error.stack_trace_minified` | the original minified stack (only when symbolicated) |
+| `error.source_location` | `{ source, line, column, name }` of the top resolved frame |
+| `code_context` | a few source lines around the top frame (from embedded `sourcesContent`) |
+| `labels.symbolicated` | `true` \| `partial` \| `false` |
+
+Config: `SOURCEMAP_DIR` (server env) overrides the maps location; defaults to
+`<cwd>/dist/sourcemaps`.
+
+### Limitation: release skew
+
+Only the **current build's** maps live in the container. A user still running a
+previous bundle (browser cache, or mid-rollout) produces frames for chunk
+hashes whose `.map` is no longer present — those frames stay minified and the
+document is flagged `labels.symbolicated: false` (or `partial`). To cover older
+releases you would retain maps per `PUBLIC_RELEASE`; not done here.

@@ -18,6 +18,12 @@ export default defineConfig(({ command }) => {
     build: {
       emptyOutDir: true,
       outDir: './dist/gbif/client',
+      // 'hidden' emits .map files but omits the //# sourceMappingURL comment, so
+      // browsers (and the public) don't advertise or fetch them. The build then
+      // moves them into a private dir (scripts/extract-sourcemaps.mjs) that the
+      // telemetry endpoint reads to symbolicate client error stacks. They must
+      // never be served publicly - see gbif/routes/telemetry/README.md.
+      sourcemap: 'hidden',
       rollupOptions: {
         input: {
           main: fileURLToPath(new URL('./index.html', import.meta.url)),
