@@ -248,11 +248,11 @@ async function getWhereClause({
   return ` ${sqlWhereClause} `;
 }
 
-const template = `SELECT 
+const template = `SELECT
   {{DIMENSIONS}},
   {{MEASUREMENTS}}
 FROM
-  occurrence 
+  occurrence
 {{FILTERS}}
 GROUP BY
   {{GROUP_BY}}`;
@@ -351,7 +351,7 @@ export default async function generateSql(parameters) {
       const partitionBy = [rankKey];
       if (spatial) partitionBy.push(spatialLookup[spatial].dimension);
       if (temporal) partitionBy.push(temporalLookup[temporal].dimension);
-      dimensions.push(`IF(ISNULL(${rankKey}), NULL, SUM(COUNT(*)) OVER (PARTITION BY ${partitionBy.join(', ')})) AS ${rankLower}Count`);
+      dimensions.push(`SUM(COUNT(*)) OVER (PARTITION BY ${partitionBy.join(', ')}) AS ${rankLower}Count`);
     });
   }
 
