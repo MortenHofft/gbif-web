@@ -17,7 +17,6 @@ export default defineConfig(({ command }) => {
     plugins: [react()],
     build: {
       emptyOutDir: true,
-      sourcemap: true,
       outDir: './dist/gbif/client',
       // 'hidden' emits .map files but omits the //# sourceMappingURL comment, so
       // browsers (and the public) don't advertise or fetch them. The build then
