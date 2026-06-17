@@ -1,8 +1,12 @@
 import { Root } from '@/components/root';
 import { gbifConfig } from '@/gbif/config';
 import { createGbifRoutes } from '@/gbif/routes';
+import { initClientErrorReporting, reportClientError } from '@/utils/errorReporting';
 import { hydrateRoot } from 'react-dom/client';
 import { createBrowserRouter, matchRoutes, RouteObject, RouterProvider } from 'react-router-dom';
+
+// Capture uncaught errors and unhandled promise rejections as early as possible.
+initClientErrorReporting();
 
 hydrate();
 
@@ -34,6 +38,7 @@ async function hydrate() {
         }
 
         console.error(error);
+        reportClientError(error, { kind: 'recoverable' });
       },
     }
   );

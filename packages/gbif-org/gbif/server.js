@@ -15,6 +15,7 @@ import { register as registerUser } from './routes/user/endpoints.mjs';
 import { register as registerAdmin } from './routes/admin/endpoints.mjs';
 import { register as registerProxies } from './routes/proxy/proxy.mjs';
 import { register as registerResourceSearch } from './routes/resourceSearch/endpoints.mjs';
+import { register as registerTelemetry } from './routes/telemetry/endpoints.mjs';
 import createGetRedirect from './middleware/redirects.mjs';
 // Load environment variables from .env files and merge them with process.env.
 const envFile = loadEnv('', process.cwd(), ['PUBLIC_']);
@@ -116,6 +117,7 @@ async function main() {
   registerAdmin(app);
   registerProxies(app);
   registerResourceSearch(app);
+  registerTelemetry(app);
   registerSitemaps(app);
   registerRobots(app);
 

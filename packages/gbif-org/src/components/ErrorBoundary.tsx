@@ -1,4 +1,5 @@
 import { OccurrenceSortBy, SortOrder } from '@/gql/graphql';
+import { reportClientError } from '@/utils/errorReporting';
 import { cn } from '@/utils/shadcn';
 import React, { useState } from 'react';
 import { FormattedMessage } from 'react-intl';
@@ -36,8 +37,15 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // We do not have a service to do client logging. Could be nice at some point.
     console.error(error, errorInfo);
+    // Report React render errors to our telemetry endpoint (-> ECS logs -> Kibana).
+    reportClientError(error, {
+      kind: 'react',
+      context: {
+        componentStack: errorInfo?.componentStack,
+        debugTitle: this.props.debugTitle,
+      },
+    });
   }
 
   componentDidUpdate(prevProps: Readonly<ErrorBoundaryProps>) {
