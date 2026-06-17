@@ -306,6 +306,14 @@ async function main() {
 
   httpServer.listen(PORT, () => {
     logger.info('Server started successfully', { port: PORT, environment: env.NODE_ENV });
+
+    // Pre-warm the source map cache for the server bundle so the first render
+    // error doesn't pay the cold-start parse cost (~100-300ms) on a live request.
+    if (IS_PRODUCTION) {
+      setImmediate(() => {
+        symbolicate(`at warmup (file://${process.cwd()}/dist/gbif/server/entry.server.js:1:1)`);
+      });
+    }
   });
 
   process.on('unhandledRejection', function (reason, p) {
