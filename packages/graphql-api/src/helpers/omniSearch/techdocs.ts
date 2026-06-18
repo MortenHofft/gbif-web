@@ -86,6 +86,7 @@ async function fetchAndModifyJsFile(): Promise<SearchData> {
     // Fetch the file content as text
     const response = await axios.get(url, {
       responseType: 'text',
+      headers: { 'User-Agent': 'GBIF_graphql' },
     });
 
     // Get the file content as string

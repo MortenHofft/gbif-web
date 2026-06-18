@@ -106,7 +106,7 @@ async function initializeServer() {
     return createContext({
       user,
       abortController: controller,
-      userAgent: get(req, 'headers.User-Agent') || 'GBIF_GRAPHQL_API',
+      userAgent: get(req, 'headers.User-Agent') || 'GBIF_graphql',
       // we could also forward the full header I suppose. For now it is just the referer
       referer: get(req, 'headers.referer') || null,
       // x-client-priority is attached by Varnish (1-100, lower = more important).

@@ -58,7 +58,7 @@ router.get('/user-info', async (req, res, next) => {
 async function getCountryName(lang, countryCode) {
   const apiUrl = `${translationEndpoint}/${lang}.json`;
   try {
-    const response = await axios.get(apiUrl);
+    const response = await axios.get(apiUrl, { headers: { 'User-Agent': 'GBIF_graphql' } });
     const countryName = response.data[`enums.countryCode.${countryCode}`];
     return countryName;
   } catch (error) {

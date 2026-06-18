@@ -69,7 +69,7 @@ export async function createPublisher(dto: CreatePublisherDTO) {
 
 async function getNode(key: string) {
   try {
-    const response = await fetch(`${config.apiv1}/node/${key}`);
+    const response = await fetch(`${config.apiv1}/node/${key}`, { headers: { 'User-Agent': 'GBIF_graphql' } });
     if (!response.ok) {
       throw new Error(`Failed to fetch node ${key}`);
     }

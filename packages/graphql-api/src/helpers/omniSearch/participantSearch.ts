@@ -32,7 +32,7 @@ export async function getParticipants() {
 
   const header = createSignedGetHeader('/directory/participant', config);
   const data = await fetch(`${config.apiv1}/directory/participant?limit=1000`, {
-    headers: header,
+    headers: { ...header, 'User-Agent': 'GBIF_graphql' },
   }).then((res) => res.json());
 
   participants = reduceResults(data.results);
@@ -64,7 +64,7 @@ export async function searchParticipants(str: string): Promise<ResponseType> {
   const participantResults: Participant[] = await fetch(
     `${config.apiv1}/directory/participant?limit=3&q=${str}`,
     {
-      headers: header,
+      headers: { ...header, 'User-Agent': 'GBIF_graphql' },
       signal,
     },
   )

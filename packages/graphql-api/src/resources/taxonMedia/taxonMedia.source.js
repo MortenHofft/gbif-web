@@ -62,7 +62,7 @@ export default class TaxonMediaAPI extends RESTDataSource {
       if (inatTaxonId) {
         // search inaturalist API for that taxon // https://api.inaturalist.org/v1/taxa/{TAXON_KEY}
         const inatTaxa = (
-          await axios.get(`https://api.inaturalist.org/v1/taxa/${inatTaxonId}`)
+          await axios.get(`https://api.inaturalist.org/v1/taxa/${inatTaxonId}`, { headers: { 'User-Agent': 'GBIF_graphql' } })
         ).data;
 
         const properlyLicencedImages = (inatTaxa?.results[0].taxon_photos || [])

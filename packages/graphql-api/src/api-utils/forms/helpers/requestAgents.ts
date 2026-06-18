@@ -11,7 +11,7 @@ const stdAgent = new HttpsAgent({
 const stdRequest = request.defaults({
   agent: stdAgent,
   headers: {
-    'User-Agent': config.appKey,
+    'User-Agent': 'GBIF_graphql',
   },
   maxAttempts: 2,
   retryDelay: 3000, // in milliseconds
@@ -28,7 +28,7 @@ const occurrenceAgent = new HttpsAgent({
 const occurrenceRequest = request.defaults({
   agent: occurrenceAgent,
   headers: {
-    'User-Agent': config.appKey,
+    'User-Agent': 'GBIF_graphql',
   },
   maxAttempts: 2,
   retryDelay: 3000, // in milliseconds
@@ -45,7 +45,7 @@ const speciesAgent = new HttpsAgent({
 const speciesRequest = request.defaults({
   agent: speciesAgent,
   headers: {
-    'User-Agent': config.appKey,
+    'User-Agent': 'GBIF_graphql',
   },
   maxAttempts: 2,
   retryDelay: 3000, // in milliseconds
@@ -62,7 +62,7 @@ const blastAgent = new HttpsAgent({
 const blastRequest = request.defaults({
   agent: blastAgent,
   headers: {
-    'User-Agent': config.appKey,
+    'User-Agent': 'GBIF_graphql',
   },
   maxAttempts: 2,
   retryDelay: 10000, // in milliseconds

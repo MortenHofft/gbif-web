@@ -52,7 +52,7 @@ router.get('/cites/:kingdom/:name', async (req, res) => {
 
 async function getCitesStatus(name) {
   const response = await axios.get(`${config.cites.api}?name=${name}`, {
-    headers: { 'X-Authentication-Token': config.cites.token },
+    headers: { 'X-Authentication-Token': config.cites.token, 'User-Agent': 'GBIF_graphql' },
   });
   if (response.status !== 200) {
     throw response;

@@ -33,6 +33,7 @@ class ViafAPI extends RESTDataSource {
   }
 
   willSendRequest(path, request) {
+    request.headers['User-Agent'] = 'GBIF_graphql';
     request.headers['Accept'] = 'application/json';
     request.agent = getDefaultAgent(this.baseURL, path);
   }

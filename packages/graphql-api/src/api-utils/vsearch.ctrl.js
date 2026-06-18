@@ -62,6 +62,7 @@ router.get('/vsearch', async (req, res) => {
     `${config?.vsearch?.occurrence}?sequence=${sanitizedSequence}&outfmt=${
       outfmt || 'alnout'
     }`,
+    { headers: { 'User-Agent': 'GBIF_graphql' } },
   );
   if (response.status !== 200) {
     throw response;

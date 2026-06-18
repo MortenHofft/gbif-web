@@ -76,7 +76,7 @@ async function getCountries(locale: string) {
   }
   const apiUrl = `${translationEndpoint}/${locale}.json`;
   try {
-    const data = await fetch(apiUrl).then((res) => res.json());
+    const data = await fetch(apiUrl, { headers: { 'User-Agent': 'GBIF_graphql' } }).then((res) => res.json());
     // only keys of type enums.countryCode.XX are country names. And we want them as a list with {key: 'XX', value: 'Country name'}
     const countryNames = Object.keys(data)
       .filter((key) => key.startsWith('enums.countryCode.'))

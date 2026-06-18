@@ -8,6 +8,7 @@ export default async function validateDownloadPredicate(predicate) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'User-Agent': 'GBIF_graphql',
     },
     body: JSON.stringify({
       predicate,

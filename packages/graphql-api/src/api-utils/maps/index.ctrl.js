@@ -82,11 +82,13 @@ router.get('/4326/gbif-raster-iucn-volatile', async (req, res, next) => {
       const iucnRedListCategory = (
         await axios.get(
           `${config.apiv1}/species/${taxonKey}/iucnRedListCategory`,
+          { headers: { 'User-Agent': 'GBIF_graphql' } },
         )
       ).data;
       const iucnSpecies = (
         await axios.get(
           `${config.apiv1}/species/${iucnRedListCategory.usageKey}`,
+          { headers: { 'User-Agent': 'GBIF_graphql' } },
         )
       ).data;
       const iucnTaxonID = iucnSpecies.taxonID;

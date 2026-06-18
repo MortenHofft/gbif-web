@@ -19,7 +19,7 @@ async function getTranslations(lang) {
   }
   const apiUrl = `${translationEndpoint}/${lang}.json`;
   try {
-    const response = await axios.get(apiUrl);
+    const response = await axios.get(apiUrl, { headers: { 'User-Agent': 'GBIF_graphql' } });
     translations[lang] = response.data;
     return response.data;
   } catch (error) {
@@ -187,7 +187,7 @@ async function getDatasetSuggestions({ q, limit = 2 }) {
   if (q.length < 3) return [];
   const apiUrl = `${config.apiv1}/dataset/suggest?q=${q}&limit=${limit}`;
   try {
-    const response = await axios.get(apiUrl);
+    const response = await axios.get(apiUrl, { headers: { 'User-Agent': 'GBIF_graphql' } });
     return response.data;
   } catch (error) {
     console.log(error);
@@ -211,7 +211,7 @@ async function getDatasets({ q }) {
 export async function getSpeciesMatches({ q, taxonKeys }) {
   const apiUrl = `${config.apiv1}/species/match?name=${q}`;
   try {
-    const response = await axios.get(apiUrl); // will return a single result. confidence is a number between 0 and 100
+    const response = await axios.get(apiUrl, { headers: { 'User-Agent': 'GBIF_graphql' } }); // will return a single result. confidence is a number between 0 and 100
     if (response.data.scientificName && response.data.confidence > 90) {
       return [{ ...response.data, nubKey: response.data.usageKey }];
     }
@@ -226,7 +226,7 @@ async function getGadmSuggestions({ q, gadmId, limit = 2 }) {
   // https://api.gbif.org/v1/geocode/gadm/search?limit=100&q=k%C3%B8benhavn
   const apiUrl = `${config.apiv1}/geocode/gadm/search?limit=100&q=${q}`;
   try {
-    const response = await axios.get(apiUrl);
+    const response = await axios.get(apiUrl, { headers: { 'User-Agent': 'GBIF_graphql' } });
     // map to format for filters [{filter: 'gadmGid', value: 'DK.02', label: 'København', alternativeLabels: []}]
     return response.data.results
       .filter((x) => {

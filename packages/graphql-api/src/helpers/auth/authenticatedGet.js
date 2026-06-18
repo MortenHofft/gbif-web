@@ -35,7 +35,7 @@ async function authenticatedGet({ canonicalPath, query = {}, config }) {
   const response = await axios.get(canonicalPath, {
     baseURL: config.apiv1,
     params: query,
-    headers,
+    headers: { ...headers, 'User-Agent': 'GBIF_graphql' },
     responseType: 'json',
   });
 

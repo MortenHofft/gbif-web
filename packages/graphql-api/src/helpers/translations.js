@@ -28,7 +28,7 @@ async function fetchWithRetry(url) {
       await delay(1000 * 2 ** (attempt - 1));
     }
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { headers: { 'User-Agent': 'GBIF_graphql' } });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return await response.json();
     } catch (err) {

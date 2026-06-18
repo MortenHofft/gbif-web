@@ -148,7 +148,7 @@ async function reverseGeocodeGetMetadata(lat, lon, uncertaintyDegrees = 0) {
   const apiUrl = `${config.apiv1}/geocode/reverse?lat=${lat}&lng=${lon}&uncertaintyDegrees=${uncertaintyDegrees}`;
 
   try {
-    const response = await axios.get(apiUrl);
+    const response = await axios.get(apiUrl, { headers: { 'User-Agent': 'GBIF_graphql' } });
     const metadata = response.data
       .filter((item) => item.distance <= uncertaintyDegrees)
       .filter((item) => item.source !== 'https://www.marineregions.org/') // the problem is that there is always a result, even for inland areas

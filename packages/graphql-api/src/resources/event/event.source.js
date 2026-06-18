@@ -10,6 +10,7 @@ class EventAPI extends RESTDataSource {
   }
 
   willSendRequest(path, request) {
+    request.headers['User-Agent'] = 'GBIF_graphql';
     // now that we make a public version, we might as well just make it open since the key is shared with everyone
     //    request.headers['Authorization'] = `ApiKey-v1 ${this.config.apiEsKey}`;
     request.agent = getDefaultAgent(this.baseURL, path);

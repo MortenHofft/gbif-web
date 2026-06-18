@@ -79,6 +79,7 @@ async function getTaxonCandidates(
       `${ENDPOINTS.speciesMatch}?scientificName=${encodeURIComponent(
         formattedQuery,
       )}&verbose=true&checklistKey=${checklistKey}`,
+      { headers: { 'User-Agent': 'GBIF_graphql' } },
     ).then((r) => r.json());
 
     // decide which entries are close enough.

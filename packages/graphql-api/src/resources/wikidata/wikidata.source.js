@@ -6,7 +6,7 @@ import { RESTDataSource } from '@/RESTDataSource';
 import { getDefaultAgent } from '@/requestAgents';
 import { decorateProperty, getItemData, getIUCNRedListData } from './helpers';
 
-const USER_AGENT = 'gbif-graphql/1.0';
+const USER_AGENT = 'GBIF_graphql';
 const WIKI_GBIF_TAXON_IDENTIFIER = 'P10585'; // col P10585- backbone P846
 const IUCN_TAXON_IDENTIFIER = 'P627';
 const IUCN_CONSERVATION_STATUS = 'P141';

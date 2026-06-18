@@ -26,6 +26,7 @@ class OrcidAPI extends RESTDataSource {
 
   // eslint-disable-next-line class-methods-use-this
   willSendRequest(path, request) {
+    request.headers['User-Agent'] = 'GBIF_graphql';
     request.headers['Accept'] = 'application/json';
     request.agent = getDefaultAgent(this.baseURL, path);
   }

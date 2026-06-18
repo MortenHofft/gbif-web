@@ -64,7 +64,7 @@ async function search(
   }/occurrence/search/${field}?limit=2&q=${encodeURIComponent(query)}`;
 
   try {
-    const response = await fetch(url, { signal });
+    const response = await fetch(url, { signal, headers: { 'User-Agent': 'GBIF_graphql' } });
     if (response.ok) {
       return response.json().then((data) => filterResults(query, data));
     }

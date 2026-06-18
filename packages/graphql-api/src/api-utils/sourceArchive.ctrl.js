@@ -22,7 +22,7 @@ router.get(
       req.params.fileName;
 
     let newReq = https
-      .request(url, function (newRes) {
+      .request(url, { headers: { 'User-Agent': 'GBIF_graphql' } }, function (newRes) {
         newRes.pipe(res);
       })
       .on('error', function (err) {

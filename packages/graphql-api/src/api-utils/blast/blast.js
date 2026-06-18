@@ -39,6 +39,7 @@ async function postUpstream(path, body, { verbose } = {}) {
   const response = await axios.post(url, body, {
     timeout: BLAST_TIMEOUT_MS,
     validateStatus: () => true,
+    headers: { 'User-Agent': 'GBIF_graphql' },
   });
   if (response.status >= 300) throw buildUpstreamError(response);
   return response.data;
@@ -71,6 +72,7 @@ async function decorateWithGBIFspecies({ entry, datasetKey }) {
       checklistKey: datasetKey,
     },
     timeout: TAXON_TIMEOUT_MS,
+    headers: { 'User-Agent': 'GBIF_graphql' },
   });
   if (!taxonMatch?.classification) return entry;
 

@@ -113,6 +113,7 @@ async function getWhereClause({ predicate, taxonomicDimension, temporalDimension
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'User-Agent': 'GBIF_graphql',
     },
     body: JSON.stringify({ predicate: combinedPredicate }),
   }).then((response) => response.json());
@@ -288,6 +289,7 @@ export async function getSql({ query: parameters }) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'User-Agent': 'GBIF_graphql',
     },
     body: JSON.stringify({ sql, format: 'SQL_TSV_ZIP' }),
   }).then((response) => response.json());

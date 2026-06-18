@@ -9,6 +9,7 @@ class DownloadAPI extends RESTDataSource {
   }
 
   willSendRequest(path, request) {
+    request.headers['User-Agent'] = 'GBIF_graphql';
     if (this.context.user) {
       const header = createSignedGetHeader(
         path,

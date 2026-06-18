@@ -31,7 +31,7 @@ async function fetchAll(baseUrl) {
 
   while (hasMore) {
     // eslint-disable-next-line no-await-in-loop
-    const response = await fetch(`${baseUrl}?limit=${limit}&offset=${offset}`);
+    const response = await fetch(`${baseUrl}?limit=${limit}&offset=${offset}`, { headers: { 'User-Agent': 'GBIF_graphql' } });
     if (!response.ok) {
       throw new Error(`Failed to fetch data: ${response.statusText}`);
     }
