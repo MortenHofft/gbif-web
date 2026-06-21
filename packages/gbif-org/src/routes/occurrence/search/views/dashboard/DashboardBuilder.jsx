@@ -404,7 +404,10 @@ function Item({
   lockedLayout,
   chartsTypes = {},
 }) {
-  const { t: type, r: resizable = false, p: params = {} } = item;
+  const { t: type, p: params = {} } = item;
+  // Resizable is a property of the chart type (the registry). Older/legacy items
+  // may carry it inline (`item.r`); compact URL layouts don't, so fall back to the registry.
+  const resizable = chartsTypes[type]?.r ?? item.r ?? false;
   const { h: height = 500, ...componentProps } = params;
   const Component =
     chartsTypes[type]?.component ??
