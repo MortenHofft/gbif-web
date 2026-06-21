@@ -45,7 +45,12 @@ export function Dashboard({ predicate, q, chartsTypes: chartsTypesProp, ...props
     [setLayoutState, setUrlLayout]
   );
 
-  const isUrlLayoutDifferent = urlLayout && JSON.stringify(urlLayout) !== JSON.stringify(layout);
+  // Compare the canonical serialized form rather than the raw objects: the URL
+  // representation intentionally omits ids/translation and normalizes param
+  // order/types, so a freshly shared layout would otherwise look "different"
+  // from the identical layout in local storage.
+  const isUrlLayoutDifferent =
+    urlLayout && serializeLayout(urlLayout) !== serializeLayout(layout);
   return (
     <MapChartsEnabledContext.Provider value={true}>
       <div>

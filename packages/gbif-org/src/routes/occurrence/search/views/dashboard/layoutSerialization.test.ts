@@ -79,6 +79,18 @@ describe('dashboard layout serialization', () => {
     expect(parsed!.map((c) => c.map((i) => i.t))).toEqual([['taxa'], [], ['year']]);
   });
 
+  test('serialized form ignores id/translation/r so share matches local storage', () => {
+    // localStorage holds the structured form with extra fields...
+    const stored: Layout = [
+      [{ id: 'abcde', r: true, translation: 'dashboard.taxa', t: 'taxa', p: { rank: 'GENUS' } }],
+    ];
+    // ...the URL round-trips through the compact form (positional ids, no extras)
+    const fromUrl = parseLayout(serializeLayout(stored)!);
+    // The "is the shared layout different?" check compares the canonical strings,
+    // which must be equal for an identical dashboard.
+    expect(serializeLayout(fromUrl)).toBe(serializeLayout(stored));
+  });
+
   test('reads legacy base64-JSON links', () => {
     const legacy = Base64.encode(
       JSON.stringify([[{ id: 'g3dmk', p: {}, translation: 'dashboard.taxa', t: 'taxa' }]])
