@@ -414,12 +414,19 @@ function Item({
         <div>Broken. Please delete or recreate</div>
       </div>
     ));
+  // Merge new params into the existing serialized params (`p`) so a chart can
+  // persist its own settings (e.g. the selected taxonomic rank) into the
+  // shareable layout without clobbering other params such as the current view
+  // or the resized height.
+  const setParams = (newParams) =>
+    onUpdateItem({ ...item, p: { ...params, ...newParams } }, index);
   const content = (
     <Component
       predicate={predicate}
       q={q}
       {...componentProps}
-      setView={(view) => onUpdateItem({ ...item, p: { view } }, index)}
+      setParams={setParams}
+      setView={(view) => setParams({ view })}
     />
   );
 
