@@ -54,7 +54,7 @@ type TaxonFacetData = {
 type TaxaMainProps = {
   defaultRank?: string;
   rank?: string;
-  setParams?: (params: Record<string, unknown>) => void;
+  onParamsChange?: (params: Record<string, unknown>) => void;
   predicate?: Record<string, unknown>;
   checklistKey?: string;
   q?: string;
@@ -70,7 +70,7 @@ type TaxaMainProps = {
 function TaxaMain({
   defaultRank,
   rank: userRank,
-  setParams,
+  onParamsChange,
   predicate,
   checklistKey,
   q,
@@ -88,7 +88,7 @@ function TaxaMain({
   // (e.g. when the Taxa chart is embedded in entity pages rather than the
   // customizable dashboard). It tracks `defaultRank` so dynamic defaults keep working.
   const [localRank, setLocalRank] = useState<string>(getDefaultRank(defaultRank).toUpperCase());
-  // When the chart lives in the customizable dashboard, `setParams` is provided
+  // When the chart lives in the customizable dashboard, `onParamsChange` is provided
   // and the selected rank is read from / written to the serialized layout (`p.rank`),
   // so it survives reload and is included in shared links. Validate the persisted
   // value (it may come from an untrusted URL) and fall back to the local rank.
@@ -99,8 +99,8 @@ function TaxaMain({
       : localRank;
   const setRank = (value: string) => {
     const normalized = value.toUpperCase();
-    if (setParams) {
-      setParams({ rank: normalized });
+    if (onParamsChange) {
+      onParamsChange({ rank: normalized });
     } else {
       setLocalRank(normalized);
     }

@@ -421,15 +421,15 @@ function Item({
   // persist its own settings (e.g. the selected taxonomic rank) into the
   // shareable layout without clobbering other params such as the current view
   // or the resized height.
-  const setParams = (newParams) =>
+  const onParamsChange = (newParams) =>
     onUpdateItem({ ...item, p: { ...params, ...newParams } }, index);
   const content = (
     <Component
       predicate={predicate}
       q={q}
       {...componentProps}
-      setParams={setParams}
-      setView={(view) => setParams({ view })}
+      onParamsChange={onParamsChange}
+      setView={(view) => onParamsChange({ view })}
     />
   );
 
