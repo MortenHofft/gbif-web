@@ -53,6 +53,75 @@ export function PlainTextField(props: {
   );
 }
 
+export function ElevationField({
+  elevationTerm,
+  elevationAccuracyTerm,
+  minimumElevationTerm,
+  maximumElevationTerm,
+  showDetails,
+}: {
+  elevationTerm?: OccurrenceTermFragment;
+  elevationAccuracyTerm?: OccurrenceTermFragment;
+  minimumElevationTerm?: OccurrenceTermFragment;
+  maximumElevationTerm?: OccurrenceTermFragment;
+  showDetails?: boolean;
+}) {
+  const hasElevation = !isEmpty(elevationTerm?.value);
+  const hasAccuracy = !isEmpty(elevationAccuracyTerm?.value);
+  const hasMin = !isEmpty(minimumElevationTerm?.value);
+  const hasMax = !isEmpty(maximumElevationTerm?.value);
+
+  if (!hasElevation && !hasMin && !hasMax) return null;
+
+  // Interpreted value: elevation±accuracy or just elevation
+  let interpretedValue: string | null = null;
+  if (hasElevation) {
+    interpretedValue = hasAccuracy
+      ? `${elevationTerm!.value}±${elevationAccuracyTerm!.value}`
+      : `${elevationTerm!.value}`;
+  }
+
+  // Original DWC value: min - max, or whichever single value is present
+  let originalValue: string | null = null;
+  if (hasMin && hasMax) {
+    originalValue = `${minimumElevationTerm!.value} m - ${maximumElevationTerm!.value} m`;
+  } else if (hasMin) {
+    originalValue = `${minimumElevationTerm!.value} m`;
+  } else if (hasMax) {
+    originalValue = `${maximumElevationTerm!.value} m`;
+  }
+
+  // Only show the original line when it differs from the interpreted and is present
+  const showOriginal = !!originalValue && (hasElevation || showDetails);
+
+  return (
+    <>
+      <T>
+        <FormattedMessage id="occurrenceFieldNames.elevation" defaultMessage="Elevation" />
+      </T>
+      <V style={{ position: 'relative' }}>
+        <div style={{ display: 'inline-block', paddingInlineEnd: 8 }}>
+          {interpretedValue && <div>{interpretedValue}</div>}
+          {!interpretedValue && originalValue && <div>{originalValue}</div>}
+          {showOriginal && (
+            <div>
+              <span style={{ opacity: 0.6, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+                {originalValue}
+              </span>{' '}
+              <Tags>
+                <Tag type="light">
+                  <FormattedMessage id="occurrenceDetails.info.original" />
+                </Tag>
+              </Tags>
+            </div>
+          )}
+        </div>
+        <Chips issues={elevationTerm?.issues} remarks={elevationTerm?.remarks} />
+      </V>
+    </>
+  );
+}
+
 export function VerbatimTextField({
   term,
   label,
