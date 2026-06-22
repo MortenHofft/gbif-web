@@ -137,8 +137,8 @@ export function DepthField({
 }) {
   const hasDepth = !isEmpty(depthTerm?.value);
   const hasAccuracy = !isEmpty(depthAccuracyTerm?.value);
-  const hasMin = !isEmpty(minimumDepthTerm?.value);
-  const hasMax = !isEmpty(maximumDepthTerm?.value);
+  const hasMin = !isEmpty(minimumDepthTerm?.verbatim);
+  const hasMax = !isEmpty(maximumDepthTerm?.verbatim);
 
   if (!hasDepth && !hasMin && !hasMax) return null;
 
@@ -151,11 +151,11 @@ export function DepthField({
 
   let originalValue: string | null = null;
   if (hasMin && hasMax) {
-    originalValue = `${minimumDepthTerm!.value} m - ${maximumDepthTerm!.value} m`;
+    originalValue = `${minimumDepthTerm!.verbatim} m - ${maximumDepthTerm!.verbatim} m`;
   } else if (hasMin) {
-    originalValue = `${minimumDepthTerm!.value} m`;
+    originalValue = `${minimumDepthTerm!.verbatim} m`;
   } else if (hasMax) {
-    originalValue = `${maximumDepthTerm!.value} m`;
+    originalValue = `${maximumDepthTerm!.verbatim} m`;
   }
 
   const showOriginal = !!originalValue && (hasDepth || showDetails);
