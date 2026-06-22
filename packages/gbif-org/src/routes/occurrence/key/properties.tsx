@@ -101,22 +101,21 @@ export function ElevationField({
       </T>
       <V style={{ position: 'relative' }}>
         <div style={{ display: 'inline-block', paddingInlineEnd: 8 }}>
-          {interpretedValue && <div>{interpretedValue}</div>}
-          {!interpretedValue && originalValue && <div>{originalValue}</div>}
-          {showOriginal && (
-            <div>
-              <span style={{ opacity: 0.6, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
-                {originalValue}
-              </span>{' '}
-              <Tags>
-                <Tag type="light">
-                  <FormattedMessage id="occurrenceDetails.info.original" />
-                </Tag>
-              </Tags>
-            </div>
-          )}
+          {interpretedValue ?? originalValue}
         </div>
         <Chips issues={elevationTerm?.issues} remarks={elevationTerm?.remarks} />
+        {showOriginal && (
+          <div>
+            <span style={{ opacity: 0.6, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+              {originalValue}
+            </span>{' '}
+            <Tags>
+              <Tag type="light">
+                <FormattedMessage id="occurrenceDetails.info.original" />
+              </Tag>
+            </Tags>
+          </div>
+        )}
       </V>
     </>
   );
@@ -167,22 +166,21 @@ export function DepthField({
       </T>
       <V style={{ position: 'relative' }}>
         <div style={{ display: 'inline-block', paddingInlineEnd: 8 }}>
-          {interpretedValue && <div>{interpretedValue}</div>}
-          {!interpretedValue && originalValue && <div>{originalValue}</div>}
-          {showOriginal && (
-            <div>
-              <span style={{ opacity: 0.6, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
-                {originalValue}
-              </span>{' '}
-              <Tags>
-                <Tag type="light">
-                  <FormattedMessage id="occurrenceDetails.info.original" />
-                </Tag>
-              </Tags>
-            </div>
-          )}
+          {interpretedValue ?? originalValue}
         </div>
         <Chips issues={depthTerm?.issues} remarks={depthTerm?.remarks} />
+        {showOriginal && (
+          <div>
+            <span style={{ opacity: 0.6, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+              {originalValue}
+            </span>{' '}
+            <Tags>
+              <Tag type="light">
+                <FormattedMessage id="occurrenceDetails.info.original" />
+              </Tag>
+            </Tags>
+          </div>
+        )}
       </V>
     </>
   );
