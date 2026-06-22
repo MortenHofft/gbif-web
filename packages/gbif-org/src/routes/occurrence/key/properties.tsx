@@ -122,6 +122,72 @@ export function ElevationField({
   );
 }
 
+export function DepthField({
+  depthTerm,
+  depthAccuracyTerm,
+  minimumDepthTerm,
+  maximumDepthTerm,
+  showDetails,
+}: {
+  depthTerm?: OccurrenceTermFragment;
+  depthAccuracyTerm?: OccurrenceTermFragment;
+  minimumDepthTerm?: OccurrenceTermFragment;
+  maximumDepthTerm?: OccurrenceTermFragment;
+  showDetails?: boolean;
+}) {
+  const hasDepth = !isEmpty(depthTerm?.value);
+  const hasAccuracy = !isEmpty(depthAccuracyTerm?.value);
+  const hasMin = !isEmpty(minimumDepthTerm?.value);
+  const hasMax = !isEmpty(maximumDepthTerm?.value);
+
+  if (!hasDepth && !hasMin && !hasMax) return null;
+
+  let interpretedValue: string | null = null;
+  if (hasDepth) {
+    interpretedValue = hasAccuracy
+      ? `${depthTerm!.value}±${depthAccuracyTerm!.value}`
+      : `${depthTerm!.value}`;
+  }
+
+  let originalValue: string | null = null;
+  if (hasMin && hasMax) {
+    originalValue = `${minimumDepthTerm!.value} m - ${maximumDepthTerm!.value} m`;
+  } else if (hasMin) {
+    originalValue = `${minimumDepthTerm!.value} m`;
+  } else if (hasMax) {
+    originalValue = `${maximumDepthTerm!.value} m`;
+  }
+
+  const showOriginal = !!originalValue && (hasDepth || showDetails);
+
+  return (
+    <>
+      <T>
+        <FormattedMessage id="occurrenceFieldNames.depth" defaultMessage="Depth" />
+      </T>
+      <V style={{ position: 'relative' }}>
+        <div style={{ display: 'inline-block', paddingInlineEnd: 8 }}>
+          {interpretedValue && <div>{interpretedValue}</div>}
+          {!interpretedValue && originalValue && <div>{originalValue}</div>}
+          {showOriginal && (
+            <div>
+              <span style={{ opacity: 0.6, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+                {originalValue}
+              </span>{' '}
+              <Tags>
+                <Tag type="light">
+                  <FormattedMessage id="occurrenceDetails.info.original" />
+                </Tag>
+              </Tags>
+            </div>
+          )}
+        </div>
+        <Chips issues={depthTerm?.issues} remarks={depthTerm?.remarks} />
+      </V>
+    </>
+  );
+}
+
 export function VerbatimTextField({
   term,
   label,

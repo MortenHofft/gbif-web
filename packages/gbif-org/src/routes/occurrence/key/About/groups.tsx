@@ -16,6 +16,7 @@ import { FormattedMessage } from 'react-intl';
 import wellknown from 'wellknown';
 import {
   BasicField,
+  DepthField,
   ElevationField,
   EnumField,
   HtmlField,
@@ -510,10 +511,13 @@ function Location({
             />
             <PlainTextField term={termMap.verbatimElevation} showDetails={showAll} />
 
-            <PlainTextField term={termMap.depth} showDetails={showAll} />
-            <PlainTextField term={termMap.depthAccuracy} showDetails={showAll} />
-            <PlainTextField term={termMap.minimumDepthInMeters} showDetails={showAll} />
-            <PlainTextField term={termMap.maximumDepthInMeters} showDetails={showAll} />
+            <DepthField
+              depthTerm={termMap.depth}
+              depthAccuracyTerm={termMap.depthAccuracy}
+              minimumDepthTerm={termMap.minimumDepthInMeters}
+              maximumDepthTerm={termMap.maximumDepthInMeters}
+              showDetails={showAll}
+            />
             <PlainTextField term={termMap.verbatimDepth} showDetails={showAll} />
 
             <PlainTextField term={termMap.geodeticDatum} showDetails={showAll} />
