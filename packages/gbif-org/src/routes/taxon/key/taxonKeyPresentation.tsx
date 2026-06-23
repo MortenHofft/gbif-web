@@ -99,7 +99,7 @@ export const NonBackbonePresentation = ({ data }: { data: TaxonKeyQuery }) => {
             </Button>
           </div>
         )}
-        <div className="g-grid g-gap-4 g-grid-cols-1 md:g-grid-cols-[minmax(0,1fr)_300px]">
+        <div className="g-grid g-gap-4 g-grid-cols-1 min-[1000px]:g-grid-cols-[minmax(0,1fr)_300px]">
           <Card className="g-overflow-hidden g-mb-8">
             <AboutNonBackbone data={data} />
           </Card>
