@@ -68,8 +68,8 @@ export function ElevationField({
 }) {
   const hasElevation = !isEmpty(elevationTerm?.value);
   const hasAccuracy = !isEmpty(elevationAccuracyTerm?.value);
-  const hasMin = !isEmpty(minimumElevationTerm?.value);
-  const hasMax = !isEmpty(maximumElevationTerm?.value);
+  const hasMin = !isEmpty(minimumElevationTerm?.verbatim);
+  const hasMax = !isEmpty(maximumElevationTerm?.verbatim);
 
   if (!hasElevation && !hasMin && !hasMax) return null;
 
@@ -84,11 +84,11 @@ export function ElevationField({
   // Original DWC value: min - max, or whichever single value is present
   let originalValue: string | null = null;
   if (hasMin && hasMax) {
-    originalValue = `${minimumElevationTerm!.value} m - ${maximumElevationTerm!.value} m`;
+    originalValue = `${minimumElevationTerm!.verbatim} m - ${maximumElevationTerm!.verbatim} m`;
   } else if (hasMin) {
-    originalValue = `${minimumElevationTerm!.value} m`;
+    originalValue = `${minimumElevationTerm!.verbatim} m`;
   } else if (hasMax) {
-    originalValue = `${maximumElevationTerm!.value} m`;
+    originalValue = `${maximumElevationTerm!.verbatim} m`;
   }
 
   // Only show the original line when it differs from the interpreted and is present
