@@ -4,7 +4,7 @@ import country from '@/enums/basic/country.json';
 import { useI18n } from '@/reactRouterPlugins';
 import { ArticleSkeleton } from '@/routes/resource/key/components/articleSkeleton';
 import { cn } from '@/utils/shadcn';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FaGithub as SocialIconGithub,
   FaGoogle as SocialIconGoogle,
@@ -401,6 +401,10 @@ function RegisterForm() {
     status: 'idle',
   });
 
+  // Holds the active cancel function outside of state so the cleanup can reference
+  // it without capturing a stale closure each time the powState object changes.
+  const powCancelRef = useRef<(() => void) | undefined>(undefined);
+
   const errors = {
     username: validateUsername(values.username, formatMessage),
     email: validateEmail(values.email, formatMessage),
@@ -408,7 +412,9 @@ function RegisterForm() {
     password: validatePassword(values.password, formatMessage),
   } as { [key: string]: string | false };
 
-  // Start proof of work challenge when component mounts or when retrying
+  // Start proof of work challenge when component mounts or when retrying.
+  // Only depends on status (a primitive) so it does not re-run when cancel/promise
+  // references are set on the object — those changes don't need to restart the effect.
   useEffect(() => {
     const cryptoSupport = checkBrowserCryptoSupport();
     if (!cryptoSupport.supported) {
@@ -424,12 +430,13 @@ function RegisterForm() {
     if (powState.status === 'idle') {
       setPowState({
         status: 'solving',
-        cancel: undefined, // Clear old cancel function
-        promise: undefined, // Clear old promise
+        cancel: undefined,
+        promise: undefined,
       });
       getChallenge()
         .then((challenge) => {
           const { cancel, promise } = solveProofOfWork(challenge);
+          powCancelRef.current = cancel;
           setPowState({
             status: 'solving',
             cancel,
@@ -442,6 +449,7 @@ function RegisterForm() {
           } else {
             setError('PROOF_OF_WORK_FAILED');
           }
+          powCancelRef.current = undefined;
           setPowState({
             status: 'error',
             promise: undefined,
@@ -451,11 +459,13 @@ function RegisterForm() {
     }
 
     return () => {
-      if (powState.cancel) {
-        powState.cancel();
+      if (powCancelRef.current) {
+        powCancelRef.current();
+        powCancelRef.current = undefined;
       }
     };
-  }, [powState.status, powState]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [powState.status]);
 
   const handleBlur = (field: keyof typeof touched) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
@@ -599,7 +609,9 @@ function RegisterForm() {
 
       {error && <ErrorMessage errorMessageId={`profile.error.${error}`} />}
 
-      <form className="g-space-y-4" onSubmit={handleSubmit}>
+      {/* translate="no" prevents Google Translate (and similar extensions) from
+          injecting <font> nodes that break React's DOM reconciliation */}
+      <form className="g-space-y-4" onSubmit={handleSubmit} translate="no">
         <FormInput
           id="username"
           label={formatMessage({ id: 'profile.username' })}
