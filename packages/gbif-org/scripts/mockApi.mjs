@@ -56,12 +56,15 @@ function dataForOperation(operationName) {
       return { taxonInfo: { wikiData: null } };
     case 'DeprecatedTaxon':
       // The legacy /species/:key page. Render the "unknown/deleted" view
-      // without redirecting: no related new taxon, speciesKey on the backbone.
+      // without redirecting: no related new taxon, and speciesKey must sit on
+      // the classic backbone dataset (else the loader redirects). Keep this key
+      // in sync with PUBLIC_CLASSIC_BACKBONE_KEY in scripts/loadtest/env.loadtest.
       return {
         taxon: null,
         speciesKey: {
           taxonID: '1',
-          datasetKey: process.env.PUBLIC_CLASSIC_BACKBONE_KEY || 'backbone',
+          datasetKey:
+            process.env.PUBLIC_CLASSIC_BACKBONE_KEY || 'd7dddbf4-2cf0-4f39-9b2a-bb099caae36c',
         },
       };
     default:
