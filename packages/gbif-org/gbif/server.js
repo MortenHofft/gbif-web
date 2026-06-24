@@ -16,6 +16,7 @@ import { register as registerAdmin } from './routes/admin/endpoints.mjs';
 import { register as registerProxies } from './routes/proxy/proxy.mjs';
 import { register as registerResourceSearch } from './routes/resourceSearch/endpoints.mjs';
 import createGetRedirect from './middleware/redirects.mjs';
+import { requestLogger } from './middleware/requestLogger.mjs';
 // Load environment variables from .env files and merge them with process.env.
 const envFile = loadEnv('', process.cwd(), ['PUBLIC_']);
 const env = merge(envFile, process.env);
@@ -54,11 +55,12 @@ async function main() {
       return res.statusCode < 400;
     },
     stream: {
-      write: (message) => logger.http(message.trim()),
+      write: (message) => logger.warn(message.trim()),
     },
   });
 
   app.use(morganMiddleware);
+  app.use(requestLogger);
 
   // Middleware to set shorter cache for responses with status code above 400
   app.use((req, res, next) => {
