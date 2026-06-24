@@ -30,6 +30,8 @@ export function applyI18nPlugin(
 
   return config.languages.map((localeOption) => {
     const localeLanguage = customMessages[localeOption.code] ?? {};
+    // Cache the messages fetch per locale so SSR requests don't re-fetch on every render.
+    let messagesPromise: Promise<Record<string, string>> | null = null;
     return {
       description: `Root route for ${localeOption.label}`,
       path: defaultLanguage.code === localeOption.code ? '/' : localeOption.code,
@@ -37,23 +39,21 @@ export function applyI18nPlugin(
         return false;
       },
       loader: async () => {
-        // fetch the entry translation file
-        const translations = await translationsPromise;
-        // now get the actual messages for the locale
-        const messages = await fetch(
-          `${config.translationsEntryEndpoint}${
-            translations?.[localeOption.localeCode]?.messages ?? translations?.en?.messages
-          }`
-        )
-          .then((r) => r.json())
-          .catch(async (err) => {
-            // Fall back to the bundled messages for this locale (or English) so a
-            // failed translation load degrades gracefully instead of taking down
-            // the whole site.
-            console.error('Failed to load translations for language, using bundled fallback');
-            console.error('Failed language: ', localeOption.code, localeOption.localeCode, err);
-            return loadFallbackMessages(localeOption.localeCode);
-          });
+        if (!messagesPromise) {
+          const translations = await translationsPromise;
+          messagesPromise = fetch(
+            `${config.translationsEntryEndpoint}${
+              translations?.[localeOption.localeCode]?.messages ?? translations?.en?.messages
+            }`
+          )
+            .then((r) => r.json())
+            .catch(async (err) => {
+              console.error('Failed to load translations for language, using bundled fallback');
+              console.error('Failed language: ', localeOption.code, localeOption.localeCode, err);
+              return loadFallbackMessages(localeOption.localeCode);
+            });
+        }
+        const messages = await messagesPromise;
         return { messages: { ...messages, ...localeLanguage } };
       },
       errorElement: <RootErrorPage />,
