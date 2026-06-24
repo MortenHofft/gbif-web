@@ -2,7 +2,6 @@ import compress from 'compression';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import helmet from 'helmet';
-import morgan from 'morgan';
 import fsp from 'node:fs/promises';
 import { createServer as createHttpServer } from 'node:http';
 import { merge } from 'ts-deepmerge';
@@ -50,16 +49,6 @@ async function main() {
     next();
   });
 
-  const morganMiddleware = morgan(':method :url :status :res[content-length] - :response-time ms', {
-    skip: function (req, res) {
-      return res.statusCode < 400;
-    },
-    stream: {
-      write: (message) => logger.warn(message.trim()),
-    },
-  });
-
-  app.use(morganMiddleware);
   app.use(requestLogger);
 
   // Middleware to set shorter cache for responses with status code above 400
