@@ -15,19 +15,7 @@ const PopoverContent = React.forwardRef<
   const container = usePortalContainer();
   return (
     <PopoverPrimitive.Portal container={container}>
-      <div
-        className="gbif"
-        style={{
-          background: '#00000012',
-          position: 'fixed',
-          top: 0,
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 50,
-          pointerEvents: 'auto',
-        }}
-      >
+      <div className="gbif" style={{ display: 'contents' }}>
         <PopoverPrimitive.Content
           ref={ref}
           align={align}
