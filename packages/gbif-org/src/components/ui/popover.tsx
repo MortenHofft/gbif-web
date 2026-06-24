@@ -25,6 +25,7 @@ const PopoverContent = React.forwardRef<
           left: 0,
           right: 0,
           zIndex: 50,
+          pointerEvents: 'auto',
         }}
       >
         <PopoverPrimitive.Content
