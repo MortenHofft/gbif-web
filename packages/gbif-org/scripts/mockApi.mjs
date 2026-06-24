@@ -43,6 +43,12 @@ const taxonExample = JSON.parse(
   await readFile(join(here, 'loadtest', 'taxonExample.json'), 'utf8')
 );
 
+// Real header/menu payload (the repo's bundled fallback) so the layout shell
+// renders an actual menu instead of empty header data.
+const headerExample = JSON.parse(
+  await readFile(join(here, '..', 'src', 'config', 'fallback', 'header.en.json'), 'utf8')
+);
+
 // Returns the `data` object for a given GraphQL operation. Unknown operations
 // get an empty object, which is enough for loaders that only read optional
 // fields (and the app degrades gracefully on missing data).
@@ -142,8 +148,10 @@ const server = createServer(async (req, res) => {
     return send(res, 200, {});
   }
 
-  // Header / menu and any other cached-response lookups -> empty but valid.
+  // Header / menu: serve the real menu so the layout shell renders a full
+  // header. Other cached-response lookups -> empty but valid.
   if (path.includes('/cached-response')) {
+    if (path.includes('header')) return send(res, 200, headerExample);
     return send(res, 200, {});
   }
 

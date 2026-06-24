@@ -50,6 +50,13 @@ export function createGbifRoutes(config: Config) {
           {
             errorElement: <RootErrorPage />,
             children: [
+              // Load-test only route (off in production): renders just the layout
+              // shell (header menu + footer) with trivial page content and no
+              // page-level loader, isolating the layout render cost from the
+              // page/query cost. Enabled by PUBLIC_LOADTEST_SHELL=true.
+              ...(import.meta.env.PUBLIC_LOADTEST_SHELL === 'true'
+                ? [{ path: 'loadtest-shell', element: <div id="loadtest-shell">shell</div> }]
+                : []),
               homePageRoute,
               ...userRoutes,
               omniSearchRoute,

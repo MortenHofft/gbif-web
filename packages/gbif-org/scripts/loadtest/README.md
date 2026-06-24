@@ -64,6 +64,46 @@ The legacy `/species/:key` page is also mocked (it renders the "unknown taxon"
 view without redirecting), but it's a thinner page, so `/taxon/{key}` is the
 better SSR target.
 
+## Isolating layout vs page cost (the `/loadtest-shell` route)
+
+Set `PUBLIC_LOADTEST_SHELL=true` (already in `env.loadtest`) to enable a
+`/loadtest-shell` route that renders **only the layout shell** - the real header
+menu and footer - with a trivial `<div>` for page content and no page loader.
+Compared against `/taxon/{key}`, it isolates the fixed layout render cost from
+the per-page (query + content) cost.
+
+```bash
+npm run loadtest -- --target=http://localhost:3000 --path='/loadtest-shell' \
+    --species-api=http://localhost:4000/v1 --max-inflight=8 --rate=1000 --duration=10
+```
+
+Measured on a 4-core box, single Node server process (closed-loop, concurrency 8):
+
+| Route             | Throughput | Notes                                   |
+| ----------------- | ---------- | --------------------------------------- |
+| `/loadtest-shell` | ~82 req/s  | header menu + footer only               |
+| `/taxon/{key}`    | ~42 req/s  | shell + taxon query + full content      |
+
+And varying concurrency on the shell route (1 / 4 / 8) moved throughput only
+~61 → 85 → 91 req/s - **not** 4-8x. Conclusions:
+
+- The render is **single-threaded and CPU-serialised**: `renderToString` runs
+  synchronously on one thread, so one Node process renders one page at a time
+  and the other cores sit idle. That is why a single process tops out ~45/s
+  however much concurrency you throw at it.
+- The **layout shell is about half the per-request cost** - it caps ~82/s on its
+  own. So the slowness isn't unique to the taxon page; the header/footer tree
+  (lots of components + react-intl `FormattedMessage`) is a fixed tax on every
+  page. The taxon content roughly doubles it.
+
+What this points at:
+
+- **Scale out across cores** - run ~one server process per core (cluster / PM2 /
+  multiple containers). That alone should ~4x throughput here.
+- **Lift the shell ceiling** for every page - memoise/cache the rendered shell,
+  trim the header/footer component count, or reduce `FormattedMessage` overhead.
+- **Cache full HTML** for hot pages (the server already emits `Cache-Control`).
+
 ## Diagnosing the costly part
 
 Once it's under load and you see where it strains (rising p99, climbing
