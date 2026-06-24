@@ -15,7 +15,9 @@ import { appendUser, generateGraphQLToken } from '../auth/utils.mjs';
  * it calls these `/api/admin/*` endpoints, which run server-side over the
  * internal network. That keeps the instances' admin endpoints internal-only.
  *
- * The es-api instances are listed separately in `ADMIN_ES_API_NODES`.
+ * The es-api instances are listed separately in `ADMIN_ES_API_NODES`, and the
+ * gbif-org SSR instances (this service) in `ADMIN_GBIF_ORG_NODES` — both
+ * monitoring only.
  *
  * Authorisation: the caller must be a logged-in user (cookie JWT) who is on the
  * `ADMIN_USERS` allowlist.
@@ -60,6 +62,13 @@ function getNodes() {
 // runtime settings exposed (yet), so this is monitoring only.
 function getEsNodes() {
   return parseNodes(secretEnv.ADMIN_ES_API_NODES);
+}
+
+// The gbif-org SSR instances to monitor (this very service, addressed per
+// instance rather than via the load-balanced URL). Monitoring only: /health
+// reports event-loop lag, in-flight count and heap; no runtime settings.
+function getGbifOrgNodes() {
+  return parseNodes(secretEnv.ADMIN_GBIF_ORG_NODES);
 }
 
 function isAuthorisedAdmin(user) {
@@ -148,6 +157,15 @@ export function register(app) {
   // Read: each es-api instance's /health
   app.get('/api/admin/es-health', appendUser, requireAdmin, async (req, res) => {
     const results = await fanOut(getEsNodes(), async (node) => {
+      const { status, ok, body } = await fetchNodeJson(`${node.url}/health`);
+      return ok ? { ok: true, status, health: body } : { ok: false, status, error: body };
+    });
+    res.json({ results });
+  });
+
+  // Read: each gbif-org SSR instance's /health
+  app.get('/api/admin/gbif-org-health', appendUser, requireAdmin, async (req, res) => {
+    const results = await fanOut(getGbifOrgNodes(), async (node) => {
       const { status, ok, body } = await fetchNodeJson(`${node.url}/health`);
       return ok ? { ok: true, status, health: body } : { ok: false, status, error: body };
     });

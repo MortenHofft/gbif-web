@@ -3,6 +3,7 @@ import {
   EsQueueLimits,
   EsSettingsResult,
   EsShedConfig,
+  GbifOrgHealthResult,
   HealthResult,
   PoolSettings,
   Settings,
@@ -54,6 +55,10 @@ export function fetchHealth(): Promise<{ results: HealthResult[] }> {
 
 export function fetchEsHealth(): Promise<{ results: EsHealthResult[] }> {
   return getJson('/api/admin/es-health');
+}
+
+export function fetchGbifOrgHealth(): Promise<{ results: GbifOrgHealthResult[] }> {
+  return getJson('/api/admin/gbif-org-health');
 }
 
 export function fetchEsSettings(): Promise<{ results: EsSettingsResult[] }> {

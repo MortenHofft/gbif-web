@@ -13,6 +13,7 @@ import { register as registerRobots } from './routes/robots/index.mjs';
 import { register as registerSitemaps } from './routes/sitemaps/endpoints.mjs';
 import { register as registerUser } from './routes/user/endpoints.mjs';
 import { register as registerAdmin } from './routes/admin/endpoints.mjs';
+import { register as registerHealth } from './health/index.mjs';
 import { register as registerProxies } from './routes/proxy/proxy.mjs';
 import { register as registerResourceSearch } from './routes/resourceSearch/endpoints.mjs';
 import createGetRedirect from './middleware/redirects.mjs';
@@ -42,6 +43,11 @@ async function main() {
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
   app.use(compress());
+
+  // Health monitoring: registers the in-flight request tracker (added here so it
+  // wraps every subsequent route) and the public /health endpoint. Reports
+  // event-loop lag, in-flight count and heap so we can see when SSR is overloaded.
+  registerHealth(app);
 
   // Middleware to set default Cache-Control header
   app.use((req, res, next) => {

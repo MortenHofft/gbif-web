@@ -113,6 +113,29 @@ export type EsHealth = {
 
 export type EsHealthResult = NodeResult<{ health?: EsHealth }>;
 
+// --- gbif-org SSR (monitoring only) ----------------------------------------
+// The SSR server has no upstream queues/pools; its load story is event-loop lag
+// (CPU-bound React rendering blocking the loop), in-flight requests and heap.
+
+export type GbifOrgHealth = {
+  status?: string;
+  nagiosString?: string;
+  uptimeSeconds?: number;
+  inflight?: number;
+  heapUsedMb?: number;
+  heapUsedPercent?: number;
+  eventLoop?: {
+    eventLoopDelayMs?: number;
+    eventLoopDelayMaxMs?: number;
+    peakEventLoopDelayMs?: number;
+    slowEventLoopThresholdMs?: number;
+    slowEventLoopCount?: number;
+    lastSlowEventLoop?: string | null;
+  };
+};
+
+export type GbifOrgHealthResult = NodeResult<{ health?: GbifOrgHealth }>;
+
 export type EsBand = { queueAbove: number; maxPriority: number };
 export type EsQueueLimits = { concurrencyLimit: number; maxQueueSize: number };
 export type EsShedConfig = { defaultPriority: number; bands: EsBand[] };

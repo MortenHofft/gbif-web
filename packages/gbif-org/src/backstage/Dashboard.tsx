@@ -5,6 +5,7 @@ import {
   EsSettingsPatch,
   fetchEsHealth,
   fetchEsSettings,
+  fetchGbifOrgHealth,
   fetchHealth,
   fetchSettings,
   NotAuthorisedError,
@@ -14,6 +15,7 @@ import {
   EsHealthResult,
   EsSettings,
   EsSettingsResult,
+  GbifOrgHealthResult,
   HealthResult,
   Settings,
   SettingsResult,
@@ -234,6 +236,58 @@ function EsHealthCard({ result }: { result: EsHealthResult }) {
           </tbody>
         </table>
       </div>
+      {h.nagiosString && (
+        <div className="g-mt-2 g-text-[10px] g-text-zinc-600 g-break-words">{h.nagiosString}</div>
+      )}
+    </div>
+  );
+}
+
+function GbifOrgHealthCard({ result }: { result: GbifOrgHealthResult }) {
+  if (!result.ok || !result.health) {
+    return (
+      <div className="g-rounded-lg g-border g-border-red-900/60 g-bg-red-950/30 g-p-4">
+        <NodeHeading url={result.url} node={result.node} className="g-text-red-300" />
+        <div className="g-mt-1 g-text-xs g-text-red-400 g-break-all">
+          unreachable{result.status ? ` (${result.status})` : ''}
+        </div>
+      </div>
+    );
+  }
+  const h = result.health;
+  const el = h.eventLoop ?? {};
+  return (
+    <div className="g-rounded-lg g-border g-border-zinc-800 g-bg-zinc-950 g-p-4">
+      <div className="g-flex g-items-center g-justify-between">
+        <NodeHeading url={result.url} node={result.node} className="g-text-zinc-100" />
+        <span className="g-text-[11px] g-rounded g-px-1.5 g-py-0.5 g-bg-emerald-900/40 g-text-emerald-300">
+          {h.status ?? 'ok'}
+        </span>
+      </div>
+      <div className="g-mt-3 g-grid g-grid-cols-3 g-gap-3">
+        <Stat label="up since" value={fmtUpSince(h.uptimeSeconds)} />
+        <Stat label="inflight" value={h.inflight ?? '—'} />
+        <Stat
+          label="heap"
+          value={`${h.heapUsedPercent ?? '—'}%`}
+          warn={(h.heapUsedPercent ?? 0) > 80}
+        />
+        <Stat label="loop ms" value={el.eventLoopDelayMs ?? '—'} />
+        <Stat label="loop max" value={el.eventLoopDelayMaxMs ?? '—'} />
+        <Stat
+          label="loop peak"
+          value={el.peakEventLoopDelayMs ?? '—'}
+          warn={(el.peakEventLoopDelayMs ?? 0) > 1000}
+        />
+      </div>
+      {(el.slowEventLoopCount ?? 0) > 0 && (
+        <div className="g-mt-3 g-border-t g-border-zinc-800 g-pt-2 g-text-xs g-text-amber-400">
+          {el.slowEventLoopCount} slow loop
+          {(el.slowEventLoopCount ?? 0) === 1 ? '' : 's'} (&gt;
+          {el.slowEventLoopThresholdMs ?? 1000}ms)
+          {el.lastSlowEventLoop ? `, last ${new Date(el.lastSlowEventLoop).toLocaleString()}` : ''}
+        </div>
+      )}
       {h.nagiosString && (
         <div className="g-mt-2 g-text-[10px] g-text-zinc-600 g-break-words">{h.nagiosString}</div>
       )}
@@ -827,6 +881,7 @@ export default function Dashboard() {
   const [settingsResults, setSettingsResults] = useState<SettingsResult[]>([]);
   const [esResults, setEsResults] = useState<EsHealthResult[]>([]);
   const [esSettingsResults, setEsSettingsResults] = useState<EsSettingsResult[]>([]);
+  const [gbifOrgResults, setGbifOrgResults] = useState<GbifOrgHealthResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [unauthorised, setUnauthorised] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -843,12 +898,16 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-    // es-api is independent: a failure here must not blank out the GraphQL view.
+    // es-api and gbif-org are independent: a failure here must not blank out the
+    // GraphQL view.
     fetchEsHealth()
       .then((r) => setEsResults(r.results))
       .catch(() => undefined);
     fetchEsSettings()
       .then((r) => setEsSettingsResults(r.results))
+      .catch(() => undefined);
+    fetchGbifOrgHealth()
+      .then((r) => setGbifOrgResults(r.results))
       .catch(() => undefined);
   }, []);
 
@@ -861,6 +920,9 @@ export default function Dashboard() {
         .catch(() => undefined);
       fetchEsHealth()
         .then((r) => setEsResults(r.results))
+        .catch(() => undefined);
+      fetchGbifOrgHealth()
+        .then((r) => setGbifOrgResults(r.results))
         .catch(() => undefined);
     }, 10000);
     return () => clearInterval(id);
@@ -913,6 +975,17 @@ export default function Dashboard() {
           {esSettingsResults.length > 0 && (
             <EsSettingsEditor results={esSettingsResults} onApplied={load} />
           )}
+        </section>
+      )}
+
+      {gbifOrgResults.length > 0 && (
+        <section className="g-space-y-4 g-pt-2">
+          <h1 className="g-text-lg g-font-semibold g-text-zinc-100">gbif-org (SSR)</h1>
+          <div className="g-grid g-grid-cols-1 lg:g-grid-cols-2 g-gap-4">
+            {gbifOrgResults.map((r) => (
+              <GbifOrgHealthCard key={r.url} result={r} />
+            ))}
+          </div>
         </section>
       )}
     </div>
