@@ -60,6 +60,20 @@ async function main() {
 
   app.use(morganMiddleware);
 
+  // Log successful requests that take longer than 2 seconds so slow SSR renders
+  // are visible even when they return 200. Morgan's error-only filter hides these.
+  const SLOW_REQUEST_THRESHOLD_MS = 2000;
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      const ms = Date.now() - start;
+      if (ms >= SLOW_REQUEST_THRESHOLD_MS) {
+        logger.warn(`SLOW ${req.method} ${req.originalUrl} ${res.statusCode} - ${ms}ms`);
+      }
+    });
+    next();
+  });
+
   // Middleware to set shorter cache for responses with status code above 400
   app.use((req, res, next) => {
     const originalSend = res.send;

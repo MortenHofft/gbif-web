@@ -53,15 +53,11 @@ const HELP_ITEM_QUERY = /* GraphQL */ `
 `;
 
 async function faqPageLoader({ graphql }: LoaderArgs) {
-  const response = await graphql.query<FaqQuery, FaqQueryVariables>(FAQ_QUERY, {
-    urlAlias: '/faq',
-  });
+  const [response, helpResponse] = await Promise.all([
+    graphql.query<FaqQuery, FaqQueryVariables>(FAQ_QUERY, { urlAlias: '/faq' }),
+    graphql.query<HelpItemQuery, HelpItemQueryVariables>(HELP_ITEM_QUERY, { size: 500, from: 0 }),
+  ]);
   const { errors, data } = await response.json();
-
-  const helpResponse = await graphql.query<HelpItemQuery, HelpItemQueryVariables>(HELP_ITEM_QUERY, {
-    size: 500,
-    from: 0,
-  });
   const { errors: helpErrors, data: helpData } = await helpResponse.json();
 
   throwCriticalErrors({

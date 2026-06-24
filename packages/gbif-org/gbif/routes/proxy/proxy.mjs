@@ -29,6 +29,9 @@ function loadFallback(relativePath) {
 const HEADER_FALLBACK = loadFallback('header.en.json');
 
 const cache = {};
+// Tracks in-flight refreshes so concurrent cold-cache requests share a single
+// fetch instead of each starting their own (stampede protection).
+const pendingRefreshes = {};
 
 function getCachedResponse(name, graphqlQuery, fallback) {
   return async function (req, res) {
@@ -50,16 +53,25 @@ function getCachedResponse(name, graphqlQuery, fallback) {
     // If we have a cached version, return it immediately and refresh in background
     if (cache[cacheKey]) {
       res.json(cache[cacheKey]);
-      // Refresh cache in background (fire and forget)
-      refreshCache(cacheKey, { query: graphqlQuery, locale }).catch(() => {
-        // Silently fail - we'll try again on next request
-      });
+      // Refresh cache in background (fire and forget), but only if not already refreshing
+      if (!pendingRefreshes[cacheKey]) {
+        pendingRefreshes[cacheKey] = refreshCache(cacheKey, { query: graphqlQuery, locale })
+          .catch(() => {})
+          .finally(() => { delete pendingRefreshes[cacheKey]; });
+      }
       return;
     }
 
-    // No cache exists, we must wait for the fetch
+    // No cache exists — join an existing in-flight fetch or start a new one.
+    // This prevents a stampede where N concurrent cold-cache requests each fire
+    // their own upstream GraphQL call.
+    if (!pendingRefreshes[cacheKey]) {
+      pendingRefreshes[cacheKey] = refreshCache(cacheKey, { query: graphqlQuery, locale })
+        .finally(() => { delete pendingRefreshes[cacheKey]; });
+    }
+
     try {
-      await refreshCache(cacheKey, { query: graphqlQuery, locale });
+      await pendingRefreshes[cacheKey];
       res.json(cache[cacheKey]);
     } catch (error) {
       // Serve a bundled fallback (if any) so the site can still render rather
