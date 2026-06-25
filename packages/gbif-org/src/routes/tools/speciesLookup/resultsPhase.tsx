@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { PaginationFooter } from '@/components/pagination';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -9,27 +10,77 @@ import { FormattedMessage } from 'react-intl';
 import { ClassificationPath, MatchTypeBadge, TaxonLink } from './components';
 import { PAGE_SIZE, SpeciesRow } from './types';
 
-const RESULT_COLUMNS: { id: string; defaultMessage: string }[] = [
-  { id: 'tools.speciesLookup.colId', defaultMessage: 'id' },
-  { id: 'tools.speciesLookup.colVerbatimScientificName', defaultMessage: 'verbatimScientificName' },
-  { id: 'tools.speciesLookup.colPreferedKingdom', defaultMessage: 'preferedKingdom' },
-  { id: 'tools.speciesLookup.colMatchType', defaultMessage: 'matchType' },
-  { id: 'tools.speciesLookup.colConfidence', defaultMessage: 'confidence' },
+type SortDirection = 'asc' | 'desc';
+type SortableKey = Extract<
+  keyof SpeciesRow,
+  | 'occurrenceId'
+  | 'verbatimScientificName'
+  | 'preferedKingdom'
+  | 'matchType'
+  | 'confidence'
+  | 'scientificName'
+  | 'status'
+  | 'rank'
+  | 'kingdom'
+  | 'phylum'
+  | 'class'
+  | 'order'
+  | 'family'
+  | 'genus'
+  | 'species'
+>;
+
+const RESULT_COLUMNS: { id: string; defaultMessage: string; sortKey?: SortableKey }[] = [
+  { id: 'tools.speciesLookup.colId', defaultMessage: 'id', sortKey: 'occurrenceId' },
+  {
+    id: 'tools.speciesLookup.colVerbatimScientificName',
+    defaultMessage: 'verbatimScientificName',
+    sortKey: 'verbatimScientificName',
+  },
+  {
+    id: 'tools.speciesLookup.colPreferedKingdom',
+    defaultMessage: 'preferedKingdom',
+    sortKey: 'preferedKingdom',
+  },
+  { id: 'tools.speciesLookup.colMatchType', defaultMessage: 'matchType', sortKey: 'matchType' },
+  { id: 'tools.speciesLookup.colConfidence', defaultMessage: 'confidence', sortKey: 'confidence' },
   {
     id: 'tools.speciesLookup.colScientificNameEditable',
     defaultMessage: 'scientificName (editable)',
+    sortKey: 'scientificName',
   },
-  { id: 'tools.speciesLookup.colStatus', defaultMessage: 'status' },
-  { id: 'tools.speciesLookup.colRank', defaultMessage: 'rank' },
-  { id: 'tools.speciesLookup.colKingdom', defaultMessage: 'kingdom' },
-  { id: 'tools.speciesLookup.colPhylum', defaultMessage: 'phylum' },
-  { id: 'tools.speciesLookup.colClass', defaultMessage: 'class' },
-  { id: 'tools.speciesLookup.colOrder', defaultMessage: 'order' },
-  { id: 'tools.speciesLookup.colFamily', defaultMessage: 'family' },
-  { id: 'tools.speciesLookup.colGenus', defaultMessage: 'genus' },
-  { id: 'tools.speciesLookup.colSpecies', defaultMessage: 'species' },
+  { id: 'tools.speciesLookup.colStatus', defaultMessage: 'status', sortKey: 'status' },
+  { id: 'tools.speciesLookup.colRank', defaultMessage: 'rank', sortKey: 'rank' },
+  { id: 'tools.speciesLookup.colKingdom', defaultMessage: 'kingdom', sortKey: 'kingdom' },
+  { id: 'tools.speciesLookup.colPhylum', defaultMessage: 'phylum', sortKey: 'phylum' },
+  { id: 'tools.speciesLookup.colClass', defaultMessage: 'class', sortKey: 'class' },
+  { id: 'tools.speciesLookup.colOrder', defaultMessage: 'order', sortKey: 'order' },
+  { id: 'tools.speciesLookup.colFamily', defaultMessage: 'family', sortKey: 'family' },
+  { id: 'tools.speciesLookup.colGenus', defaultMessage: 'genus', sortKey: 'genus' },
+  { id: 'tools.speciesLookup.colSpecies', defaultMessage: 'species', sortKey: 'species' },
   { id: 'tools.speciesLookup.colClassification', defaultMessage: 'classification' },
 ];
+
+function sortSpecies(
+  rows: SpeciesRow[],
+  column: SortableKey,
+  direction: SortDirection
+): SpeciesRow[] {
+  return [...rows].sort((a, b) => {
+    const aVal = a[column];
+    const bVal = b[column];
+    if (aVal == null && bVal == null) return 0;
+    if (aVal == null) return 1;
+    if (bVal == null) return -1;
+    let cmp: number;
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      cmp = aVal - bVal;
+    } else {
+      cmp = String(aVal).localeCompare(String(bVal));
+    }
+    return direction === 'asc' ? cmp : -cmp;
+  });
+}
 
 type ResultsPhaseProps = {
   species: SpeciesRow[];
@@ -52,8 +103,24 @@ export function ResultsPhase({
   onSetExcludeUnmatched,
   onGenerateCsv,
 }: ResultsPhaseProps) {
-  const displayedSpecies = excludeUnmatched ? species.filter((s) => s.key) : species;
+  const [sortColumn, setSortColumn] = useState<SortableKey | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const filteredSpecies = excludeUnmatched ? species.filter((s) => s.key) : species;
+  const displayedSpecies = sortColumn
+    ? sortSpecies(filteredSpecies, sortColumn, sortDirection)
+    : filteredSpecies;
   const visibleResults = displayedSpecies.slice(offset, offset + PAGE_SIZE);
+
+  function handleSort(key: SortableKey) {
+    if (sortColumn === key) {
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(key);
+      setSortDirection('asc');
+    }
+    onSetOffset(0);
+  }
 
   return (
     <PageContainer className="g-bg-slate-100">
@@ -72,7 +139,31 @@ export function ResultsPhase({
                       key={col.id}
                       className="g-px-4 g-py-3 g-text-start g-font-medium g-text-slate-500 g-whitespace-nowrap"
                     >
-                      <FormattedMessage id={col.id} defaultMessage={col.defaultMessage} />
+                      {col.sortKey ? (
+                        <button
+                          className={cn(
+                            'g-flex g-items-center g-gap-1 hover:g-text-slate-700',
+                            sortColumn === col.sortKey && 'g-text-slate-700'
+                          )}
+                          onClick={() => handleSort(col.sortKey!)}
+                        >
+                          <FormattedMessage id={col.id} defaultMessage={col.defaultMessage} />
+                          <span
+                            className={cn(
+                              'g-text-xs g-leading-none',
+                              sortColumn !== col.sortKey && 'g-opacity-30'
+                            )}
+                          >
+                            {sortColumn === col.sortKey
+                              ? sortDirection === 'asc'
+                                ? '↑'
+                                : '↓'
+                              : '↕'}
+                          </span>
+                        </button>
+                      ) : (
+                        <FormattedMessage id={col.id} defaultMessage={col.defaultMessage} />
+                      )}
                     </th>
                   ))}
                 </tr>
