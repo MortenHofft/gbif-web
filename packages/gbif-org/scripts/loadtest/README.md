@@ -92,17 +92,48 @@ And varying concurrency on the shell route (1 / 4 / 8) moved throughput only
   and the other cores sit idle. That is why a single process tops out ~45/s
   however much concurrency you throw at it.
 - The **layout shell is about half the per-request cost** - it caps ~82/s on its
-  own. So the slowness isn't unique to the taxon page; the header/footer tree
-  (lots of components + react-intl `FormattedMessage`) is a fixed tax on every
-  page. The taxon content roughly doubles it.
+  own. So the slowness isn't unique to the taxon page; rendering the header/footer
+  tree (plus per-request route matching) is a fixed tax on every page, and the
+  taxon content roughly doubles it. (See the measured breakdown below - the cost
+  is `renderToString` + react-router matching, *not* react-intl.)
 
-What this points at:
+### Where the per-request time actually goes (measured)
+
+Instrumenting `entry.server.tsx` (time `matchRoutes` and `renderToString`
+separately) and CPU-profiling the shell route gave the synchronous-CPU split per
+request - this is the part that serialises and caps throughput:
+
+| Phase                    | Shell    | Taxon     |
+| ------------------------ | -------- | --------- |
+| `matchRoutes` (pure)     | ~1.8 ms  | ~1.3 ms   |
+| `renderToString`         | ~5.2 ms  | ~10.5 ms  |
+
+(The async `query` phase is mostly I/O wait + event-loop contention under load,
+not CPU.) Bucketing JS self-time from `--prof`:
+
+- `renderToString` machinery (jsx-runtime element creation + react-dom-server +
+  react core) ≈ **the largest chunk**; the taxon content roughly doubles it.
+- **react-router matching** (`matchRoutes` → `flattenRoutes` + `compilePath`
+  regexes) ≈ **~a third of JS execution** and ~1.3-1.8 ms wall per request.
+  `@remix-run/router@1.11` re-flattens the whole route tree and re-compiles every
+  path regex on **every** request with **no cache**, over a ~116-route table that
+  never changes (verified: `matchRoutes` calls `flattenRoutes`/`compilePath` per
+  call). A micro-benchmark put cold matching at ~0.5 ms/call vs ~free memoised.
+- **react-intl / FormatJS** ≈ only **~4%** of JS execution. It is *not* the
+  bottleneck (despite the heavy `FormattedMessage` usage), so message-AST
+  precompilation would be low ROI here.
+
+What this points at, in ROI order:
 
 - **Scale out across cores** - run ~one server process per core (cluster / PM2 /
-  multiple containers). That alone should ~4x throughput here.
-- **Lift the shell ceiling** for every page - memoise/cache the rendered shell,
-  trim the header/footer component count, or reduce `FormattedMessage` overhead.
-- **Cache full HTML** for hot pages (the server already emits `Cache-Control`).
+  multiple containers). Biggest win; should ~4x throughput on this box.
+- **Memoise route matching** - cache `matchRoutes` by pathname (routes are static
+  at SSR). Removes the ~1.3-1.8 ms/request route-matching tax for free; the
+  clearest code-level win.
+- **Trim the rendered tree** - `renderToString` of the component tree is the
+  dominant inherent cost; cache full HTML for hot pages (the server already emits
+  `Cache-Control`) and/or reduce shell component count.
+- react-intl is a red herring here - don't start with AST precompilation.
 
 ## Diagnosing the costly part
 
