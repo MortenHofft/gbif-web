@@ -15,6 +15,9 @@ export default defineConfig(({ command }) => {
   const config: UserConfig = {
     envPrefix: 'PUBLIC_',
     plugins: [react()],
+    server: {
+      allowedHosts: ['web.gbif.org'],
+    },
     build: {
       emptyOutDir: true,
       sourcemap: true,
