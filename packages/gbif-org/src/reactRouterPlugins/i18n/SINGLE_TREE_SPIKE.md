@@ -1,87 +1,69 @@
-# Single route tree for i18n (spike)
+# Single route tree for i18n — spike result: ABANDONED (does not work)
 
-## What changed
+## TL;DR
 
-The i18n react-router plugin used to **clone the entire route tree once per
-enabled language** (`config.languages.map(...)`), so the flattened route table
-was `base_routes × languages`. `@remix-run/router` re-flattens and re-compiles
-that whole table (`matchRoutes` → `flattenRoutes` + `compilePath`) on **every
-SSR request**, so the per-request matching cost grew linearly with the number of
-languages.
+The idea was to stop the i18n plugin cloning the whole route tree once per
+language (`base_routes × languages`) and instead use **two** root subtrees:
 
-This spike replaces the N-way duplication with **at most two root subtrees**:
+- `/` — default locale (unprefixed)
+- `/:locale` — every other locale (`/fr/...`, `/de/...`)
 
-- `/` — the default locale (unprefixed URLs)
-- `/:locale` — every non-default locale (`/fr/...`, `/de/...`), added only when
-  more than one language is enabled
+This made the flattened route table O(1) in the number of languages and gave a
+~26% SSR throughput win at 12 languages. **But it is fundamentally broken** and
+has been reverted. The i18n plugin is back to the original per-language cloning.
 
-so the flattened table is **O(1) in the number of languages** (1× for a single
-language, 2× for many) instead of O(languages).
+## Why it cannot work
 
-Files:
-- `reactRouterPlugins/i18n/plugin.tsx` — two root routes sharing one tree + one
-  URL-derived translations loader, instead of one cloned tree per language.
-- `reactRouterPlugins/i18n/i18nContextProvider.tsx` — derives the active locale
-  from the URL (it used to come from the per-language route).
-- `reactRouterPlugins/i18n/useLocalizedRouteId.ts` — two id variants (default /
-  `-i18n`) instead of one per language, so ids stay unique across the two
-  subtrees.
+The localized subtree's path is a **dynamic** segment `:locale`. react-router
+cannot constrain a dynamic segment to a fixed set of values, so `:locale`
+matches *any* first segment — including single-segment CMS slugs handled by the
+default subtree's `*` alias catch-all (`/what-is-gbif`, `/publishing-data`,
+`/standards`, `/governance`, …). And a dynamic segment outranks a splat, so:
 
-`entry.server.tsx` / `entry.client.tsx` are unchanged — the `/:locale` segment
-lives in the route tree, so react-router matches prefixed URLs natively on both
-the server and the client (hydration stays symmetric).
+```
+/standards        -> :locale="standards" + index   (WRONG: should be the alias page)
+/publishing-data  -> :locale="publishing-data" + index
+/fr/standards     -> :locale="fr" + *="standards"   (correct, by luck of 2 segments)
+```
 
-## Benchmark (taxon page, single Node process, closed-loop concurrency 8)
+A locale guard then 404s the bogus `:locale`, so every default-locale
+single-segment CMS page breaks (and client language-switching to a slug page
+loops/redirects).
 
-|                         | 1 language | 12 languages |
-| ----------------------- | ---------- | ------------ |
-| multi-tree (current)    | ~53 req/s  | ~31 req/s    |
-| single-tree (this spike)| ~44-53 req/s | **~39 req/s** |
+The deeper point (verified with `matchRoutes`): **a dynamic first segment cannot
+distinguish a locale prefix (`/fr`) from a content slug (`/standards`)** — they
+are both just one segment. Any "obvious fix" (e.g. a `:alias` route in the
+default subtree) then captures `/fr` as a slug instead. The only way to
+disambiguate is to make the locale prefixes **static** paths (`fr`, `de`, …) —
+which is exactly the original per-language structure, i.e. O(languages) again.
 
-- **Current** throughput drops ~40% from 1 → 12 languages (the duplication cost).
-- **Single-tree** is essentially flat across language count — the scaling
-  penalty is gone. At prod's 12 languages it is **~26% faster** (~39 vs ~31).
-- This also showed the per-language *render* work (`AlternativeLanguages` emits
-  one `<link hreflang>` per language through react-helmet) is negligible — the
-  whole penalty was route matching.
+## So what actually gets the perf win?
 
-(Numbers are from a shared box with ±10-15% run-to-run variance; the ratios are
-the reliable part.)
+Two real options, in order of recommendation:
 
-## Locale guard
+1. **Memoize react-router's matching** (the patch). `matchRoutes` re-runs
+   `flattenRoutes` + `compilePath` on every request with no cache; both are
+   request-independent. Caching them makes route *count* irrelevant to
+   per-request cost, so the original (correct) per-language tree stays and the
+   language penalty disappears. Caveat discovered: the SSR build bundles
+   `@remix-run/router`'s **CommonJS** entry (`dist/router.cjs.js`) and the client
+   uses the ESM (`dist/router.js`), so a `patch-package` fix must patch **both**
+   and be re-verified on upgrades. This is the clean way to get the win without
+   touching routing.
 
-`/:locale` matches any first segment, so the shared root loader validates it: if
-the prefix is not an **enabled, non-default** locale it throws a 404
-(`NotFoundLoaderResponse`). Because that throw renders the root `errorElement`
-*instead of* the element, the `errorElement` is itself wrapped in
-`I18nContextProvider` (and the provider tolerates missing loader data), so the
-404 page - which uses i18n hooks/links - renders correctly instead of crashing.
+2. **True single tree via `basename`** — take the locale out of the route tree
+   entirely (strip the `/fr` prefix before matching, carry the locale via
+   `basename`/context). Correct and O(1), but a large refactor: the app does
+   manual locale-prefixing everywhere (`localizeLink`, `DynamicLink`,
+   `AlternativeLanguages`, sitemaps), which collides with `basename`
+   double-prefixing, and language switching can no longer be a client navigation.
 
-## Verified
+Bottom line: the route-tree restructure is a dead end; pursue the patch (1) for
+the perf win, on top of the still-bigger levers (multi-process + HTML/CDN
+caching).
 
-SSR (gbif, 12 languages), against the mock:
-- `/taxon/4CGXP` (default) → 200, full content
-- `/fr/taxon/4CGXP`, `/de/...` → 200 with the right `lang`/`dir` and hreflang
-- `/`, `/fr` home → 200
-- `/xx/taxon/...` (illegal), `/en/taxon/...` (default-as-prefix), `/ko/...`
-  (disabled locale), `/zz` → **404** rendering the real not-found page
+## What remains on this branch
 
-Client (hosted-portal build, languages en/fr/es), headless Chromium against the
-hp harness pointed at the mock:
-- `/occurrence/search` → renders, `lang="en"`
-- `/fr/occurrence/search` → renders, `lang="fr"` (localized subtree works client-side)
-- `/xx/occurrence/search` → renders the 404 page, no crash
-- `npm run build` and `npm run build:hp` both succeed
-
-## Remaining (left for manual verification / future work)
-
-- **Local load + behaviour verification** by a human (validated here against the
-  mock on a shared CI box; confirm against a real backend).
-- **In-app language switching** between locales should be exercised manually
-  (SSR + a fresh client render are verified; runtime locale toggling is not).
-- **Getting to a true 1× tree**: the remaining gap to the single-language
-  baseline is the constant 2× from the `/:locale` subtree. Eliminating it
-  entirely (one tree, locale via basename/prefix-stripping) would recover the
-  full throughput at every language count, but it's a much more invasive change
-  to link generation + the server/client entries + hydration - not worth it for
-  the incremental gain.
+The i18n source is reverted to the original. The **load-testing harness** is kept
+(`scripts/loadTest.mjs`, `scripts/mockApi.mjs`, `scripts/loadtest/*`, the
+`/loadtest-shell` env-gated route) so the perf work can be reproduced.
