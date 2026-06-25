@@ -1,5 +1,6 @@
 import { Config } from '@/config/config';
 import { fallbackTranslationsEntry, loadFallbackMessages } from '@/config/fallback';
+import { NotFoundLoaderResponse } from '@/errors';
 import { RootErrorPage } from '@/routes/rootErrorPage';
 import { Outlet } from 'react-router-dom';
 import { RouteObjectWithPlugins } from '..';
@@ -30,10 +31,30 @@ export function applyI18nPlugin(
       return fallbackTranslationsEntry;
     });
 
+  // Enabled, non-default locale codes are the only valid URL prefixes.
+  const validLocalePrefixes = new Set(
+    config.languages.filter((l) => l.code !== defaultLanguage.code).map((l) => l.code)
+  );
+
   // A single loader shared by both root routes. The locale is derived from the
   // URL (same source the extendedLoader plugin uses), so one tree can serve
   // every locale instead of cloning the whole route tree per language.
-  const loader = async ({ request }: { request: Request }) => {
+  const loader = async ({
+    request,
+    params,
+  }: {
+    request: Request;
+    params: Record<string, string | undefined>;
+  }) => {
+    // The `/:locale` subtree matches any first segment; reject anything that is
+    // not an enabled non-default locale so e.g. `/xx/...` 404s instead of
+    // silently rendering the default locale under a bogus prefix. (The default
+    // locale is served unprefixed via the `/` subtree, so `/en/...` is also a
+    // 404 here, matching the previous per-language behaviour.)
+    if (params.locale != null && !validLocalePrefixes.has(params.locale)) {
+      throw new NotFoundLoaderResponse();
+    }
+
     const pathname = new URL(request.url).pathname;
     const localeCode = extractLocaleFromPathname(pathname, localeCodes, defaultLanguage.code);
     const localeOption =
@@ -66,10 +87,19 @@ export function applyI18nPlugin(
     </I18nContextProvider>
   );
 
+  // Errors thrown by the root loader (e.g. the invalid-locale 404) render this
+  // errorElement *instead of* the element, so it must establish the i18n context
+  // itself - the 404 page uses i18n hooks (links, messages).
+  const errorElement = (
+    <I18nContextProvider availableLocales={config.languages} defaultLocale={defaultLanguage}>
+      <RootErrorPage />
+    </I18nContextProvider>
+  );
+
   const common = {
     loader,
     element,
-    errorElement: <RootErrorPage />,
+    errorElement,
     shouldRevalidate() {
       return false;
     },

@@ -48,22 +48,40 @@ the server and the client (hydration stays symmetric).
 (Numbers are from a shared box with ±10-15% run-to-run variance; the ratios are
 the reliable part.)
 
-## Correctness verified (SSR)
+## Locale guard
 
+`/:locale` matches any first segment, so the shared root loader validates it: if
+the prefix is not an **enabled, non-default** locale it throws a 404
+(`NotFoundLoaderResponse`). Because that throw renders the root `errorElement`
+*instead of* the element, the `errorElement` is itself wrapped in
+`I18nContextProvider` (and the provider tolerates missing loader data), so the
+404 page - which uses i18n hooks/links - renders correctly instead of crashing.
+
+## Verified
+
+SSR (gbif, 12 languages), against the mock:
 - `/taxon/4CGXP` (default) → 200, full content
 - `/fr/taxon/4CGXP`, `/de/...` → 200 with the right `lang`/`dir` and hreflang
 - `/`, `/fr` home → 200
+- `/xx/taxon/...` (illegal), `/en/taxon/...` (default-as-prefix), `/ko/...`
+  (disabled locale), `/zz` → **404** rendering the real not-found page
 
-## Not done / follow-up before this is production-ready
+Client (hosted-portal build, languages en/fr/es), headless Chromium against the
+hp harness pointed at the mock:
+- `/occurrence/search` → renders, `lang="en"`
+- `/fr/occurrence/search` → renders, `lang="fr"` (localized subtree works client-side)
+- `/xx/occurrence/search` → renders the 404 page, no crash
+- `npm run build` and `npm run build:hp` both succeed
 
-- **Client + hosted-portal validation**: SSR is verified, but client-side
-  navigation, hydration, and language switching across the new `/:locale` subtree
-  need testing (especially the hp build, which shares this plugin).
-- **Invalid locale prefixes**: `/:locale` will match any first segment; add
-  validation/redirect so e.g. `/xx/taxon/...` 404s or redirects rather than
-  rendering the default locale under a bogus prefix.
+## Remaining (left for manual verification / future work)
+
+- **Local load + behaviour verification** by a human (validated here against the
+  mock on a shared CI box; confirm against a real backend).
+- **In-app language switching** between locales should be exercised manually
+  (SSR + a fresh client render are verified; runtime locale toggling is not).
 - **Getting to a true 1× tree**: the remaining gap to the single-language
   baseline is the constant 2× from the `/:locale` subtree. Eliminating it
   entirely (one tree, locale via basename/prefix-stripping) would recover the
-  full throughput at every language count, but it's a more invasive change to the
-  server/client entries and hydration.
+  full throughput at every language count, but it's a much more invasive change
+  to link generation + the server/client entries + hydration - not worth it for
+  the incremental gain.

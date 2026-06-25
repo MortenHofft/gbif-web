@@ -32,7 +32,11 @@ type Props = {
 };
 
 export function I18nContextProvider({ children, defaultLocale, availableLocales }: Props) {
-  const { messages } = useLoaderData() as { messages: Record<string, string> | null };
+  // Tolerate a missing loader result: when this provider also wraps the root
+  // errorElement (e.g. an invalid-locale 404), the loader did not return data,
+  // so fall back to empty messages (react-intl then uses defaultMessages).
+  const loaderData = useLoaderData() as { messages: Record<string, string> | null } | undefined;
+  const messages = loaderData?.messages ?? {};
   const location = useLocation();
   const navigate = useNavigate();
 
