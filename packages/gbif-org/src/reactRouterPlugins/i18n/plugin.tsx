@@ -3,8 +3,9 @@ import { fallbackTranslationsEntry, loadFallbackMessages } from '@/config/fallba
 import { RootErrorPage } from '@/routes/rootErrorPage';
 import { Outlet } from 'react-router-dom';
 import { RouteObjectWithPlugins } from '..';
+import { extractLocaleFromPathname } from './extractLocaleFromURL';
 import { I18nContextProvider } from './i18nContextProvider';
-import { localizeRouteId } from './useLocalizedRouteId';
+import { LOCALIZED_ID_SUFFIX } from './useLocalizedRouteId';
 
 export function applyI18nPlugin(
   routes: RouteObjectWithPlugins[],
@@ -18,6 +19,7 @@ export function applyI18nPlugin(
   const { messages: customMessages = {} } = config;
   const defaultLanguage = config.languages.find((language) => language.default);
   if (!defaultLanguage) throw new Error('No default language found');
+  const localeCodes = config.languages.map((l) => l.code);
 
   const translationsPromise = fetch(`${config.translationsEntryEndpoint}/translations.json`)
     .then((r) => r.json())
@@ -28,62 +30,93 @@ export function applyI18nPlugin(
       return fallbackTranslationsEntry;
     });
 
-  return config.languages.map((localeOption) => {
+  // A single loader shared by both root routes. The locale is derived from the
+  // URL (same source the extendedLoader plugin uses), so one tree can serve
+  // every locale instead of cloning the whole route tree per language.
+  const loader = async ({ request }: { request: Request }) => {
+    const pathname = new URL(request.url).pathname;
+    const localeCode = extractLocaleFromPathname(pathname, localeCodes, defaultLanguage.code);
+    const localeOption =
+      config.languages.find((l) => l.code === localeCode) ?? defaultLanguage;
     const localeLanguage = customMessages[localeOption.code] ?? {};
-    return {
-      description: `Root route for ${localeOption.label}`,
-      path: defaultLanguage.code === localeOption.code ? '/' : localeOption.code,
-      shouldRevalidate() {
-        return false;
-      },
-      loader: async () => {
-        // fetch the entry translation file
-        const translations = await translationsPromise;
-        // now get the actual messages for the locale
-        const messages = await fetch(
-          `${config.translationsEntryEndpoint}${
-            translations?.[localeOption.localeCode]?.messages ?? translations?.en?.messages
-          }`
-        )
-          .then((r) => r.json())
-          .catch(async (err) => {
-            // Fall back to the bundled messages for this locale (or English) so a
-            // failed translation load degrades gracefully instead of taking down
-            // the whole site.
-            console.error('Failed to load translations for language, using bundled fallback');
-            console.error('Failed language: ', localeOption.code, localeOption.localeCode, err);
-            return loadFallbackMessages(localeOption.localeCode);
-          });
-        return { messages: { ...messages, ...localeLanguage } };
-      },
-      errorElement: <RootErrorPage />,
-      element: (
-        <I18nContextProvider
-          locale={localeOption}
-          availableLocales={config.languages}
-          defaultLocale={defaultLanguage}
-        >
-          <Outlet />
-        </I18nContextProvider>
-      ),
-      children: localizeRouteIds(routes, localeOption.code),
-    };
-  });
+
+    const translations = await translationsPromise;
+    const messages = await fetch(
+      `${config.translationsEntryEndpoint}${
+        translations?.[localeOption.localeCode]?.messages ?? translations?.en?.messages
+      }`
+    )
+      .then((r) => r.json())
+      .catch(async (err) => {
+        // Fall back to the bundled messages for this locale (or English) so a
+        // failed translation load degrades gracefully instead of taking down
+        // the whole site.
+        console.error('Failed to load translations for language, using bundled fallback');
+        console.error('Failed language: ', localeOption.code, localeOption.localeCode, err);
+        return loadFallbackMessages(localeOption.localeCode);
+      });
+    return { messages: { ...messages, ...localeLanguage } };
+  };
+
+  // The provider derives the active locale from the URL at render time, so the
+  // same element instance works for both the default and the localized subtree.
+  const element = (
+    <I18nContextProvider availableLocales={config.languages} defaultLocale={defaultLanguage}>
+      <Outlet />
+    </I18nContextProvider>
+  );
+
+  const common = {
+    loader,
+    element,
+    errorElement: <RootErrorPage />,
+    shouldRevalidate() {
+      return false;
+    },
+  };
+
+  // Root route for the default locale (unprefixed URLs).
+  const rootRoutes: RouteObjectWithPlugins[] = [
+    {
+      description: 'Root route (default locale)',
+      path: '/',
+      ...common,
+      children: routes,
+    },
+  ];
+
+  // Only add the `/:locale` subtree when there is more than one language.
+  // This keeps the flattened route table O(1) in the number of languages
+  // (2x the base tree) instead of O(languages) (Nx the base tree) - which is
+  // what react-router re-flattens and re-compiles on every SSR request - while
+  // single-language sites (e.g. hosted portals) keep a single 1x tree.
+  if (config.languages.length > 1) {
+    rootRoutes.push({
+      description: 'Root route (localized)',
+      path: ':locale',
+      ...common,
+      children: suffixRouteIds(routes, LOCALIZED_ID_SUFFIX),
+    });
+  }
+
+  return rootRoutes;
 }
 
-function localizeRouteIds(
+// Deep-copy the route tree and suffix any explicit ids so the localized subtree
+// does not collide with the default subtree (react-router requires unique ids).
+function suffixRouteIds(
   routes: RouteObjectWithPlugins[],
-  localeCode: string
+  suffix: string
 ): RouteObjectWithPlugins[] {
   return routes.map((route) => {
     const routeCopy = { ...route };
 
     if (Array.isArray(routeCopy.children)) {
-      routeCopy.children = localizeRouteIds(routeCopy.children, localeCode);
+      routeCopy.children = suffixRouteIds(routeCopy.children, suffix);
     }
 
     if (routeCopy.id) {
-      routeCopy.id = localizeRouteId(routeCopy.id, localeCode);
+      routeCopy.id = `${routeCopy.id}-${suffix}`;
     }
 
     return routeCopy;

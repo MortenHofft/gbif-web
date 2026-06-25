@@ -27,15 +27,25 @@ export function useI18n() {
 
 type Props = {
   children: React.ReactNode;
-  locale: LanguageOption;
   defaultLocale: LanguageOption;
   availableLocales: LanguageOption[];
 };
 
-export function I18nContextProvider({ children, locale, defaultLocale, availableLocales }: Props) {
+export function I18nContextProvider({ children, defaultLocale, availableLocales }: Props) {
   const { messages } = useLoaderData() as { messages: Record<string, string> | null };
   const location = useLocation();
   const navigate = useNavigate();
+
+  // With a single shared route tree, the active locale comes from the URL rather
+  // than from a per-language route. Same resolution the loaders use.
+  const locale = useMemo(() => {
+    const code = extractLocaleFromPathname(
+      location.pathname,
+      availableLocales.map((l) => l.code),
+      defaultLocale.code
+    );
+    return availableLocales.find((l) => l.code === code) ?? defaultLocale;
+  }, [location.pathname, availableLocales, defaultLocale]);
 
   const localizeLink = useCallback(
     (link: string, targetLocale: string = locale.code) => {
