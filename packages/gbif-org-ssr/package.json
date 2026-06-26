@@ -1,0 +1,32 @@
+{
+  "name": "gbif-org-ssr",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Lean, mostly server-rendered GBIF.org variant (Express + Preact).",
+  "scripts": {
+    "dev": "concurrently -k -n server,islands,css -c blue,magenta,yellow \"npm:dev:server\" \"npm:dev:islands\" \"npm:dev:css\"",
+    "dev:server": "tsx watch src/server.tsx",
+    "dev:islands": "node scripts/build-islands.mjs --watch",
+    "dev:css": "tailwindcss -i src/styles.css -o public/app.css --watch",
+    "build": "node scripts/build-islands.mjs && tailwindcss -i src/styles.css -o public/app.css --minify",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "NODE_ENV=production tsx src/server.tsx"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "preact": "^10.27.2",
+    "preact-render-to-string": "^6.7.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.0",
+    "autoprefixer": "^10.4.16",
+    "concurrently": "^8.2.2",
+    "esbuild": "^0.24.0",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.4.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.5.0"
+  }
+}
