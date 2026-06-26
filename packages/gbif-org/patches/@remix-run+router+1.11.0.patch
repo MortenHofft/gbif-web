@@ -1,0 +1,124 @@
+diff --git a/node_modules/@remix-run/router/dist/router.cjs.js b/node_modules/@remix-run/router/dist/router.cjs.js
+index dc71779..1e85050 100644
+--- a/node_modules/@remix-run/router/dist/router.cjs.js
++++ b/node_modules/@remix-run/router/dist/router.cjs.js
+@@ -739,6 +739,7 @@ function convertRoutesToDataRoutes(routes, mapRouteProperties, parentPath, manif
+  *
+  * @see https://reactrouter.com/utils/match-routes
+  */
++let __branchCache = new WeakMap();
+ function matchRoutes(routes, locationArg, basename) {
+   if (basename === void 0) {
+     basename = "/";
+@@ -748,8 +749,14 @@ function matchRoutes(routes, locationArg, basename) {
+   if (pathname == null) {
+     return null;
+   }
+-  let branches = flattenRoutes(routes);
+-  rankRouteBranches(branches);
++  // PATCH: routes are static across requests in SSR, so cache the flattened +
++  // ranked branches keyed by the routes object instead of recomputing per call.
++  let branches = __branchCache.get(routes);
++  if (!branches) {
++    branches = flattenRoutes(routes);
++    rankRouteBranches(branches);
++    __branchCache.set(routes, branches);
++  }
+   let matches = null;
+   for (let i = 0; matches == null && i < branches.length; ++i) {
+     matches = matchRouteBranch(branches[i],
+@@ -1049,6 +1056,7 @@ function matchPath(pattern, pathname) {
+     pattern
+   };
+ }
++let __compileCache = new Map();
+ function compilePath(path, caseSensitive, end) {
+   if (caseSensitive === void 0) {
+     caseSensitive = false;
+@@ -1056,6 +1064,13 @@ function compilePath(path, caseSensitive, end) {
+   if (end === void 0) {
+     end = true;
+   }
++  // PATCH: the compiled regex for a (path, caseSensitive, end) tuple never
++  // changes, so memoize it instead of recompiling on every match.
++  let __key = path + "|" + caseSensitive + "|" + end;
++  let __cached = __compileCache.get(__key);
++  if (__cached) {
++    return __cached;
++  }
+   warning(path === "*" || !path.endsWith("*") || path.endsWith("/*"), "Route path \"" + path + "\" will be treated as if it were " + ("\"" + path.replace(/\*$/, "/*") + "\" because the `*` character must ") + "always follow a `/` in the pattern. To get rid of this warning, " + ("please change the route path to \"" + path.replace(/\*$/, "/*") + "\"."));
+   let params = [];
+   let regexpSource = "^" + path.replace(/\/*\*?$/, "") // Ignore trailing / and /*, we'll handle it below
+@@ -1088,7 +1103,9 @@ function compilePath(path, caseSensitive, end) {
+     regexpSource += "(?:(?=\\/|$))";
+   } else ;
+   let matcher = new RegExp(regexpSource, caseSensitive ? undefined : "i");
+-  return [matcher, params];
++  let __result = [matcher, params];
++  __compileCache.set(__key, __result);
++  return __result;
+ }
+ function safelyDecodeURI(value) {
+   try {
+diff --git a/node_modules/@remix-run/router/dist/router.js b/node_modules/@remix-run/router/dist/router.js
+index 130715d..ca6d35e 100644
+--- a/node_modules/@remix-run/router/dist/router.js
++++ b/node_modules/@remix-run/router/dist/router.js
+@@ -510,6 +510,7 @@ function convertRoutesToDataRoutes(routes, mapRouteProperties, parentPath, manif
+  *
+  * @see https://reactrouter.com/utils/match-routes
+  */
++let __branchCache = new WeakMap();
+ function matchRoutes(routes, locationArg, basename) {
+   if (basename === void 0) {
+     basename = "/";
+@@ -519,8 +520,14 @@ function matchRoutes(routes, locationArg, basename) {
+   if (pathname == null) {
+     return null;
+   }
+-  let branches = flattenRoutes(routes);
+-  rankRouteBranches(branches);
++  // PATCH: routes are static across requests in SSR, so cache the flattened +
++  // ranked branches keyed by the routes object instead of recomputing per call.
++  let branches = __branchCache.get(routes);
++  if (!branches) {
++    branches = flattenRoutes(routes);
++    rankRouteBranches(branches);
++    __branchCache.set(routes, branches);
++  }
+   let matches = null;
+   for (let i = 0; matches == null && i < branches.length; ++i) {
+     matches = matchRouteBranch(branches[i],
+@@ -800,6 +807,7 @@ function matchPath(pattern, pathname) {
+     pattern
+   };
+ }
++let __compileCache = new Map();
+ function compilePath(path, caseSensitive, end) {
+   if (caseSensitive === void 0) {
+     caseSensitive = false;
+@@ -807,6 +815,13 @@ function compilePath(path, caseSensitive, end) {
+   if (end === void 0) {
+     end = true;
+   }
++  // PATCH: the compiled regex for a (path, caseSensitive, end) tuple never
++  // changes, so memoize it instead of recompiling on every match.
++  let __key = path + "|" + caseSensitive + "|" + end;
++  let __cached = __compileCache.get(__key);
++  if (__cached) {
++    return __cached;
++  }
+   warning(path === "*" || !path.endsWith("*") || path.endsWith("/*"), "Route path \"" + path + "\" will be treated as if it were " + ("\"" + path.replace(/\*$/, "/*") + "\" because the `*` character must ") + "always follow a `/` in the pattern. To get rid of this warning, " + ("please change the route path to \"" + path.replace(/\*$/, "/*") + "\"."));
+   let params = [];
+   let regexpSource = "^" + path.replace(/\/*\*?$/, "") // Ignore trailing / and /*, we'll handle it below
+@@ -839,7 +854,9 @@ function compilePath(path, caseSensitive, end) {
+     regexpSource += "(?:(?=\\/|$))";
+   } else ;
+   let matcher = new RegExp(regexpSource, caseSensitive ? undefined : "i");
+-  return [matcher, params];
++  let __result = [matcher, params];
++  __compileCache.set(__key, __result);
++  return __result;
+ }
+ function safelyDecodeURI(value) {
+   try {
