@@ -6,12 +6,12 @@
   "description": "Lean, mostly server-rendered GBIF.org variant (Express + Preact).",
   "scripts": {
     "dev": "concurrently -k -n server,islands,css -c blue,magenta,yellow \"npm:dev:server\" \"npm:dev:islands\" \"npm:dev:css\"",
-    "dev:server": "tsx watch src/server.tsx",
+    "dev:server": "tsx watch src/server.ts",
     "dev:islands": "node scripts/build-islands.mjs --watch",
     "dev:css": "tailwindcss -i src/styles.css -o public/app.css --watch",
-    "build": "node scripts/build-islands.mjs && tailwindcss -i src/styles.css -o public/app.css --minify",
+    "build": "node scripts/build-islands.mjs && tailwindcss -i src/styles.css -o public/app.css --minify && node scripts/build-server.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "start": "NODE_ENV=production tsx src/server.tsx"
+    "start": "NODE_ENV=production tsx src/server.ts"
   },
   "dependencies": {
     "express": "^4.18.2",

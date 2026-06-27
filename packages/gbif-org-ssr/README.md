@@ -37,6 +37,28 @@ src/
 scripts/build-islands.mjs     esbuild bundler for client islands (--watch for dev)
 ```
 
+## Deploy
+
+### Vercel (serverless) — for preview-as-you-go
+
+The app is exported (`src/app.ts`) and used as a serverless handler via `api/index.js`;
+`vercel.json` rewrites all routes to it and `public/` is served from the CDN.
+
+1. New Vercel project → import this repo.
+2. **Root Directory: `packages/gbif-org-ssr`** (this is a monorepo; set it in project settings).
+3. Framework preset: **Other**. Build/install come from `vercel.json` (`npm run build` →
+   island bundles + Tailwind CSS + `dist/server.mjs`).
+4. Deploy. Optionally set `PUBLIC_GRAPHQL_ENDPOINT` to point SSR at a specific backend.
+
+Note: Vercel runs this as serverless functions (no persistent process, cold starts) — fine for
+testing. Verified locally that the bundled app handles pages, static assets, and `/api/graphql`.
+
+### Any Node host (Render / Fly / Railway) — closer to production
+
+```bash
+npm run build && npm start        # long-running Express server on $PORT
+```
+
 ## Adding a page
 
 1. `query.ts` (+ types) → `loader.ts` → `transform.ts` → `presentation/*.tsx`.
