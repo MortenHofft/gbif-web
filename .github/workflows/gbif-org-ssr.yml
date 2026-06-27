@@ -1,0 +1,30 @@
+name: gbif-org-ssr build
+
+# Catches build/typecheck breaks in the new server-rendered package before Vercel
+# (or a reviewer) does. Scoped to the package so it only runs when it changes.
+on:
+  push:
+    paths:
+      - 'packages/gbif-org-ssr/**'
+      - '.github/workflows/gbif-org-ssr.yml'
+  pull_request:
+    paths:
+      - 'packages/gbif-org-ssr/**'
+      - '.github/workflows/gbif-org-ssr.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/gbif-org-ssr
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: packages/gbif-org-ssr/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
