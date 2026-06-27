@@ -3,4 +3,5 @@ public/app.css
 public/islands
 dist
 .vercel
+loadtest/profiles/*.cpuprofile
 *.log

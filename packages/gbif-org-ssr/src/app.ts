@@ -10,12 +10,16 @@ export function createApp() {
 
   // Static assets: Tailwind stylesheet + built island bundles. On Vercel these are
   // also served directly from the CDN; this keeps local dev and Node hosts working.
-  app.use(
-    express.static(path.join(process.cwd(), 'public'), {
-      maxAge: config.isProduction ? '1h' : 0,
-      index: false,
-    })
-  );
+  // Only consult the filesystem for asset-looking paths (those with a file extension),
+  // so dynamic routes like /dataset/:key don't pay an ENOENT stat() per request.
+  const staticMw = express.static(path.join(process.cwd(), 'public'), {
+    maxAge: config.isProduction ? '1h' : 0,
+    index: false,
+  });
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && /\.[a-z0-9]+$/i.test(req.path)) return staticMw(req, res, next);
+    next();
+  });
 
   // Same-origin GraphQL proxy for client islands. The browser never talks to GBIF
   // directly — no CORS to manage, and a natural place to add caching/auth later.
