@@ -271,9 +271,10 @@ const SLOW_OCCURRENCE_QUERY = /* GraphQL */ `
     }
     literatureSearch(gbifOccurrenceKey: [$key]) {
       documents(size: 100) {
+        total
         results {
           title
-          abstract
+          excerpt
           authors {
             firstName
             lastName
@@ -283,7 +284,6 @@ const SLOW_OCCURRENCE_QUERY = /* GraphQL */ `
           identifiers {
             doi
           }
-          websites
         }
       }
     }
@@ -369,6 +369,7 @@ export const OccurrenceKeyContext = createContext<{
   dynamicProperties?: string;
   slowOccurrence?: SlowOccurrenceKeyQuery['occurrence'];
   occurrence?: OccurrenceQuery['occurrence'];
+  literatureSearch?: SlowOccurrenceKeyQuery['literatureSearch'];
 }>({});
 
 const notableCoordinateIssues = [
@@ -434,6 +435,7 @@ export function OccurrenceKey() {
   }, [slowLoad, occurrence.key, locale?.iso3LetterCode, config.defaultChecklistKey]);
 
   const slowOccurrence = slowData?.occurrence;
+  const literatureSearch = slowData?.literatureSearch;
 
   const { terms } = occurrence;
   const termMap: { [key: string]: Term } =
@@ -818,6 +820,7 @@ export function OccurrenceKey() {
               dynamicProperties: occurrence?.dynamicProperties ?? undefined,
               slowOccurrence,
               occurrence,
+              literatureSearch,
             }}
           >
             <ErrorBoundary invalidateOn={location.pathname + location.search}>

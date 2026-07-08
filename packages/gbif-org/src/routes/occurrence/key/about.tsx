@@ -9,7 +9,7 @@ import { useCallback, useContext, useReducer } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { HashLink } from 'react-router-hash-link';
 import { useOccurrenceKeyLoaderData } from '.';
-import { Groups } from './About/groups';
+import { Groups, KnownCitations } from './About/groups';
 import { OccurrenceKeyContext } from './occurrenceKey';
 import { Aside, AsideSticky, SidebarLayout } from './pagelayouts';
 import TestSiteAlert from '@/components/TestSiteAlert';
@@ -57,7 +57,7 @@ const tocReducer = (
 };
 
 export function OccurrenceKeyAbout() {
-  const { slowOccurrence } = useContext(OccurrenceKeyContext);
+  const { slowOccurrence, literatureSearch } = useContext(OccurrenceKeyContext);
   const config = useConfig();
   const { occurrence } = useOccurrenceKeyLoaderData();
   const hideSidebar = useBelow(1000);
@@ -102,6 +102,7 @@ export function OccurrenceKeyAbout() {
               termMap={termMap}
               updateToc={updateToc}
             />
+            <KnownCitations literatureSearch={literatureSearch} />
           </div>
           {!hideSidebar && (
             <Aside className="">
@@ -194,6 +195,14 @@ export function OccurrenceKeyAbout() {
                       <Li to="#citation">
                         <FormattedMessage id="phrases.citation" />
                       </Li>
+                      {(literatureSearch?.documents?.total ?? 0) > 0 && (
+                        <Li to="#known-citations">
+                          <FormattedMessage
+                            id="occurrenceDetails.knownCitations"
+                            defaultMessage="Known citations"
+                          />
+                        </Li>
+                      )}
                     </ul>
                     {/* <div onClick={() => setShowAll(!showAll)}>Toggle debug view</div> */}
                   </nav>

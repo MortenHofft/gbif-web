@@ -13,6 +13,7 @@ import { OccurrenceQuery, SlowOccurrenceKeyQuery, Term } from '@/gql/graphql';
 import { DynamicLink } from '@/reactRouterPlugins';
 import React, { useEffect, useState } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { MdLink } from 'react-icons/md';
 import wellknown from 'wellknown';
 import {
   BasicField,
@@ -1020,5 +1021,55 @@ function Debug({ occurrence }: { occurrence: OccurrenceQuery['occurrence'] }) {
         </Properties>
       </CardContent>
     </div>
+  );
+}
+
+export function KnownCitations({
+  literatureSearch,
+}: {
+  literatureSearch: SlowOccurrenceKeyQuery['literatureSearch'];
+}) {
+  const results = literatureSearch?.documents?.results?.filter(Boolean);
+  if (!results || results.length === 0) return null;
+
+  return (
+    <Group label="occurrenceDetails.knownCitations" defaultMessage="Known citations" id="known-citations">
+      <ul className="g-list-none g-m-0 g-p-0 g-divide-y">
+        {results.map((item, idx) => {
+          const doi = item?.identifiers?.doi;
+          const link = doi ? `https://doi.org/${doi}` : null;
+          const authorList = (item?.authors ?? []).filter(Boolean);
+          const firstAuthor = authorList[0];
+          let authorText = '';
+          if (firstAuthor) {
+            const initials = firstAuthor.firstName?.[0];
+            authorText = initials
+              ? `${firstAuthor.lastName}, ${initials}.`
+              : (firstAuthor.lastName ?? '');
+            if (authorList.length > 1) authorText += ' et al.';
+          }
+
+          return (
+            <li key={idx} className="g-py-3">
+              <div className="g-font-medium">
+                {link ? (
+                  <a href={link} className="hover:g-underline g-inline-flex g-items-center g-gap-1">
+                    {item?.title} <MdLink className="g-flex-shrink-0" />
+                  </a>
+                ) : (
+                  item?.title
+                )}
+              </div>
+              {authorText && (
+                <div className="g-text-sm g-text-slate-500 g-mt-0.5">{authorText}</div>
+              )}
+              {item?.excerpt && (
+                <div className="g-text-sm g-text-slate-600 g-mt-1">{item.excerpt}</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </Group>
   );
 }
