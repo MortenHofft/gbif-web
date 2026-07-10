@@ -193,6 +193,12 @@ const preconfiguredCharts = {
       return <charts.SamplingProtocol predicate={predicate} interactive {...props} />;
     },
   },
+  geologicalTime: {
+    translation: 'filters.geologicalTime.name',
+    component: ({ predicate, ...props }) => {
+      return <charts.GeologicalTime predicate={predicate} {...props} />;
+    },
+  },
   lithostratigraphy: {
     translation: 'filters.lithostratigraphy.name',
     component: ({ predicate, ...props }) => {

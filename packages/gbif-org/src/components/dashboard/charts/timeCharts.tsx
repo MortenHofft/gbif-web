@@ -1,3 +1,4 @@
+import React from 'react';
 import { FormattedMessage } from 'react-intl';
 import { ChartWrapper } from './EnumChartGenerator';
 import { FacetResultRow } from './GroupByTable';
@@ -33,6 +34,98 @@ type DateHistogramData = {
     };
   };
 };
+
+const GEOLOGICAL_TIME_INTERVAL_OPTIONS = [10, 25, 50, 100, 250];
+
+type GeologicalTimeBucket = {
+  key: number;
+  count: number;
+};
+
+type GeologicalTimeData = {
+  search?: {
+    facet?: {
+      results?: {
+        interval?: number;
+        buckets?: GeologicalTimeBucket[];
+      };
+    };
+  };
+};
+
+export function GeologicalTime({
+  predicate,
+  detailsRoute,
+  currentFilter = {},
+  ...props
+}: TimeChartProps) {
+  const [interval, setIntervalValue] = React.useState(50);
+
+  const GQL_QUERY = `
+    query summary($predicate: Predicate) {
+      search: occurrenceSearch(predicate: $predicate) {
+        documents(size: 0) {
+          total
+        }
+        facet: histogram {
+          results: geologicalTime(interval: ${interval}) {
+            interval
+            buckets {
+              key
+              count
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const intervalSelector = (
+    <div className="g-flex g-items-center g-gap-1 g-flex-wrap">
+      <span>
+        <FormattedMessage id="filters.geologicalTime.name" defaultMessage="Interval" />:{' '}
+      </span>
+      {GEOLOGICAL_TIME_INTERVAL_OPTIONS.map((v) => (
+        <button
+          key={v}
+          onClick={() => setIntervalValue(v)}
+          className={`g-px-2 g-py-0.5 g-rounded g-text-xs g-border ${
+            interval === v
+              ? 'g-border-primary-500 g-text-primary-600 g-font-semibold'
+              : 'g-border-slate-300 g-text-slate-500 hover:g-border-slate-400'
+          }`}
+        >
+          {v} Ma
+        </button>
+      ))}
+    </div>
+  );
+
+  return (
+    <ChartWrapper
+      {...{
+        predicate,
+        detailsRoute,
+        gqlQuery: GQL_QUERY,
+        currentFilter,
+        disableUnknown: true,
+        disableOther: true,
+        options: ['COLUMN', 'TABLE'],
+        messages: [intervalSelector, 'dashboard.geologicalTimeRangeWarning'],
+        title: <FormattedMessage id="filters.geologicalTime.name" defaultMessage="Geological time" />,
+        predicateKey: 'geologicalTime',
+        transform: (data: unknown): FacetResultRow[] | undefined => {
+          return (data as GeologicalTimeData)?.search?.facet?.results?.buckets?.map((x) => ({
+            key: x.key,
+            count: x.count,
+            title: `${x.key} Ma`,
+          })) as FacetResultRow[] | undefined;
+        },
+      }}
+      {...props}
+    />
+  );
+}
 
 // this is for generating charts for fields that are foreign keys like taxonKey, collectionKey, datasetKey, etc.
 // for some fields there will always be a value like datasetKey, but e.g. collectionKey is only sparsely filled.

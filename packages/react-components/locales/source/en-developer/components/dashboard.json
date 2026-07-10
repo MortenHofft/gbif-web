@@ -28,6 +28,8 @@
   "other": "Other",
   "unknown": "Unknown",
   "usingStartDates": "For date ranges, start date is used.",
+  "geologicalTimeRangeWarning": "A record may appear in multiple buckets if its time range spans multiple intervals.",
+  "geologicalTimeIntervalMa": "{interval} Ma",
   "iucnThreatStatus": "IUCN threat status",
   "iucnThreatStatusDescription": "Species that are near threatened or more vulnerable according to the Global IUCN Redlist",
   "metricsFromGbifData": "These metrics are based on records shared via GBIF",
