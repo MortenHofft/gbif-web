@@ -10373,10 +10373,11 @@ export type DatasetOccurrenceSearchQueryVariables = Exact<{
   clusterPredicate?: InputMaybe<Predicate>;
   eventPredicate?: InputMaybe<Predicate>;
   literaturePredicate?: InputMaybe<Predicate>;
+  datasetKey?: InputMaybe<Scalars['ID']['input']>;
 }>;
 
 
-export type DatasetOccurrenceSearchQuery = { __typename?: 'Query', occurrenceSearch?: { __typename?: 'OccurrenceSearchResult', documents: { __typename?: 'OccurrenceDocuments', from: number, size: number, total: any, results: Array<{ __typename?: 'Occurrence', dynamicProperties?: string | null } | null> } } | null, withImages?: { __typename?: 'OccurrenceSearchResult', documents: { __typename?: 'OccurrenceDocuments', total: any } } | null, withCoordinates?: { __typename?: 'OccurrenceSearchResult', documents: { __typename?: 'OccurrenceDocuments', total: any } } | null, withClusters?: { __typename?: 'OccurrenceSearchResult', documents: { __typename?: 'OccurrenceDocuments', total: any } } | null, withEvents?: { __typename?: 'OccurrenceSearchResult', documents: { __typename?: 'OccurrenceDocuments', total: any } } | null, literatureSearchScoped?: { __typename?: 'LiteratureSearchResult', documents: { __typename?: 'LiteratureDocuments', total: any } } | null };
+export type DatasetOccurrenceSearchQuery = { __typename?: 'Query', occurrenceSearch?: { __typename?: 'OccurrenceSearchResult', documents: { __typename?: 'OccurrenceDocuments', from: number, size: number, total: any, results: Array<{ __typename?: 'Occurrence', dynamicProperties?: string | null } | null> } } | null, withImages?: { __typename?: 'OccurrenceSearchResult', documents: { __typename?: 'OccurrenceDocuments', total: any } } | null, withCoordinates?: { __typename?: 'OccurrenceSearchResult', documents: { __typename?: 'OccurrenceDocuments', total: any } } | null, withClusters?: { __typename?: 'OccurrenceSearchResult', documents: { __typename?: 'OccurrenceDocuments', total: any } } | null, withEvents?: { __typename?: 'OccurrenceSearchResult', documents: { __typename?: 'OccurrenceDocuments', total: any } } | null, literatureSearchScoped?: { __typename?: 'LiteratureSearchResult', documents: { __typename?: 'LiteratureDocuments', total: any } } | null, eventCount?: { __typename?: 'EventSearchResult', count: number } | null };
 
 export type DatasetEventQueryVariables = Exact<{
   key: Scalars['ID']['input'];

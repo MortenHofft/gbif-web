@@ -2,7 +2,6 @@ import EmptyTab from '@/components/EmptyTab';
 import {
   DatasetEventQuery,
   DatasetEventQueryVariables,
-  DatasetType,
   EventQuery,
   EventQueryVariables,
 } from '@/gql/graphql';
@@ -84,13 +83,15 @@ export const DatasetEventID = () => {
 
 const DatasetEventDetailDispatcher = () => {
   const { data, eventData } = useLoaderData() as EventLoaderResult;
-  const { datasetKey } = useDatasetKeyContext();
-  const isSamplingEvent = data?.dataset?.type === DatasetType.SamplingEvent;
+  const { datasetKey, hasEventsInApi } = useDatasetKeyContext();
+  // Use the event API detail view whenever the dataset has events indexed in the
+  // event API — covers both SAMPLING_EVENT datasets and DwC data packages.
+  const useEventApiView = hasEventsInApi || !!eventData?.event;
 
   return (
     <div className="g-bg-slate-100 g-px-4 lg:g-px-8">
       <ArticleTextContainer className="g-max-w-screen-xl g-pb-6">
-        {isSamplingEvent ? (
+        {useEventApiView ? (
           <SamplingEventDetail
             data={data}
             eventData={eventData ?? undefined}

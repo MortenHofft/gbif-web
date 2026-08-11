@@ -252,6 +252,7 @@ const OCURRENCE_SEARCH_QUERY = /* GraphQL */ `
     $clusterPredicate: Predicate
     $eventPredicate: Predicate
     $literaturePredicate: Predicate
+    $datasetKey: ID
   ) {
     occurrenceSearch(predicate: $predicate) {
       documents(from: $from, size: $size) {
@@ -288,6 +289,9 @@ const OCURRENCE_SEARCH_QUERY = /* GraphQL */ `
         total
       }
     }
+    eventCount: eventSearch(query: { datasetKey: [$datasetKey] }, limit: 0) {
+      count
+    }
   }
 `;
 
@@ -300,6 +304,7 @@ type IDatasetKeyContext = {
   showPhylogenyTab: boolean;
   showSpeciesTab: boolean;
   showEventsTab: boolean;
+  hasEventsInApi: boolean;
 };
 
 export const DatasetKeyContext = createContext<IDatasetKeyContext | undefined>(undefined);
@@ -383,10 +388,8 @@ export function DatasetPage() {
   const showSpeciesTab =
     dataset.type === DatasetType.Checklist && dataset.checklistBankDataset != null;
   const withEventId = occData?.withEvents?.documents?.total || 0;
-  const hasSamplingEvents =
-    dataset.type === DatasetType.SamplingEvent &&
-    import.meta.env.PUBLIC_ENABLE_SAMPLING_EVENT_BROWSER === 'enabled';
-  const showEventsTab = config.datasetKey?.showEvents && (withEventId > 0 || hasSamplingEvents);
+  const hasEventsInApi = (occData?.eventCount?.count ?? 0) > 0;
+  const showEventsTab = config.datasetKey?.showEvents && (withEventId > 0 || hasEventsInApi);
   const occurrenceCount = occData?.occurrenceSearch?.documents?.total;
   const citationCountOrZero = occData?.literatureSearchScoped?.documents?.total || 0;
 
@@ -504,6 +507,7 @@ export function DatasetPage() {
         literaturePredicate,
         size: 1,
         from: 0,
+        datasetKey: dataset.key,
       },
     });
   }, [load, dataset.key, siteOccurrencePredicate, config?.literatureSearch?.scope]);
@@ -707,6 +711,7 @@ export function DatasetPage() {
             showPhylogenyTab,
             showSpeciesTab,
             showEventsTab,
+            hasEventsInApi,
           }}
         >
           <ErrorBoundary type="PAGE">

@@ -1,5 +1,4 @@
 import EmptyTab from '@/components/EmptyTab';
-import { DatasetType } from '@/gql/graphql';
 import { useDatasetKeyContext } from '../datasetKey';
 import InferredEventsDatasetEvents from './inferredFromOccurrence/inferredEventsDatasetEvents';
 import SamplingEventDatasetEvents from './samplingEvent/samplingEventDatasetEvents';
@@ -9,17 +8,18 @@ import SamplingEventDatasetEvents from './samplingEvent/samplingEventDatasetEven
  *
  * Two distinct flows live behind this single route, each with their own
  * folder of components:
- *   - Sampling-event datasets render `SamplingEventDatasetEvents`
- *     (event-API powered browser, with a feature-flag fallback).
- *   - Other dataset types render `InferredEventsDatasetEvents`, which derives
+ *   - Datasets with events indexed in the event API render `SamplingEventDatasetEvents`
+ *     (event-API powered browser, with a feature-flag fallback). This covers
+ *     both SAMPLING_EVENT datasets and DwC data packages.
+ *   - Other datasets render `InferredEventsDatasetEvents`, which derives
  *     events from `eventID`/`parentEventID` on occurrence records.
  */
 const DatasetEvents = () => {
-  const { showEventsTab, datasetType } = useDatasetKeyContext();
+  const { showEventsTab, hasEventsInApi } = useDatasetKeyContext();
 
   if (!showEventsTab) return <EmptyTab />;
 
-  if (datasetType === DatasetType.SamplingEvent) {
+  if (hasEventsInApi) {
     return <SamplingEventDatasetEvents />;
   }
 

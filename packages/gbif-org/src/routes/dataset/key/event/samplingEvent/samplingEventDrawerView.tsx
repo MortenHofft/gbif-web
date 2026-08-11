@@ -3,7 +3,6 @@ import { useConfig } from '@/config/config';
 import {
   DatasetEventQuery,
   DatasetEventQueryVariables,
-  DatasetType,
   EventQuery,
   EventQueryVariables,
 } from '@/gql/graphql';
@@ -69,7 +68,7 @@ export default function SamplingEventDrawerView({ entityKey }: { entityKey?: str
   }, [datasetKey, eventId, occLoad]);
 
   useEffect(() => {
-    if (occData?.dataset?.type === DatasetType.SamplingEvent && datasetKey && eventId) {
+    if (datasetKey && eventId) {
       load({
         variables: {
           eventId,
@@ -78,7 +77,7 @@ export default function SamplingEventDrawerView({ entityKey }: { entityKey?: str
         },
       });
     }
-  }, [occData?.dataset?.type, datasetKey, eventId, defaultChecklistKey, load]);
+  }, [datasetKey, eventId, defaultChecklistKey, load]);
 
   if (!entityKey) {
     return null;
@@ -100,7 +99,7 @@ export default function SamplingEventDrawerView({ entityKey }: { entityKey?: str
     );
   }
 
-  if (occData?.dataset?.type !== DatasetType.SamplingEvent) {
+  if (!eventData?.event) {
     return (
       <div className="g-p-4 g-bg-slate-100">
         <Alert variant="warning">
