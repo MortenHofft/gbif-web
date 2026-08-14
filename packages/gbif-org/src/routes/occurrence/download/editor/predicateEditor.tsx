@@ -1,7 +1,7 @@
 import { useStringParam } from '@/hooks/useParam';
 import { PredicateDisplay } from '../key/predicate';
 import Editor from './editor';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { validatePredicate, ValidationResponse } from './validate';
 import { FormattedMessage, useIntl } from 'react-intl';
@@ -42,6 +42,7 @@ export default function PredicateEditor({
   const [searchParams] = useSearchParams();
   const [variablesId, setVariablesId] = useStringParam({ key: 'variablesId', replace: true });
   const [predicate, setPredicate] = useTextAreaContent('predicate');
+  const predicateFetchedRef = useRef(false);
   const { formatMessage } = useIntl();
 
   // wrap this so it doesn't fail on server side rendering
@@ -64,8 +65,8 @@ export default function PredicateEditor({
       try {
         const predicateFromQueryId = await getOriginalPredicate(searchParams, controller.signal);
         if (controller.signal.aborted || !predicateFromQueryId) return;
+        predicateFetchedRef.current = true;
         setPredicate(predicateFromQueryId);
-        setVariablesId(undefined);
       } catch (e) {
         if (!controller.signal.aborted) {
           console.error('Failed to load predicate from variablesId:', e);
@@ -75,7 +76,20 @@ export default function PredicateEditor({
 
     initialize();
     return () => controller.abort();
-  }, [searchParams, setPredicate, setVariablesId]);
+  }, [searchParams, setPredicate]);
+
+  // Clear variablesId from the URL after the predicate has been loaded from a fetch.
+  // The ref guard prevents this from firing on mount when stale sessionStorage already
+  // has a predicate — in that case the fetch hasn't run yet and variablesId must stay
+  // in the URL. Without the guard, two concurrent setSearchParams calls (one from
+  // setPredicate, one from setVariablesId) would race and the predicate URL param
+  // would be lost before React Router could commit it.
+  useEffect(() => {
+    if (predicate && variablesId && predicateFetchedRef.current) {
+      predicateFetchedRef.current = false;
+      setVariablesId(undefined);
+    }
+  }, [predicate, variablesId, setVariablesId]);
 
   const handleFormat = useCallback(
     async (text: string): Promise<ValidationResponse> => {
