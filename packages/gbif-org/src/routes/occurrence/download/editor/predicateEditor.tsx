@@ -39,10 +39,11 @@ export default function PredicateEditor({
 }: {
   onContinue: (predicate: string) => void;
 }) {
-  const [searchParams] = useSearchParams();
-  const [variablesId, setVariablesId] = useStringParam({ key: 'variablesId', replace: true });
+  const [searchParams, setSearchParams] = useSearchParams();
+  // setSearchParams is not stable (https://github.com/remix-run/react-router/issues/9991)
+  const setSearchParamsRef = useRef(setSearchParams);
+  useEffect(() => { setSearchParamsRef.current = setSearchParams; }, [setSearchParams]);
   const [predicate, setPredicate] = useTextAreaContent('predicate');
-  const predicateFetchedRef = useRef(false);
   const { formatMessage } = useIntl();
 
   // wrap this so it doesn't fail on server side rendering
@@ -65,8 +66,33 @@ export default function PredicateEditor({
       try {
         const predicateFromQueryId = await getOriginalPredicate(searchParams, controller.signal);
         if (controller.signal.aborted || !predicateFromQueryId) return;
-        predicateFetchedRef.current = true;
-        setPredicate(predicateFromQueryId);
+        // Write predicate to sessionStorage or URL param and clear variablesId atomically
+        // in a single setSearchParams call to avoid a React Router race where two
+        // consecutive setSearchParams calls each see the original params and the second
+        // overwrites the first.
+        if (predicateFromQueryId.length > 1200) {
+          window.sessionStorage.setItem('textarea-predicate', predicateFromQueryId);
+          setSearchParamsRef.current(
+            (params) => {
+              const next = new URLSearchParams(params);
+              next.delete('predicate');
+              next.delete('variablesId');
+              return next;
+            },
+            { replace: true, preventScrollReset: true }
+          );
+        } else {
+          window.sessionStorage.removeItem('textarea-predicate');
+          setSearchParamsRef.current(
+            (params) => {
+              const next = new URLSearchParams(params);
+              next.set('predicate', predicateFromQueryId);
+              next.delete('variablesId');
+              return next;
+            },
+            { replace: true, preventScrollReset: true }
+          );
+        }
       } catch (e) {
         if (!controller.signal.aborted) {
           console.error('Failed to load predicate from variablesId:', e);
@@ -76,20 +102,7 @@ export default function PredicateEditor({
 
     initialize();
     return () => controller.abort();
-  }, [searchParams, setPredicate]);
-
-  // Clear variablesId from the URL after the predicate has been loaded from a fetch.
-  // The ref guard prevents this from firing on mount when stale sessionStorage already
-  // has a predicate — in that case the fetch hasn't run yet and variablesId must stay
-  // in the URL. Without the guard, two concurrent setSearchParams calls (one from
-  // setPredicate, one from setVariablesId) would race and the predicate URL param
-  // would be lost before React Router could commit it.
-  useEffect(() => {
-    if (predicate && variablesId && predicateFetchedRef.current) {
-      predicateFetchedRef.current = false;
-      setVariablesId(undefined);
-    }
-  }, [predicate, variablesId, setVariablesId]);
+  }, [searchParams]);
 
   const handleFormat = useCallback(
     async (text: string): Promise<ValidationResponse> => {
