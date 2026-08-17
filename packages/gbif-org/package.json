@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "postinstall": "patch-package",
     "develop": "concurrently --kill-others \"NODE_ENV=development node gbif/server.js\"  \"graphql-codegen-esm --config codegen.ts --watch\"",
     "develop-server": "concurrently --kill-others \"NODE_ENV=development npx nodemon --watch gbif gbif/server.js\"  \"graphql-codegen-esm --config codegen.ts --watch\"",
     "build:client": "vite build --config gbif/vite.config.ts --ssrManifest",
@@ -164,6 +165,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.3",
     "graphql": "^16.14.0",
+    "patch-package": "^8.0.1",
     "postcss": "^8.4.31",
     "semver": "^7.7.2",
     "tailwindcss": "^3.4.1",
