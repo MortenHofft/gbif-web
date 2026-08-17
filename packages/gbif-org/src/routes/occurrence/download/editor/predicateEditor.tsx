@@ -42,7 +42,9 @@ export default function PredicateEditor({
   const [searchParams, setSearchParams] = useSearchParams();
   // setSearchParams is not stable (https://github.com/remix-run/react-router/issues/9991)
   const setSearchParamsRef = useRef(setSearchParams);
-  useEffect(() => { setSearchParamsRef.current = setSearchParams; }, [setSearchParams]);
+  useEffect(() => {
+    setSearchParamsRef.current = setSearchParams;
+  }, [setSearchParams]);
   const [predicate, setPredicate] = useTextAreaContent('predicate');
   const { formatMessage } = useIntl();
 
@@ -64,14 +66,14 @@ export default function PredicateEditor({
 
     const initialize = async () => {
       try {
-        const predicateFromQueryId = await getOriginalPredicate(searchParams, controller.signal);
-        if (controller.signal.aborted || !predicateFromQueryId) return;
+        const predicateFromVariableId = await getOriginalPredicate(searchParams, controller.signal);
+        if (controller.signal.aborted || !predicateFromVariableId) return;
         // Write predicate to sessionStorage or URL param and clear variablesId atomically
         // in a single setSearchParams call to avoid a React Router race where two
         // consecutive setSearchParams calls each see the original params and the second
         // overwrites the first.
-        if (predicateFromQueryId.length > 1200) {
-          window.sessionStorage.setItem('textarea-predicate', predicateFromQueryId);
+        if (predicateFromVariableId.length > 1200) {
+          window.sessionStorage.setItem('textarea-predicate', predicateFromVariableId);
           setSearchParamsRef.current(
             (params) => {
               const next = new URLSearchParams(params);
@@ -86,7 +88,7 @@ export default function PredicateEditor({
           setSearchParamsRef.current(
             (params) => {
               const next = new URLSearchParams(params);
-              next.set('predicate', predicateFromQueryId);
+              next.set('predicate', predicateFromVariableId);
               next.delete('variablesId');
               return next;
             },
