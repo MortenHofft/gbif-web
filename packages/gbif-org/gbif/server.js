@@ -162,6 +162,19 @@ async function main() {
         secure: false,
       });
     }
+
+    // External sites can POST a predicate here (form submission) instead of putting it in
+    // the URL, since predicates can be far larger than URLs safely support. It's embedded
+    // directly into the rendered page below (window.__INITIAL_PREDICATE__) rather than
+    // stored server-side, so there's no cookie size limit and no shared cache to maintain.
+    if (
+      req.method === 'POST' &&
+      typeof req.body?.predicate === 'string' &&
+      req.body.predicate.trim() !== ''
+    ) {
+      res.locals.initialPredicate = req.body.predicate;
+    }
+
     next();
   });
 
@@ -229,6 +242,14 @@ async function main() {
             `</script>`
           : '';
 
+        // Predicate posted to */download/request (see the referer-source middleware above),
+        // inlined so the client can pick it up once on this response - see consumeInitialPredicate.
+        const predicateScript = res.locals.initialPredicate
+          ? `<script>window.__INITIAL_PREDICATE__=${escapeForScript(
+              res.locals.initialPredicate
+            )};</script>`
+          : '';
+
         const html = template
           .replace(
             '<html class="g-m-0 g-p-0">',
@@ -242,7 +263,7 @@ async function main() {
             '<div id="app" class="gbif">',
             `<div id="app" class="gbif" dir="${rootDir ?? 'ltr'}">`
           )
-          .replace('<!--head-html-->', headHtml + i18nScript)
+          .replace('<!--head-html-->', headHtml + i18nScript + predicateScript)
           .replace('<!--app-html-->', appHtml);
 
         res.setHeader('Content-Type', 'text/html');

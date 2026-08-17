@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { validatePredicate, ValidationResponse } from './validate';
 import { FormattedMessage, useIntl } from 'react-intl';
-import { getOriginalPredicate } from './usePredicate';
+import { consumeInitialPredicate, getOriginalPredicate } from './usePredicate';
 
 //a hook to store content in textarea. per default it should store to url, but if above 1200 characters then use session storage instead
 export function useTextAreaContent(key: string): [string, (text: string) => void] {
@@ -61,19 +61,25 @@ export default function PredicateEditor({
   sessionStorage.setItem('downloadSource', source ?? 'unknown');
 
   useEffect(() => {
-    if (!searchParams.get('variablesId')) return;
+    // consumeInitialPredicate clears window.__INITIAL_PREDICATE__ as a side effect, so it must
+    // only be called once per value - safe here since a falsy result short-circuits the rest,
+    // and once consumed the value is gone for good (matching how variablesId is only used once,
+    // since it's deleted from the URL below).
+    const initialPredicate = consumeInitialPredicate();
+    if (!initialPredicate && !searchParams.get('variablesId')) return;
     const controller = new AbortController();
 
     const initialize = async () => {
       try {
-        const predicateFromVariableId = await getOriginalPredicate(searchParams, controller.signal);
-        if (controller.signal.aborted || !predicateFromVariableId) return;
+        const predicateFromSource =
+          initialPredicate ?? (await getOriginalPredicate(searchParams, controller.signal));
+        if (controller.signal.aborted || !predicateFromSource) return;
         // Write predicate to sessionStorage or URL param and clear variablesId atomically
         // in a single setSearchParams call to avoid a React Router race where two
         // consecutive setSearchParams calls each see the original params and the second
         // overwrites the first.
-        if (predicateFromVariableId.length > 1200) {
-          window.sessionStorage.setItem('textarea-predicate', predicateFromVariableId);
+        if (predicateFromSource.length > 1200) {
+          window.sessionStorage.setItem('textarea-predicate', predicateFromSource);
           setSearchParamsRef.current(
             (params) => {
               const next = new URLSearchParams(params);
@@ -88,7 +94,7 @@ export default function PredicateEditor({
           setSearchParamsRef.current(
             (params) => {
               const next = new URLSearchParams(params);
-              next.set('predicate', predicateFromVariableId);
+              next.set('predicate', predicateFromSource);
               next.delete('variablesId');
               return next;
             },
@@ -97,7 +103,7 @@ export default function PredicateEditor({
         }
       } catch (e) {
         if (!controller.signal.aborted) {
-          console.error('Failed to load predicate from variablesId:', e);
+          console.error('Failed to load initial predicate:', e);
         }
       }
     };
