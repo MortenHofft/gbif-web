@@ -150,7 +150,7 @@ export function OneDimensionalChart({
       y: x.count,
       name: x.plainTextTitle ?? x.title,
       key: x.key,
-      filter: { [predicateKey]: [x.key] },
+      filter: x.filter ?? { [predicateKey]: [x.key] },
       visible: x.count > 0,
       color: customColor,
     } as FacetResultRow & {

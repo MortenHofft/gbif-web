@@ -85,6 +85,9 @@ export const Biostratigraphy = lazyChart('Biostratigraphy');
 export const EventDate = lazyChart('EventDate');
 export const LiteratureCreatedAt = lazyChart('LiteratureCreatedAt');
 
+// numberCharts
+export const Elevation = lazyChart('Elevation');
+
 // Custom
 export const Taxa = lazyChart('Taxa');
 export const Iucn = lazyChart('Iucn');

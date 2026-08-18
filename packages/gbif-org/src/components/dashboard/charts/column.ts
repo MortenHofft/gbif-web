@@ -68,10 +68,7 @@ export function getColumnOptions({
           ? {
               events: {
                 click: function (this: ChartPoint) {
-                  onClick?.(
-                    { filter: this.filter, name: this.name, count: this.y },
-                    this
-                  );
+                  onClick?.({ filter: this.filter, name: this.name, count: this.y }, this);
                 },
               },
             }

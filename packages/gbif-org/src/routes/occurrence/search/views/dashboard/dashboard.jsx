@@ -49,8 +49,7 @@ export function Dashboard({ predicate, q, chartsTypes: chartsTypesProp, ...props
   // representation intentionally omits ids/translation and normalizes param
   // order/types, so a freshly shared layout would otherwise look "different"
   // from the identical layout in local storage.
-  const isUrlLayoutDifferent =
-    urlLayout && serializeLayout(urlLayout) !== serializeLayout(layout);
+  const isUrlLayoutDifferent = urlLayout && serializeLayout(urlLayout) !== serializeLayout(layout);
   return (
     <MapChartsEnabledContext.Provider value={true}>
       <div>
@@ -340,6 +339,12 @@ const preconfiguredCharts = {
     translation: 'filters.projectId.name',
     component: ({ predicate, ...props }) => {
       return <charts.ProjectId predicate={predicate} interactive {...props} />;
+    },
+  },
+  elevation: {
+    translation: 'filters.elevation.name',
+    component: ({ predicate, ...props }) => {
+      return <charts.Elevation predicate={predicate} interactive {...props} />;
     },
   },
   datasetId: {
