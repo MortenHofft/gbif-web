@@ -172,7 +172,14 @@ async function main() {
       typeof req.body?.predicate === 'string' &&
       req.body.predicate.trim() !== ''
     ) {
-      res.locals.initialPredicate = req.body.predicate;
+      // Only ever inject something that actually parses as JSON - malformed input is silently
+      // dropped rather than handed to the client, since it can't be a real predicate anyway.
+      try {
+        JSON.parse(req.body.predicate);
+        res.locals.initialPredicate = req.body.predicate;
+      } catch (e) {
+        // not valid JSON - ignore it, the editor just starts empty
+      }
     }
 
     next();
