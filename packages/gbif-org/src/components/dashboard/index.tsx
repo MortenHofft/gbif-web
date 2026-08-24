@@ -87,6 +87,7 @@ export const LiteratureCreatedAt = lazyChart('LiteratureCreatedAt');
 
 // Custom
 export const Taxa = lazyChart('Taxa');
+export const GadmLevel = lazyChart('GadmLevel');
 export const Iucn = lazyChart('Iucn');
 
 // Top-level

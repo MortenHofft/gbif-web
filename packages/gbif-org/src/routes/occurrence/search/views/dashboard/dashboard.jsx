@@ -163,6 +163,12 @@ const preconfiguredCharts = {
       return <charts.GadmGid predicate={predicate} interactive {...props} />;
     },
   },
+  gadmLevel: {
+    translation: 'dashboard.gadmLevel',
+    component: ({ predicate, ...props }) => {
+      return <charts.GadmLevel predicate={predicate} interactive {...props} />;
+    },
+  },
   higherGeography: {
     component: ({ predicate, ...props }) => {
       return <charts.HigherGeography predicate={predicate} interactive {...props} />;

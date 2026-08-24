@@ -593,6 +593,7 @@ const chartGroups = {
       'coordinateUncertaintyInMetres',
       'georeferencedBy',
       'gadmGid',
+      'gadmLevel',
       'gbifRegion',
     ],
   },

@@ -51,6 +51,7 @@ export function Dashboard() {
           'dataQuality',
           'synonyms',
           'taxa',
+          'gadmLevel',
           'sex',
           'occurrenceIssue',
           ...chartsTypes,

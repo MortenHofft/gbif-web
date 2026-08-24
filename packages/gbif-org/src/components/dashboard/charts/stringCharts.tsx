@@ -2,6 +2,7 @@ import { GadmClassification } from '@/components/classification';
 import { normalizeString } from '@/utils/normalizeString';
 import React from 'react';
 import { FormattedMessage } from 'react-intl';
+import { filterLevels } from './gadm';
 import { FacetResultRow } from './GroupByTable';
 import { KeyChartGenerator } from './KeyChartGenerator';
 
@@ -314,28 +315,6 @@ export const SamplingProtocol = getStringChart({
   options: ['PIE', 'TABLE', 'COLUMN', 'MAP'],
   includeMapPredicate: true,
 });
-
-function filterLevels<T extends { gid: string }>(
-  obj: Record<string, T> | undefined,
-  targetGid: string
-): Record<string, T> {
-  const result: Record<string, T> = {};
-
-  if (!obj) return result;
-
-  for (const level in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, level)) {
-      const currentGid = obj[level].gid;
-      result[level] = obj[level];
-
-      if (currentGid === targetGid) {
-        break;
-      }
-    }
-  }
-
-  return result;
-}
 
 export const GadmGid = getStringChart({
   fieldName: 'gadmGid',
