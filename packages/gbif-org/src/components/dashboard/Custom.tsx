@@ -363,7 +363,10 @@ type GadmFacetData = {
 
 type GadmLevelMainProps = {
   defaultLevel?: string;
-  level?: string;
+  // The serialized layout param decodes any digit-only value (e.g. "0"-"3")
+  // as a number rather than a string (needed for other params like the
+  // resized height), so this can arrive as either.
+  level?: string | number;
   onParamsChange?: (params: Record<string, unknown>) => void;
   predicate?: Record<string, unknown>;
   q?: string;
@@ -397,7 +400,8 @@ function GadmLevelMain({
   // When the chart lives in the customizable dashboard, `onParamsChange` is provided
   // and the selected level is read from / written to the serialized layout (`p.level`),
   // so it survives reload and is included in shared links.
-  const persistedLevel = typeof userLevel === 'string' ? userLevel : undefined;
+  const persistedLevel =
+    typeof userLevel === 'string' || typeof userLevel === 'number' ? String(userLevel) : undefined;
   const level =
     persistedLevel && (gadmLevels as readonly string[]).includes(persistedLevel)
       ? persistedLevel
