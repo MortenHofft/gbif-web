@@ -485,6 +485,12 @@ function GadmLevelMain({
         options={<ChartViewOptions options={['TABLE', 'MAP']} view={view} setView={setView} />}
       >
         <CardTitle>
+          <FormattedMessage id="filters.gadmGid.name" defaultMessage="Administrative area" />
+        </CardTitle>
+        <CardDescription>
+          <FormattedMessage id="dashboard.numberOfOccurrences" />
+        </CardDescription>
+        <div className="g-pt-1">
           <DropdownMenu>
             <DropdownMenuTrigger>
               <span className="g-px-3 g-py-2 g-border g-border-slate-300 g-rounded-md g-cursor-pointer g-inline-flex g-items-center">
@@ -508,10 +514,7 @@ function GadmLevelMain({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-        </CardTitle>
-        <CardDescription>
-          <FormattedMessage id="dashboard.numberOfOccurrences" />
-        </CardDescription>
+        </div>
       </CardHeader>
       <CardContent>
         {view === 'MAP' && (
