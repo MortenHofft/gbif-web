@@ -484,36 +484,38 @@ function GadmLevelMain({
       <CardHeader
         options={<ChartViewOptions options={['TABLE', 'MAP']} view={view} setView={setView} />}
       >
-        <CardTitle>
-          <FormattedMessage id="filters.gadmGid.name" defaultMessage="Administrative area" />
-        </CardTitle>
-        <CardDescription>
-          <FormattedMessage id="dashboard.numberOfOccurrences" />
-        </CardDescription>
-        <div className="g-pt-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <span className="g-px-3 g-py-2 g-border g-border-slate-300 g-rounded-md g-cursor-pointer g-inline-flex g-items-center">
-                <FormattedMessage
-                  id={`enums.gadmLevel.${level}`}
-                  defaultMessage={`Level ${level}`}
-                />{' '}
-                <MdArrowDropDown />
-              </span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {gadmLevels.map((l) => (
-                <DropdownMenuItem
-                  key={l}
-                  onClick={() => {
-                    setLevel(l);
-                  }}
-                >
-                  <FormattedMessage id={`enums.gadmLevel.${l}`} defaultMessage={`Level ${l}`} />
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="g-flex g-flex-col sm:g-flex-row sm:g-flex-wrap sm:g-items-baseline sm:g-gap-x-2 sm:g-gap-y-0.5">
+          <CardTitle className="sm:g-order-1">
+            <FormattedMessage id="filters.gadmGid.name" defaultMessage="Administrative area" />
+          </CardTitle>
+          <CardDescription className="sm:g-order-3 sm:g-basis-full">
+            <FormattedMessage id="dashboard.numberOfOccurrences" />
+          </CardDescription>
+          <div className="g-pt-1 sm:g-pt-0 sm:g-order-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <span className="g-px-2 g-py-1 g-text-sm g-border g-border-slate-300 g-rounded-md g-cursor-pointer g-inline-flex g-items-center">
+                  <FormattedMessage
+                    id={`enums.gadmLevel.${level}`}
+                    defaultMessage={`Level ${level}`}
+                  />{' '}
+                  <MdArrowDropDown />
+                </span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {gadmLevels.map((l) => (
+                  <DropdownMenuItem
+                    key={l}
+                    onClick={() => {
+                      setLevel(l);
+                    }}
+                  >
+                    <FormattedMessage id={`enums.gadmLevel.${l}`} defaultMessage={`Level ${l}`} />
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
