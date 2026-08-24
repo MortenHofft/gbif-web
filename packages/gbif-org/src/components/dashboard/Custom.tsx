@@ -218,37 +218,42 @@ function TaxaMain({
       <CardHeader
         options={<ChartViewOptions options={['TABLE', 'MAP']} view={view} setView={setView} />}
       >
-        <CardTitle>
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <span className="g-px-3 g-py-2 g-border g-border-slate-300 g-rounded-md g-cursor-pointer g-inline-flex g-items-center">
-                <FormattedMessage
-                  id={`enums.taxonRank.${rank.toUpperCase()}`}
-                  defaultMessage={rank}
-                />{' '}
-                <MdArrowDropDown />
-              </span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {majorRanks.map((rank) => (
-                <DropdownMenuItem
-                  key={rank}
-                  onClick={() => {
-                    setRank(rank);
-                  }}
-                >
+        <div className="g-flex g-flex-col sm:g-flex-row sm:g-flex-wrap sm:g-items-baseline sm:g-gap-x-2 sm:g-gap-y-0.5">
+          <CardTitle className="sm:g-order-1">
+            <FormattedMessage id="dashboard.taxa" defaultMessage="Taxa" />
+          </CardTitle>
+          <CardDescription className="sm:g-order-3 sm:g-basis-full">
+            <FormattedMessage id="dashboard.numberOfOccurrences" />
+          </CardDescription>
+          <div className="g-pt-1 sm:g-pt-0 sm:g-order-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <span className="g-px-2 g-py-1 g-text-sm g-border g-border-slate-300 g-rounded-md g-cursor-pointer g-inline-flex g-items-center">
                   <FormattedMessage
                     id={`enums.taxonRank.${rank.toUpperCase()}`}
                     defaultMessage={rank}
-                  />
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </CardTitle>
-        <CardDescription>
-          <FormattedMessage id="dashboard.numberOfOccurrences" />
-        </CardDescription>
+                  />{' '}
+                  <MdArrowDropDown />
+                </span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {majorRanks.map((rank) => (
+                  <DropdownMenuItem
+                    key={rank}
+                    onClick={() => {
+                      setRank(rank);
+                    }}
+                  >
+                    <FormattedMessage
+                      id={`enums.taxonRank.${rank.toUpperCase()}`}
+                      defaultMessage={rank}
+                    />
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         {view === 'MAP' && (
