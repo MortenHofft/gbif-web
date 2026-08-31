@@ -32,10 +32,18 @@ import { ResourceSearchTabs } from './resourceSearchTabs';
 import { searchConfig } from './searchConfig';
 import { orderedTabs, tabsConfig } from './tabsConfig';
 import { FilterBarWithActions } from '@/components/filters/filterBarWithActions';
-import { MobileFiltersTrigger, useIsMobileFilterSheetActive } from '@/components/filters/mobileFilters';
+import {
+  MobileFiltersTrigger,
+  useIsMobileFilterSheetActive,
+} from '@/components/filters/mobileFilters';
 import PageMetaData from '@/components/PageMetaData';
 import { Resource, useResourceSearch, RESOURCE_SEARCH_QUERY } from './useResourceSearch';
-import { getResourceSortVariables, ResourceSortValue, useResourceSort } from './useResourceSort';
+import {
+  getDefaultResourceSort,
+  getResourceSortVariables,
+  ResourceSortValue,
+  useResourceSort,
+} from './useResourceSort';
 
 export { RESOURCE_SEARCH_QUERY };
 export type { Resource };
@@ -109,7 +117,7 @@ function ResourceSearchPageInner({ activeTab, defaultTab }: Props): React.ReactE
     };
 
     const sortingOptions: Pick<ResourceSearchQueryVariables, 'sortBy' | 'sortOrder'> =
-      getResourceSortVariables(sort);
+      getResourceSortVariables(sort ?? getDefaultResourceSort(Boolean(query.q)));
 
     if ('eventFiltering' in query && activeTab === 'event') {
       switch (query.eventFiltering) {
@@ -128,6 +136,9 @@ function ResourceSearchPageInner({ activeTab, defaultTab }: Props): React.ReactE
   }, [filterHash, searchContext, activeTab, sort]);
 
   const { loading, resources, total, size } = useResourceSearch({ variables, offset });
+
+  const hasQuery = Boolean(variables.q);
+  const effectiveSort = sort ?? getDefaultResourceSort(hasQuery);
 
   const handleSortChange = (newSort: ResourceSortValue) => {
     setSort(newSort);
@@ -166,8 +177,9 @@ function ResourceSearchPageInner({ activeTab, defaultTab }: Props): React.ReactE
             size={size}
             offset={offset}
             setOffset={setOffset}
-            sort={sort}
+            sort={effectiveSort}
             onSortChange={handleSortChange}
+            hasQuery={hasQuery}
           />
         </ArticleTextContainer>
       </ArticleContainer>
@@ -186,6 +198,7 @@ type ResourceSearchResultsProps = {
   disableHeaderActionButtons?: boolean;
   sort?: ResourceSortValue;
   onSortChange?: (sort: ResourceSortValue) => void;
+  hasQuery?: boolean;
 };
 
 export function ResourceSearchResults({
@@ -199,6 +212,7 @@ export function ResourceSearchResults({
   disableHeaderActionButtons,
   sort,
   onSortChange,
+  hasQuery,
 }: ResourceSearchResultsProps) {
   if (loading || total === undefined) {
     return (
@@ -232,7 +246,12 @@ export function ResourceSearchResults({
           </CardTitle>
 
           {!disableHeaderActionButtons && (
-            <HeaderActionButtons activeTab={activeTab} sort={sort} onSortChange={onSortChange} />
+            <HeaderActionButtons
+              activeTab={activeTab}
+              sort={sort}
+              onSortChange={onSortChange}
+              hasQuery={hasQuery}
+            />
           )}
         </CardHeader>
         <ul>

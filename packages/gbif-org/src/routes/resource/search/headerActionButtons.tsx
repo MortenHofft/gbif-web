@@ -10,9 +10,10 @@ type Props = {
   activeTab: string;
   sort?: ResourceSortValue;
   onSortChange?: (sort: ResourceSortValue) => void;
+  hasQuery?: boolean;
 };
 
-export function HeaderActionButtons({ activeTab, sort, onSortChange }: Props) {
+export function HeaderActionButtons({ activeTab, sort, onSortChange, hasQuery }: Props) {
   const { v1Endpoint } = useConfig();
 
   const v1WebcalEndpoint = v1Endpoint
@@ -42,7 +43,7 @@ export function HeaderActionButtons({ activeTab, sort, onSortChange }: Props) {
       )}
       {/* Event sorting is driven by the upcoming/past filter instead, so the generic sort control doesn't apply there. */}
       {sort && onSortChange && activeTab !== 'event' && (
-        <ResourceSortDropdown sort={sort} onChange={onSortChange} />
+        <ResourceSortDropdown sort={sort} onChange={onSortChange} hasQuery={!!hasQuery} />
       )}
     </div>
   );

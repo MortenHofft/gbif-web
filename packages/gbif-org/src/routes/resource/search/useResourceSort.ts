@@ -1,27 +1,42 @@
 import { ResourceSearchQueryVariables, ResourceSortBy, ResourceSortOrder } from '@/gql/graphql';
 import { useParam } from '@/hooks/useParam';
 
-export type ResourceSortValue = 'createdAt_desc' | 'createdAt_asc';
+export type ResourceSortValue = 'relevance' | 'createdAt_desc' | 'createdAt_asc';
 
-const DEFAULT_SORT: ResourceSortValue = 'createdAt_desc';
+const VALID_SORTS: ResourceSortValue[] = ['relevance', 'createdAt_desc', 'createdAt_asc'];
 
-function parseSort(value?: string): ResourceSortValue {
-  return value === 'createdAt_asc' ? 'createdAt_asc' : DEFAULT_SORT;
+function parseSort(value?: string): ResourceSortValue | undefined {
+  return VALID_SORTS.includes(value as ResourceSortValue)
+    ? (value as ResourceSortValue)
+    : undefined;
 }
 
-export function useResourceSort(): [ResourceSortValue, (value: ResourceSortValue) => void] {
-  return useParam<ResourceSortValue>({
+// The explicit sort choice, if any. `undefined` means "use the contextual default"
+// (relevance while free-text searching, newest first otherwise) - see getDefaultResourceSort.
+export function useResourceSort(): [
+  ResourceSortValue | undefined,
+  (value: ResourceSortValue | undefined) => void,
+] {
+  return useParam<ResourceSortValue | undefined>({
     key: 'sort',
-    defaultValue: DEFAULT_SORT,
-    hideDefault: true,
     parse: parseSort,
   });
+}
+
+export function getDefaultResourceSort(hasQuery: boolean): ResourceSortValue {
+  return hasQuery ? 'relevance' : 'createdAt_desc';
 }
 
 export function getResourceSortVariables(
   sort: ResourceSortValue
 ): Pick<ResourceSearchQueryVariables, 'sortBy' | 'sortOrder'> {
-  return sort === 'createdAt_asc'
-    ? { sortBy: ResourceSortBy.CreatedAt, sortOrder: ResourceSortOrder.Asc }
-    : { sortBy: ResourceSortBy.CreatedAt, sortOrder: ResourceSortOrder.Desc };
+  switch (sort) {
+    case 'createdAt_asc':
+      return { sortBy: ResourceSortBy.CreatedAt, sortOrder: ResourceSortOrder.Asc };
+    case 'createdAt_desc':
+      return { sortBy: ResourceSortBy.CreatedAt, sortOrder: ResourceSortOrder.Desc };
+    case 'relevance':
+      // Omitting sortBy makes the es-api fall back to its relevance (_score) sort.
+      return { sortBy: undefined, sortOrder: undefined };
+  }
 }

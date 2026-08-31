@@ -14,9 +14,10 @@ import { ResourceSortValue } from './useResourceSort';
 type Props = {
   sort: ResourceSortValue;
   onChange: (sort: ResourceSortValue) => void;
+  hasQuery: boolean;
 };
 
-export function ResourceSortDropdown({ sort, onChange }: Props) {
+export function ResourceSortDropdown({ sort, onChange, hasQuery }: Props) {
   const { locale } = useI18n();
 
   return (
@@ -38,6 +39,11 @@ export function ResourceSortDropdown({ sort, onChange }: Props) {
           value={sort}
           onValueChange={(value) => onChange(value as ResourceSortValue)}
         >
+          {hasQuery && (
+            <DropdownMenuRadioItem value="relevance">
+              <FormattedMessage id="resourceSearch.sort.relevance" defaultMessage="Relevance" />
+            </DropdownMenuRadioItem>
+          )}
           <DropdownMenuRadioItem value="createdAt_desc">
             <FormattedMessage id="resourceSearch.sort.newestFirst" defaultMessage="Newest first" />
           </DropdownMenuRadioItem>
