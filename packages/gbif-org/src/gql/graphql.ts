@@ -1859,6 +1859,7 @@ export type DatasetEvents = {
 export type DatasetFacet = {
   __typename?: 'DatasetFacet';
   _predicate?: Maybe<Scalars['JSON']['output']>;
+  category?: Maybe<Array<Maybe<DatasetFacetResult>>>;
   count: Scalars['Int']['output'];
   dataset?: Maybe<Dataset>;
   decade?: Maybe<Array<Maybe<DatasetFacetResult>>>;
@@ -1872,6 +1873,12 @@ export type DatasetFacet = {
   publishingCountry?: Maybe<Array<Maybe<DatasetFacetResult>>>;
   publishingOrg?: Maybe<Array<Maybe<DatasetOrganizationFacet>>>;
   type?: Maybe<Array<Maybe<DatasetFacetResult>>>;
+};
+
+
+export type DatasetFacetCategoryArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -1959,6 +1966,7 @@ export type DatasetOrganizationFacet = {
 };
 
 export type DatasetSearchInput = {
+  category?: InputMaybe<Array<InputMaybe<Scalars['String']['input']>>>;
   /** Not implemented yet */
   continent?: InputMaybe<Array<InputMaybe<Continent>>>;
   /** Not implemented yet */
