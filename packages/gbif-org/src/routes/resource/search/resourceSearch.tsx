@@ -35,6 +35,7 @@ import { FilterBarWithActions } from '@/components/filters/filterBarWithActions'
 import { MobileFiltersTrigger, useIsMobileFilterSheetActive } from '@/components/filters/mobileFilters';
 import PageMetaData from '@/components/PageMetaData';
 import { Resource, useResourceSearch, RESOURCE_SEARCH_QUERY } from './useResourceSearch';
+import { getResourceSortVariables, ResourceSortValue, useResourceSort } from './useResourceSort';
 
 export { RESOURCE_SEARCH_QUERY };
 export type { Resource };
@@ -95,6 +96,7 @@ function ResourceSearchPageInner({ activeTab, defaultTab }: Props): React.ReactE
   const { filters } = useFilters({ searchConfig });
   const filterSheetActive = useIsMobileFilterSheetActive(filters);
   const [offset, setOffset] = useNumberParam({ key: 'offset', defaultValue: 0, hideDefault: true });
+  const [sort, setSort] = useResourceSort();
   const filterContext = useContext(FilterContext);
 
   const { filter, filterHash } = filterContext || { filter: { must: {} } };
@@ -106,10 +108,8 @@ function ResourceSearchPageInner({ activeTab, defaultTab }: Props): React.ReactE
       eventFiltering: EventFiltering | undefined;
     };
 
-    const sortingOptions: Pick<ResourceSearchQueryVariables, 'sortBy' | 'sortOrder'> = {
-      sortBy: ResourceSortBy.CreatedAt,
-      sortOrder: ResourceSortOrder.Desc,
-    };
+    const sortingOptions: Pick<ResourceSearchQueryVariables, 'sortBy' | 'sortOrder'> =
+      getResourceSortVariables(sort);
 
     if ('eventFiltering' in query && activeTab === 'event') {
       switch (query.eventFiltering) {
@@ -125,9 +125,14 @@ function ResourceSearchPageInner({ activeTab, defaultTab }: Props): React.ReactE
 
     return { ...query, ...sortingOptions };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterHash, searchContext, activeTab]);
+  }, [filterHash, searchContext, activeTab, sort]);
 
   const { loading, resources, total, size } = useResourceSearch({ variables, offset });
+
+  const handleSortChange = (newSort: ResourceSortValue) => {
+    setSort(newSort);
+    setOffset(0);
+  };
 
   // Scroll to top when changing filter or offset
   useUpdateEffect(() => {
@@ -161,6 +166,8 @@ function ResourceSearchPageInner({ activeTab, defaultTab }: Props): React.ReactE
             size={size}
             offset={offset}
             setOffset={setOffset}
+            sort={sort}
+            onSortChange={handleSortChange}
           />
         </ArticleTextContainer>
       </ArticleContainer>
@@ -177,6 +184,8 @@ type ResourceSearchResultsProps = {
   offset: number;
   setOffset: (offset: number) => void;
   disableHeaderActionButtons?: boolean;
+  sort?: ResourceSortValue;
+  onSortChange?: (sort: ResourceSortValue) => void;
 };
 
 export function ResourceSearchResults({
@@ -188,6 +197,8 @@ export function ResourceSearchResults({
   offset,
   setOffset,
   disableHeaderActionButtons,
+  sort,
+  onSortChange,
 }: ResourceSearchResultsProps) {
   if (loading || total === undefined) {
     return (
@@ -220,7 +231,9 @@ export function ResourceSearchResults({
             <FormattedMessage id={tabsConfig[activeTab].countKey} values={{ total: total ?? 0 }} />
           </CardTitle>
 
-          {!disableHeaderActionButtons && <HeaderActionButtons activeTab={activeTab} />}
+          {!disableHeaderActionButtons && (
+            <HeaderActionButtons activeTab={activeTab} sort={sort} onSortChange={onSortChange} />
+          )}
         </CardHeader>
         <ul>
           {resources.map((resource) => (
