@@ -140,11 +140,6 @@ function ResourceSearchPageInner({ activeTab, defaultTab }: Props): React.ReactE
   const hasQuery = Boolean(variables.q);
   const effectiveSort = sort ?? getDefaultResourceSort(hasQuery);
 
-  const handleSortChange = (newSort: ResourceSortValue) => {
-    setSort(newSort);
-    setOffset(0);
-  };
-
   // Scroll to top when changing filter or offset
   useUpdateEffect(() => {
     window.scrollTo(0, 0);
@@ -178,7 +173,7 @@ function ResourceSearchPageInner({ activeTab, defaultTab }: Props): React.ReactE
             offset={offset}
             setOffset={setOffset}
             sort={effectiveSort}
-            onSortChange={handleSortChange}
+            onSortChange={setSort}
             hasQuery={hasQuery}
           />
         </ArticleTextContainer>
