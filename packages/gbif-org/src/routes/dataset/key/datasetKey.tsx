@@ -7,7 +7,6 @@ import {
   HeaderInfoEdit,
   HeaderInfoMain,
 } from '@/components/headerComponents';
-import { LongDate } from '@/components/dateFormats';
 import { FeatureList, GenericFeature, Homepage, PeopleIcon } from '@/components/highlights';
 import { enum2licenseUrl, LicenceTag } from '@/components/identifierTag';
 import PageMetaData from '@/components/PageMetaData';
@@ -580,27 +579,18 @@ export function DatasetPage() {
         <PageContainer topPadded hasDataHeader className="g-bg-white">
           <ArticleTextContainer className="g-max-w-screen-xl">
             <ArticlePreTitle
-              clickable
               secondary={
-                <FormattedMessage
-                  id="dataset.registeredDate"
-                  values={{
-                    DATE: dataset.created ? (
-                      <LongDate value={dataset.created} />
-                    ) : (
-                      <FormattedMessage id="phrases.unknownDate" />
-                    ),
-                  }}
-                />
-              }
-            >
-              <DynamicLink pageId="datasetSearch" searchParams={{ type: dataset.type }}>
-                {dataset.type ? (
+                dataset.type ? (
                   <FormattedMessage id={`dataset.longType.${dataset.type}`} />
                 ) : (
-                  <FormattedMessage id="dataset.dataset" defaultMessage="Dataset" />
-                )}
-              </DynamicLink>
+                  <FormattedMessage
+                    id="dataset.longType.default"
+                    defaultMessage="DwC Data package"
+                  />
+                )
+              }
+            >
+              <FormattedMessage id="dataset.dataset" defaultMessage="Dataset" />
             </ArticlePreTitle>
             {/* it would be nice to know for sure which fields to expect */}
             <ArticleTitle
