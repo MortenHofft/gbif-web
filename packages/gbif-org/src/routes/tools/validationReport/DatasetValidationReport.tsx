@@ -1,7 +1,6 @@
 import { NoRecords } from '@/components/noDataMessages';
 import { SearchInput } from '@/components/searchInput';
 import { CardListSkeleton } from '@/components/skeletonLoaders';
-import { useUser } from '@/contexts/UserContext';
 import {
   Accordion,
   AccordionContent,
@@ -41,7 +40,6 @@ import {
   DwdpValidationIssue,
 } from '@/gql/graphql';
 import useAbove from '@/hooks/useAbove';
-import { useIsTrustedDatasetContact } from '@/hooks/useIsTrustedDatasetContact';
 import { useStringParam } from '@/hooks/useParam';
 import useQuery from '@/hooks/useQuery';
 import { DynamicLink } from '@/reactRouterPlugins';
@@ -60,7 +58,6 @@ import {
   MdVpnKey,
 } from 'react-icons/md';
 import { FormattedDate, FormattedMessage, useIntl } from 'react-intl';
-import { useDatasetKeyLoaderData } from '.';
 
 const VALIDATION_REPORT_QUERY = /* GraphQL */ `
   query DatasetValidationReport($datasetKey: ID!, $attempt: String) {
@@ -1152,15 +1149,17 @@ function UnsupportedReportContent({
 
 /* ---------- page ---------- */
 
-export function DatasetKeyValidationReport() {
+type Props = {
+  datasetKey: string;
+};
+
+// Renders the full validation report — attempt picker, summary, per-section detail, the raw
+// JSON fallback for an unsupported report version — for a single dataset. Used by the
+// Validation report tool page (tools/validation-report/dataset/:key); the caller is
+// responsible for letting the user pick which dataset, this component just reports on it.
+export function DatasetValidationReport({ datasetKey }: Props) {
   const { formatMessage } = useIntl();
-  const { dataset } = useDatasetKeyLoaderData().data;
   const showRail = useAbove(900);
-  // Same "trusted contact" check as the About page's registry-management section. The tab
-  // itself is only offered to trusted users (see datasetKey.tsx), but this route is still
-  // reachable directly by URL, so it needs its own gate too.
-  const { isTrusted } = useIsTrustedDatasetContact(dataset.volatileContributors);
-  const { isLoggedIn, isLoading: userLoading } = useUser();
 
   const {
     data: crawlData,
@@ -1177,9 +1176,9 @@ export function DatasetKeyValidationReport() {
   const [crawlAttemptRequested, setCrawlAttemptRequested] = useState(false);
 
   useEffect(() => {
-    loadCrawlAttempt({ variables: { datasetKey: dataset.key } });
+    loadCrawlAttempt({ variables: { datasetKey } });
     setCrawlAttemptRequested(true);
-  }, [loadCrawlAttempt, dataset.key]);
+  }, [loadCrawlAttempt, datasetKey]);
 
   const latestAttempt = useMemo(
     () => parseLatestAttempt(crawlData?.dataset?.crawlAttempt),
@@ -1214,11 +1213,11 @@ export function DatasetKeyValidationReport() {
     if (!crawlAttemptRequested || crawlLoading) return;
     load({
       variables: {
-        datasetKey: dataset.key,
+        datasetKey,
         attempt: selectedAttempt !== undefined ? String(selectedAttempt) : undefined,
       },
     });
-  }, [load, dataset.key, crawlAttemptRequested, crawlLoading, selectedAttempt]);
+  }, [load, datasetKey, crawlAttemptRequested, crawlLoading, selectedAttempt]);
 
   const report = data?.dwdpValidationReport;
   const result = report?.result;
@@ -1236,42 +1235,6 @@ export function DatasetKeyValidationReport() {
     defaultValue: 'summary',
     hideDefault: true,
   });
-
-  // Not trusted (or the logged-in user hasn't resolved yet, which defaults to not-trusted so
-  // nothing flashes before hiding) — leave the dataset header/tabs from the parent route as
-  // they are and render an empty body, so the user can navigate away or log in.
-  if (!isTrusted) {
-    // The logged-in user is only known client-side (fetched after mount), so while that's
-    // still in flight, show the same loading skeleton as the rest of the page rather than
-    // flashing a "please log in"/"not authorized" message at a user who turns out to be
-    // trusted once their identity resolves.
-    if (userLoading) {
-      return (
-        <ArticleContainer className="g-bg-slate-100 g-pt-4">
-          <ArticleTextContainer className="g-max-w-screen-xl">
-            <CardListSkeleton />
-          </ArticleTextContainer>
-        </ArticleContainer>
-      );
-    }
-    return (
-      <ArticleContainer className="g-bg-slate-100 g-pt-4">
-        <ArticleTextContainer className="g-max-w-screen-xl g-min-h-[50vh]">
-          {isLoggedIn ? (
-            <NoRecords
-              messageId="dataset.validationReport.notAuthorized"
-              defaultMessage="You don't have access to this dataset's validation reports."
-            />
-          ) : (
-            <NoRecords
-              messageId="dataset.validationReport.pleaseLogIn"
-              defaultMessage="Please log in to see validation reports."
-            />
-          )}
-        </ArticleTextContainer>
-      </ArticleContainer>
-    );
-  }
 
   if (loading || !data) {
     return (
@@ -1520,7 +1483,7 @@ export function DatasetKeyValidationReport() {
             )}
             {report && !isVersionSupported && (
               <UnsupportedReportContent
-                datasetKey={dataset.key}
+                datasetKey={datasetKey}
                 attempt={report.attempt ?? undefined}
               />
             )}

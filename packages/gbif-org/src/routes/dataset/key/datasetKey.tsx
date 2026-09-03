@@ -20,7 +20,6 @@ import {
   DatasetType,
   PredicateType,
 } from '@/gql/graphql';
-import { useIsTrustedDatasetContact } from '@/hooks/useIsTrustedDatasetContact';
 import useQuery from '@/hooks/useQuery';
 import { DynamicLink, LoaderArgs, useI18n } from '@/reactRouterPlugins';
 import { ArticlePreTitle } from '@/routes/resource/key/components/articlePreTitle';
@@ -390,9 +389,6 @@ export function DatasetPage() {
   const showEventsTab = config.datasetKey?.showEvents && (withEventId > 0 || hasSamplingEvents);
   const occurrenceCount = occData?.occurrenceSearch?.documents?.total;
   const citationCountOrZero = occData?.literatureSearchScoped?.documents?.total || 0;
-  // Same "trusted contact" check as the Trusted section further down this page — the
-  // validation report tab is only offered to those users.
-  const { isTrusted: showValidationTab } = useIsTrustedDatasetContact(dataset.volatileContributors);
 
   const tabs = useMemo<{ to: string; children: React.ReactNode }[]>(() => {
     const tabsToDisplay: { to: string; children: React.ReactNode }[] = [
@@ -449,26 +445,8 @@ export function DatasetPage() {
       to: 'download',
       children: <FormattedMessage id="dataset.tabs.download" />,
     });
-    if (dataset.type !== DatasetType.Metadata && showValidationTab) {
-      tabsToDisplay.push({
-        to: 'validation',
-        children: (
-          <FormattedMessage
-            id="dataset.tabs.validationReport"
-            defaultMessage="Validation report"
-          />
-        ),
-      });
-    }
     return tabsToDisplay;
-  }, [
-    showPhylogenyTab,
-    showSpeciesTab,
-    showEventsTab,
-    showValidationTab,
-    dataset.type,
-    dataset.project,
-  ]);
+  }, [showPhylogenyTab, showSpeciesTab, showEventsTab, dataset.type, dataset.project]);
 
   useEffect(() => {
     const datasetPredicate = {

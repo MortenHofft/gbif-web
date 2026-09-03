@@ -179,7 +179,7 @@ export function Registration({ dataset }: Props) {
         )}
       </Properties>
 
-      <div className="g-mt-6">
+      <div className="g-mt-6 g-flex g-gap-2 g-flex-wrap">
         <Button asChild variant="outline">
           <a
             className="g-text-inherit"
@@ -188,6 +188,14 @@ export function Registration({ dataset }: Props) {
             <FormattedMessage id="dataset.registry.registrationDetails" />{' '}
             <MdLink className="g-ms-2" />
           </a>
+        </Button>
+        <Button asChild variant="outline">
+          <DynamicLink to={`/tools/validation-report/dataset/${dataset.key}`}>
+            <FormattedMessage
+              id="dataset.registry.validationReport"
+              defaultMessage="Validation report"
+            />
+          </DynamicLink>
         </Button>
       </div>
     </div>

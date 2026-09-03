@@ -1,21 +1,95 @@
-import { Card } from '@/components/ui/largeCard';
+import { DatasetOption, DatasetSearchSuggest } from '@/components/searchSelect/datasetSearchSuggest';
+import { CardListSkeleton } from '@/components/skeletonLoaders';
+import { Card, CardContent } from '@/components/ui/largeCard';
+import {
+  ValidationReportDatasetPickerQuery,
+  ValidationReportDatasetPickerQueryVariables,
+} from '@/gql/graphql';
+import useQuery from '@/hooks/useQuery';
 import { ArticleTextContainer } from '@/routes/resource/key/components/articleTextContainer';
 import { PageContainer } from '@/routes/resource/key/components/pageContainer';
+import { useEffect } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { useNavigate, useParams } from 'react-router-dom';
+import { DatasetValidationReport } from './DatasetValidationReport';
+
+const DATASET_PICKER_QUERY = /* GraphQL */ `
+  query ValidationReportDatasetPicker($key: ID!) {
+    dataset(key: $key) {
+      key
+      title
+    }
+  }
+`;
 
 export default function ValidationReportPage() {
+  const navigate = useNavigate();
+  const { key } = useParams<{ key?: string }>();
+
+  const { data, load, loading } = useQuery<
+    ValidationReportDatasetPickerQuery,
+    ValidationReportDatasetPickerQueryVariables
+  >(DATASET_PICKER_QUERY, { throwAllErrors: false, lazyLoad: true, notifyOnErrors: false });
+
+  useEffect(() => {
+    if (key) load({ variables: { key } });
+  }, [load, key]);
+
+  const dataset = key ? data?.dataset : undefined;
+  const selected: DatasetOption | null = dataset ? { key: dataset.key, title: dataset.title ?? dataset.key } : null;
+
+  const handleSelect = (value: DatasetOption | null | undefined) => {
+    navigate(value ? `/tools/validation-report/dataset/${value.key}` : '/tools/validation-report');
+  };
+
   return (
     <PageContainer className="g-bg-slate-100 g-flex-1">
-      <ArticleTextContainer className="g-pt-8 g-pb-12">
-        <Card className="g-bg-white g-p-8">
-          <p className="g-text-slate-600">
-            <FormattedMessage
-              id="tools.validationReport.comingSoon"
-              defaultMessage="This tool is coming soon."
+      <ArticleTextContainer className="g-pt-8 g-pb-12 g-max-w-screen-xl">
+        <Card className="g-bg-white g-overflow-hidden">
+          <div className="g-px-6 g-pt-6 g-pb-4 g-border-b g-border-slate-100">
+            <h2 className="g-text-base g-font-semibold g-text-slate-800">
+              <FormattedMessage
+                id="tools.validationReport.selectDataset"
+                defaultMessage="Select a dataset"
+              />
+            </h2>
+            <p className="g-text-slate-700 g-text-sm g-leading-relaxed g-mt-2">
+              <FormattedMessage
+                id="tools.validationReport.selectDatasetDescription"
+                defaultMessage="Look up a dataset already registered with GBIF to see its Darwin Core data package validation report."
+              />
+            </p>
+          </div>
+          <CardContent topPadding>
+            <DatasetSearchSuggest
+              selected={selected}
+              setSelected={handleSelect}
+              className="g-max-w-md"
+              noSelectionPlaceholder={
+                <FormattedMessage
+                  id="tools.validationReport.selectDatasetPlaceholder"
+                  defaultMessage="Select a dataset"
+                />
+              }
             />
-          </p>
+            {key && !dataset && !loading && (
+              <p className="g-text-sm g-text-red-600 g-mt-3">
+                <FormattedMessage
+                  id="tools.validationReport.datasetNotFound"
+                  defaultMessage="This dataset could not be found."
+                />
+              </p>
+            )}
+          </CardContent>
         </Card>
       </ArticleTextContainer>
+
+      {key && loading && (
+        <ArticleTextContainer className="g-max-w-screen-xl">
+          <CardListSkeleton />
+        </ArticleTextContainer>
+      )}
+      {key && !loading && dataset && <DatasetValidationReport datasetKey={key} />}
     </PageContainer>
   );
 }
