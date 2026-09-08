@@ -1,0 +1,19 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": false,
+    "outDir": "../dist/types",
+    "rootDir": "..",
+    "allowImportingTsExtensions": false,
+    "skipLibCheck": true,
+    "strict": false,
+    "checkJs": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noEmitOnError": false
+  },
+  "include": ["../src", "./entry.tsx", "./provider.tsx", "./shims"]
+}
