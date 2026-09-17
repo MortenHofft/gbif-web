@@ -26,6 +26,16 @@ interface FormatSelectionProps {
   enabledFormats?: string[];
 }
 
+// A FASTA archive is a Darwin Core Archive with more in it, so it carries every DwC-A feature and
+// adds the sequence files - keep the two in step by deriving one from the other.
+const DWCA_FEATURE_KEYS = [
+  'multipleCsv',
+  'rawAndInterpreted',
+  'multimediaLinks',
+  'coordinates',
+  'individualOccurrences',
+];
+
 const formatCards: Format[] = [
   {
     id: 'SIMPLE_CSV',
@@ -35,26 +45,15 @@ const formatCards: Format[] = [
   {
     id: 'DWCA',
     estimateSize: true,
-    featureKeys: [
-      'multipleCsv',
-      'rawAndInterpreted',
-      'multimediaLinks',
-      'coordinates',
-      'individualOccurrences',
-    ],
+    featureKeys: DWCA_FEATURE_KEYS,
   },
   {
     id: 'FASTA_ARCHIVE',
     // The sequence files make the size too unpredictable to estimate per record.
     estimateSize: false,
     requiresSequences: true,
-    featureKeys: [
-      'multipleCsv',
-      'rawAndInterpreted',
-      'dnaSequences',
-      'sequencedRecordsOnly',
-      'individualOccurrences',
-    ],
+    // The sequence-specific traits lead, since they are what sets this apart from a plain DwC-A.
+    featureKeys: ['dnaSequences', 'sequencedRecordsOnly', ...DWCA_FEATURE_KEYS],
   },
   {
     id: 'SPECIES_LIST',
