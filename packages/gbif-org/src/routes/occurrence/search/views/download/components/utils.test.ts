@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatFileSize,
   getEstimatedSizeInBytes,
   getSequenceAvailability,
   requiresSequences,
@@ -66,13 +67,13 @@ describe('getSequenceAvailability', () => {
 });
 
 describe('getEstimatedSizeInBytes', () => {
-  it('estimates a FASTA archive above a plain Darwin Core Archive of the same size', () => {
-    expect(getEstimatedSizeInBytes('FASTA_ARCHIVE', 1000)).toBeGreaterThan(
-      getEstimatedSizeInBytes('DWCA', 1000)
-    );
+  it('has no estimate for a FASTA archive - the sequence files are too unpredictable', () => {
+    // Negative is the "unknown" signal that formatFileSize renders as Unknown.
+    expect(getEstimatedSizeInBytes('FASTA_ARCHIVE', 1000)).toBeLessThan(0);
+    expect(formatFileSize(getEstimatedSizeInBytes('FASTA_ARCHIVE', 1000))).toBe('Unknown');
   });
 
-  it('has no estimate for an empty result', () => {
-    expect(getEstimatedSizeInBytes('FASTA_ARCHIVE', 0)).toBe(-1);
+  it('still estimates the formats that portal16 has constants for', () => {
+    expect(getEstimatedSizeInBytes('DWCA', 1000)).toBeGreaterThan(0);
   });
 });

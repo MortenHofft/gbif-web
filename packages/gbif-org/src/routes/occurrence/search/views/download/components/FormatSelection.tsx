@@ -45,7 +45,8 @@ const formatCards: Format[] = [
   },
   {
     id: 'FASTA_ARCHIVE',
-    estimateSize: true,
+    // The sequence files make the size too unpredictable to estimate per record.
+    estimateSize: false,
     requiresSequences: true,
     featureKeys: [
       'multipleCsv',

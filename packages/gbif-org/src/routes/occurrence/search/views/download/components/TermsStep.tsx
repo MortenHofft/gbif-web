@@ -93,7 +93,7 @@ export default function TermsStep({
     selectedFormat.id,
     recordsInDownload
   );
-  const isLargeDownload = ['SIMPLE_CSV', 'DWCA', 'FASTA_ARCHIVE'].includes(selectedFormat.id)
+  const isLargeDownload = ['SIMPLE_CSV', 'DWCA'].includes(selectedFormat.id)
     ? recordsInDownload > LARGE_DOWNLOAD_OFFSET
     : false;
   // The filters stay editable while the flow is open, so the format can stop being usable after it

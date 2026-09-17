@@ -54,14 +54,10 @@ export const getSequenceAvailability = ({
   return 'all';
 };
 
-// Size estimation constants from portal16
+// Size estimation constants from portal16. There is deliberately none for FASTA_ARCHIVE: the two
+// sequence files dominate the archive and their size depends on how long the sequences are, so any
+// per-record constant would be a guess. The format reports no estimate instead.
 const EST_KB_DWCA = 0.355350332594235;
-// A FASTA archive is a Darwin Core Archive plus sequences.fasta and sequences.txt. Across GBIF the
-// mean nucleotide sequence is ~430 bases and there is ~1 sequence per sequenced occurrence; zipped
-// nucleotide text lands around 0.3 bytes per base, and the two files repeat the identifiers, hence
-// the ~0.15 KB per record added on top of the DwC-A content. This is a rough estimate - it should
-// be recalibrated against real FASTA archive downloads once there are some to measure.
-const EST_KB_FASTA_ARCHIVE = EST_KB_DWCA + 0.15;
 const EST_KB_CSV = 0.1161948717948717;
 const EST_KB_SPECIES_LIST = 0.00002323897;
 const UNZIP_FACTOR = 4.52617;
@@ -88,9 +84,6 @@ export const getEstimatedSizeInBytes = (type: string, totalRecords: number): num
       break;
     case 'DWCA':
       sizeKb = EST_KB_DWCA * totalRecords;
-      break;
-    case 'FASTA_ARCHIVE':
-      sizeKb = EST_KB_FASTA_ARCHIVE * totalRecords;
       break;
     case 'SPECIES_LIST':
       // Species list is much smaller as it's just unique species. Below are based on a few random downloads. But it varies a lot depending on the filters. Better would be to use cardinality instead of occurrence counts.
