@@ -48,6 +48,33 @@ const queues: Record<string, Queue> = {};
 
 const ABORT_REASON = 'REQUEST_ABORTED_ON_PURPOSE';
 
+// A queued request keeps its slot in the queue until the promise it returns settles.
+// The dashboard queue runs one request at a time, so a request that never settles - a
+// stalled connection, a response whose body never arrives - holds that single slot
+// forever and every request queued after it waits indefinitely. The charts behind it
+// keep showing their loader without ever hitting the network, and because `queues`
+// lives for the lifetime of the module, client side navigation does not help: only a
+// full page reload builds a new queue.
+//
+// Cap how long a request may hold its slot. The request itself is left alone - it is
+// not cancelled, and a slow response still renders when it finally arrives - we only
+// stop it from blocking everything queued behind it.
+const MAX_QUEUE_SLOT_MS = 30000;
+
+export function releaseQueueSlotAfter<T>(
+  request: Promise<T> | undefined,
+  timeoutMs: number = MAX_QUEUE_SLOT_MS
+): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const timeoutId = setTimeout(resolve, timeoutMs);
+    const release = () => {
+      clearTimeout(timeoutId);
+      resolve();
+    };
+    Promise.resolve(request).then(release, release);
+  });
+}
+
 export function useQuery<TResult, TVariabels>(
   query: string,
   options: Options<TVariabels> = defaultOptions as Options<TVariabels>
@@ -194,7 +221,7 @@ export function useQuery<TResult, TVariabels>(
       queues[mergedOptions.queue.name].enqueue(async () => {
         if (isMounted.current === false) return; // if unmounted then ignore
         if (randomTokenRef.current !== randomToken) return; // if stale ignore - this is necessary because we cannot cancel a request before it starts. So we need to check at tome of starting if the request has since changed
-        return startRequest();
+        return releaseQueueSlotAfter(startRequest());
       });
     },
     [config.graphqlEndpoint, locale.cmsLocale, locale.code, query, optionsDependency, preview]
