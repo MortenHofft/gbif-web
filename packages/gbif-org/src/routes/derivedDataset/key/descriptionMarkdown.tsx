@@ -50,7 +50,7 @@ export function renderDescriptionHtml(markdown: string): string {
 export function DescriptionMarkdown({ text }: { text: string }) {
   return (
     <div
-      className="g-prose g-max-w-none [&_a]:g-underline"
+      className="g-prose g-max-w-none [&_a]:g-underline [&_pre]:g-bg-slate-800 [&_pre]:g-text-slate-100 [&_pre]:g-rounded [&_pre]:g-p-3 [&_pre_code]:g-bg-transparent [&_pre_code]:g-text-inherit"
       dangerouslySetInnerHTML={{ __html: renderDescriptionHtml(text) }}
     />
   );
