@@ -50,7 +50,7 @@ export function renderDescriptionHtml(markdown: string): string {
 export function DescriptionMarkdown({ text }: { text: string }) {
   return (
     <div
-      className="g-break-all g-bg-slate-100 g-p-2 g-rounded g-font-[monospace] g-prose g-max-w-none [&_a]:g-underline [&_pre]:g-bg-slate-800 [&_pre]:g-text-slate-100 [&_pre]:g-rounded [&_pre]:g-p-3 [&_pre_code]:g-bg-transparent [&_pre_code]:g-text-inherit"
+      className="g-break-all g-bg-slate-100 g-p-2 g-rounded g-font-[monospace] [&_a]:g-underline [&_p:not(:last-child)]:g-mb-2 [&_ul]:g-list-disc [&_ol]:g-list-decimal [&_ul]:g-ps-5 [&_ol]:g-ps-5 [&_code]:g-bg-slate-200 [&_code]:g-rounded [&_code]:g-px-1 [&_pre]:g-bg-slate-800 [&_pre]:g-text-slate-100 [&_pre]:g-rounded [&_pre]:g-p-3 [&_pre]:g-overflow-x-auto [&_pre_code]:g-bg-transparent [&_pre_code]:g-p-0 [&_pre_code]:g-text-inherit"
       dangerouslySetInnerHTML={{ __html: renderDescriptionHtml(text) }}
     />
   );
