@@ -37,11 +37,18 @@ function addLinkAttributes(node: Element) {
   }
 }
 
+// Headings written by users must not compete with the page's own outline, so we demote them (h1 -> h3 ... h4+ -> h6)
+function demoteHeadings(html: string): string {
+  return html.replace(/<(\/?)h([1-6])(?=[\s>])/gi, (_, slash, level) => {
+    return `<${slash}h${Math.min(Number(level) + 2, 6)}`;
+  });
+}
+
 export function renderDescriptionHtml(markdown: string): string {
   const html = marked.parse(markdown, { async: false }) as string;
   DOMPurify.addHook('afterSanitizeAttributes', addLinkAttributes);
   try {
-    return DOMPurify.sanitize(html, SANITIZE_OPTIONS);
+    return demoteHeadings(DOMPurify.sanitize(html, SANITIZE_OPTIONS));
   } finally {
     DOMPurify.removeHook('afterSanitizeAttributes');
   }
