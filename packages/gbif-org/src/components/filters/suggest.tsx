@@ -41,6 +41,7 @@ export type SuggestProps = {
   getStringValue?: (item: SuggestionItem) => string;
   placeholder?: string;
   activeItem?: SuggestionItem;
+  clearOnSelect?: boolean;
 };
 
 export const Suggest = React.forwardRef<HTMLInputElement, SuggestProps>(
@@ -55,6 +56,7 @@ export const Suggest = React.forwardRef<HTMLInputElement, SuggestProps>(
       getStringValue,
       placeholder,
       activeItem,
+      clearOnSelect,
     }: SuggestProps,
     ref
   ) => {
@@ -71,6 +73,7 @@ export const Suggest = React.forwardRef<HTMLInputElement, SuggestProps>(
           selected,
           className,
           onSelect,
+          clearOnSelect,
         }}
       />
     );
@@ -88,6 +91,7 @@ const Search = React.forwardRef(
       render,
       placeholder,
       activeItem,
+      clearOnSelect,
       getStringValue = (item: SuggestionItem) => item.title,
     }: {
       onSearch: ({ q, intl }: SuggestFnProps) => {
@@ -102,6 +106,7 @@ const Search = React.forwardRef(
       getStringValue?: (item: SuggestionItem) => string;
       placeholder?: string;
       activeItem?: SuggestionItem;
+      clearOnSelect?: boolean;
     },
     ref
   ) => {
@@ -159,6 +164,7 @@ const Search = React.forwardRef(
     const {
       isOpen,
       inputValue,
+      setInputValue,
       getLabelProps,
       getMenuProps,
       getInputProps,
@@ -177,6 +183,7 @@ const Search = React.forwardRef(
       onSelectedItemChange: ({ selectedItem: newSelectedItem }) => {
         onSelect(newSelectedItem);
         setSelectedItem(null);
+        if (clearOnSelect) setInputValue('');
       },
       defaultHighlightedIndex: 0,
       stateReducer: (state, actionAndChanges) => {
