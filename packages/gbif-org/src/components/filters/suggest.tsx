@@ -164,7 +164,6 @@ const Search = React.forwardRef(
     const {
       isOpen,
       inputValue,
-      setInputValue,
       getLabelProps,
       getMenuProps,
       getInputProps,
@@ -183,12 +182,14 @@ const Search = React.forwardRef(
       onSelectedItemChange: ({ selectedItem: newSelectedItem }) => {
         onSelect(newSelectedItem);
         setSelectedItem(null);
-        if (clearOnSelect) setInputValue('');
       },
       defaultHighlightedIndex: 0,
       stateReducer: (state, actionAndChanges) => {
         const { changes, type } = actionAndChanges;
-        const inputChanges = { ...changes, inputValue: inputValue };
+        // keep the current text (as tracked by downshift) unless we are asked to clear it on selection
+        const keptValue = state.inputValue;
+        const selectionValue = clearOnSelect ? '' : keptValue;
+        const inputChanges = { ...changes, inputValue: keptValue };
         switch (type) {
           case useCombobox.stateChangeTypes.InputChange:
             return changes;
@@ -197,14 +198,14 @@ const Search = React.forwardRef(
               ...inputChanges,
               isOpen: false, // keep menu open after selection.
               highlightedIndex: state.highlightedIndex,
-              inputValue: inputValue, // don't add the item string as input value at selection.
+              inputValue: selectionValue, // don't add the item string as input value at selection.
             };
           case useCombobox.stateChangeTypes.ItemClick:
             return {
               ...inputChanges,
               isOpen: false, // keep menu open after selection.
               highlightedIndex: state.highlightedIndex,
-              inputValue: inputValue, // don't add the item string as input value at selection.
+              inputValue: selectionValue, // don't add the item string as input value at selection.
             };
           default:
             return { ...inputChanges };
