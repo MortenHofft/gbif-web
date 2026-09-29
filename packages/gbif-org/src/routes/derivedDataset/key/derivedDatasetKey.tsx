@@ -17,7 +17,7 @@ import { useEffect, useState } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { useLoaderData } from 'react-router-dom';
 import { AboutContent, ApiContent } from './help';
-import { DescriptionMarkdown } from './descriptionMarkdown';
+import { DescriptionHtml } from './descriptionHtml';
 import { Button } from '@/components/ui/button';
 import { MdDownload, MdLink } from 'react-icons/md';
 import { FormattedNumber } from '@/components/dashboard/shared';
@@ -36,6 +36,7 @@ const DERIVED_DATASET_KEY = /* GraphQL */ `
       originalDownloadDOI
       title
       description
+      descriptionHtml
       sourceUrl
       created
       modified
@@ -228,7 +229,7 @@ export function DerivedDatasetPage() {
                       </div>
                     </V>
                   </>
-                  {derivedDataset.description && (
+                  {derivedDataset.descriptionHtml && (
                     <>
                       <T>
                         <FormattedMessage
@@ -237,7 +238,7 @@ export function DerivedDatasetPage() {
                         />
                       </T>
                       <V>
-                        <DescriptionMarkdown text={derivedDataset.description} />
+                        <DescriptionHtml html={derivedDataset.descriptionHtml} />
                       </V>
                     </>
                   )}
