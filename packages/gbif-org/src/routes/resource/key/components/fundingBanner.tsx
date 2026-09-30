@@ -46,7 +46,7 @@ type Props = {
 export function FundingBanner({ resource }: Props) {
   const fundingOrganisations =
     resource.__typename === 'GbifProject'
-      ? resource.overrideProgrammeFunding ?? resource.programme?.fundingOrganisations
+      ? (resource.overrideProgrammeFunding ?? resource.programme?.fundingOrganisations)
       : resource.fundingOrganisations;
 
   const fundsAllocated =

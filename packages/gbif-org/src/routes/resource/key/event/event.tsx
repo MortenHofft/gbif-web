@@ -4,8 +4,8 @@ import { EventPageFragment } from '@/gql/graphql';
 import { ArticleBanner } from '@/routes/resource/key/components/articleBanner';
 import { fragmentManager } from '@/services/fragmentManager';
 import { MdCalendarMonth } from 'react-icons/md';
-import { FormattedDate, FormattedDateTimeRange, FormattedMessage, FormattedTime } from 'react-intl';
-import { LongDate, longDateFormatProps, toWallClock } from '@/components/dateFormats';
+import { FormattedDate, FormattedMessage, FormattedTime } from 'react-intl';
+import { DateRange, LongDate, longDateFormatProps, toWallClock } from '@/components/dateFormats';
 import { useLoaderData, useLocation } from 'react-router-dom';
 import { ArticleAuxiliary } from '../components/articleAuxiliary';
 import { ArticleBody } from '../components/articleBody';
@@ -221,7 +221,7 @@ const isSameDate = (a: Date, b: Date) =>
 
 export function EventDateRange({ start, end }: RangeProps) {
   if (end && !isSameDate(start, end))
-    return <FormattedDateTimeRange from={start} to={end} {...longDateFormatProps} />;
+    return <DateRange from={start} to={end} {...longDateFormatProps} />;
 
   return <LongDate value={start} />;
 }
@@ -249,7 +249,7 @@ export function EventTimeRange({ start, end, offsetLabel }: RangeProps & { offse
 
   return (
     <>
-      <FormattedDateTimeRange from={start} to={mockEnd} {...timeOptions} />
+      <DateRange from={start} to={mockEnd} {...timeOptions} />
       {label}
     </>
   );
@@ -271,12 +271,11 @@ function DateTimeRange({
     hour12: false,
   } as const;
 
-  if (end && allDay) return <FormattedDateTimeRange from={start} to={end} {...dateOptions} />;
+  if (end && allDay) return <DateRange from={start} to={end} {...dateOptions} />;
   if (end)
     return (
       <>
-        <FormattedDateTimeRange from={start} to={end} {...dateOptions} {...timeOptions} />{' '}
-        {offsetLabel}
+        <DateRange from={start} to={end} {...dateOptions} {...timeOptions} /> {offsetLabel}
       </>
     );
   if (allDay) return <FormattedDate value={start} {...dateOptions} />;

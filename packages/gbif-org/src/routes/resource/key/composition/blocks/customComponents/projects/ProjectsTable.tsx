@@ -86,11 +86,7 @@ const columns: Column[] = [
   { key: 'call', label: 'Call', sortable: true },
 ];
 
-function sortRows(
-  rows: Project[],
-  sortKey: ColumnKey | null,
-  sortDir: 'asc' | 'desc'
-): Project[] {
+function sortRows(rows: Project[], sortKey: ColumnKey | null, sortDir: 'asc' | 'desc'): Project[] {
   if (!sortKey) return rows;
   return [...rows].sort((a, b) => {
     let aValue: unknown = a[sortKey as keyof Project];
@@ -209,13 +205,9 @@ function TableCell({ project, columnKey }: { project: Project; columnKey: Column
         </td>
       );
     case 'projectId':
-      return (
-        <td className="g-px-4 g-py-2 g-whitespace-nowrap">{project.projectId}</td>
-      );
+      return <td className="g-px-4 g-py-2 g-whitespace-nowrap">{project.projectId}</td>;
     case 'call':
-      return (
-        <td className="g-px-4 g-py-2 g-whitespace-nowrap">{project.call?.title}</td>
-      );
+      return <td className="g-px-4 g-py-2 g-whitespace-nowrap">{project.call?.title}</td>;
     default:
       return null;
   }
@@ -311,7 +303,6 @@ export function ProjectsTable({
       setSortDir('asc');
     }
   }
-
 
   return (
     <>

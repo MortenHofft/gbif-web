@@ -1,4 +1,5 @@
 import { createIntl, FormattedDate } from 'react-intl';
+import type { ComponentProps } from 'react';
 
 type DateValue = string | number | Date;
 
@@ -57,6 +58,24 @@ export function toWallClock(value: string): { date: Date; offsetLabel: string } 
     date: new Date(instant.getTime() + minutes * 60_000),
     offsetLabel: `UTC${sign < 0 ? '-' : '+'}${hh}${mm}`,
   };
+}
+
+/**
+ * Drop-in replacement for react-intl's FormattedDateTimeRange. That component uses
+ * Intl.DateTimeFormat#formatRange whose output (e.g. "5–7 May" vs "5 – 7 May") differs between
+ * ICU versions, so server (Node) and browser disagree and hydration fails. Composing two plain
+ * formatted dates with a fixed separator is deterministic.
+ */
+export function DateRange({
+  from,
+  to,
+  ...options
+}: { from: DateValue; to: DateValue } & Omit<ComponentProps<typeof FormattedDate>, 'value'>) {
+  return (
+    <>
+      <FormattedDate value={from} {...options} /> – <FormattedDate value={to} {...options} />
+    </>
+  );
 }
 
 /** "24 February 2026" in English regardless of user locale - for citations */
