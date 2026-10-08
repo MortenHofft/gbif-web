@@ -1,0 +1,28 @@
+{
+  "request": {
+    "method": "POST",
+    "target": "https://graphql.gbif.org/graphql",
+    "body": {
+      "query": "\n  query OccurrenceSearch(\n    $from: Int\n    $size: Int\n    $predicate: Predicate\n    $q: String\n    $language: String\n    $sortBy: OccurrenceSortBy\n    $sortOrder: SortOrder\n    $checklistKey: ID\n  ) {\n    occurrenceSearch(q: $q, predicate: $predicate) {\n      documents(from: $from, size: $size, sortBy: $sortBy, sortOrder: $sortOrder) {\n        from\n        size\n        total\n        results {\n          key\n          taxonKey\n          verbatimScientificName\n          classification(checklistKey: $checklistKey) {\n            usage {\n              rank\n              name\n              key\n            }\n            taxonMatch {\n              usage {\n                name\n                key\n                canonicalName\n                formattedName\n              }\n            }\n            meta {\n              mainIndex {\n                datasetTitle\n              }\n            }\n            vernacularNames(lang: $language, maxLimit: 1) {\n              name\n              reference {\n                citation\n              }\n            }\n            hasTaxonIssues\n          }\n          primaryImage {\n            thumbor(width: 80)\n          }\n          eventDate\n          year\n          coordinates\n          formattedCoordinates\n          country\n          countryCode\n          basisOfRecord\n          datasetTitle\n          datasetKey\n          publishingOrgKey\n          publisherTitle\n          catalogNumber\n          recordedBy\n          identifiedBy\n          fieldNumber\n          occurrenceRemarks(cap: 150)\n          sex\n          lifeStage\n          recordNumber\n          individualCount\n          organismQuantity\n          organismQuantityType\n          typeStatus\n          occurrenceStatus\n          preparations\n          institutionCode\n          institutionKey\n          institution {\n            code\n            name\n          }\n          collectionCode\n          collectionKey\n          collection {\n            code\n            name\n          }\n          organismID\n          elevation\n          depth\n          locality\n          higherGeography\n          stateProvince\n          establishmentMeans\n          iucnRedListCategory\n          stillImageCount\n          movingImageCount\n          soundCount\n          issues(types: [\"WARNING\", \"ERROR\"])\n          volatile {\n            features {\n              isSequenced\n              isTreament\n              isClustered\n              isSamplingEvent\n            }\n          }\n        }\n      }\n    }\n  }\n",
+      "variables": {
+        "language": "eng",
+        "predicate": {
+          "type": "in",
+          "key": "recordedBy",
+          "values": [
+            "Smith*"
+          ]
+        },
+        "checklistKey": "7ddf754f-d193-4cc9-b351-99906754a03b",
+        "size": 50,
+        "from": 0,
+        "sortOrder": "ASC"
+      },
+      "operationName": "OccurrenceSearch"
+    }
+  },
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "encoding": "utf8",
+  "body": "{\"data\":{\"occurrenceSearch\":{\"documents\":{\"from\":0,\"size\":50,\"total\":0,\"results\":[]}}}}\n"
+}

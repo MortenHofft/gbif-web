@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "POST",
+    "target": "https://graphql.gbif.org/graphql",
+    "body": {
+      "query": "\n    query OccurrenceOccurrenceStatusFacet($q: String, $predicate: Predicate) {\n      search: occurrenceSearch(q: $q, predicate: $predicate) {\n        facet {\n          field: occurrenceStatus(size: 100) {\n            name: key\n            count\n          }\n        }\n      }\n    }\n  ",
+      "variables": {
+        "checklistKey": "7ddf754f-d193-4cc9-b351-99906754a03b"
+      },
+      "operationName": "OccurrenceOccurrenceStatusFacet"
+    }
+  },
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "encoding": "utf8",
+  "body": "{\"data\":{\"search\":{\"facet\":{\"field\":[{\"name\":\"PRESENT\",\"count\":3825252263},{\"name\":\"ABSENT\",\"count\":136205369}]}}}}\n"
+}

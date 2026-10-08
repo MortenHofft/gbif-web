@@ -1,0 +1,18 @@
+{
+  "request": {
+    "method": "POST",
+    "target": "https://graphql.gbif.org/graphql",
+    "body": {
+      "query": "\n    query OccurrenceCatalogNumberFacet($q: String, $predicate: Predicate, $size: Int, $include: String){\n      search: occurrenceSearch(q: $q, predicate: $predicate) {\n        cardinality {\n          total: recordedBy\n        }\n        facet {\n          field: recordedBy(size: $size, include: $include) {\n            name: key\n            count\n          }\n        }\n      }\n    }\n  ",
+      "variables": {
+        "size": 25,
+        "include": ".*"
+      },
+      "operationName": "OccurrenceCatalogNumberFacet"
+    }
+  },
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "encoding": "utf8",
+  "body": "{\"data\":{\"search\":{\"cardinality\":{\"total\":13988822},\"facet\":{\"field\":[{\"name\":\"Withheld\",\"count\":50108658},{\"name\":\"BSBI Volunteers\",\"count\":28215552},{\"name\":\"Birds Australia\",\"count\":26524716},{\"name\":\"Jodie van de Kamp [https://orcid.org/0000-0003-2167-0938]\",\"count\":20022405},{\"name\":\"NFI Field Team\",\"count\":15133954},{\"name\":\"Equinor Energy AS\",\"count\":13972657},{\"name\":\"UKBMS Recorder\",\"count\":10750887},{\"name\":\"Die Mitarbeiterinnen und Mitarbeiter der Floristischen Kartierung Deutschlands\",\"count\":9283055},{\"name\":\"Jodie van de Kamp\",\"count\":6732975},{\"name\":\"EQUINOR\",\"count\":5639855},{\"name\":\"Miljøstyrelsen\",\"count\":5498424},{\"name\":\"NSP (NSP)\",\"count\":4398996},{\"name\":\"Aker BP\",\"count\":4321661},{\"name\":\"Recorder details held at BRERC\",\"count\":3886613},{\"name\":\"New Zealand Department of Conservation\",\"count\":3784458},{\"name\":\"D.Janzen, W.Hallwachs\",\"count\":3710812},{\"name\":\"Statoil\",\"count\":3616171},{\"name\":\"obsr3413581\",\"count\":2977868},{\"name\":\"75832757\",\"count\":2655981},{\"name\":\"Hugo Gante\",\"count\":2649877},{\"name\":\"Martin Ostrowski\",\"count\":2583745},{\"name\":\"David G. Bourne[david.bourne@jcu.edu.au;https://orcid.org/0000-0002-1492-8710]\",\"count\":2544086},{\"name\":\"Yun Kit Yeoh[y.yeoh@aims.gov.au;https://orcid.org/0000-0003-0241-6117]\",\"count\":2544086},{\"name\":\"-754202979\",\"count\":2254464},{\"name\":\"IGN\",\"count\":2249023}]}}}}\n"
+}

@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "POST",
+    "target": "https://graphql.gbif.org/graphql",
+    "body": {
+      "query": "\n    query OccurrenceisSequencedFacet($q: String, $predicate: Predicate) {\n      search: occurrenceSearch(q: $q, predicate: $predicate) {\n        facet {\n          field: isSequenced(size: 100) {\n            name: key\n            count\n          }\n        }\n      }\n    }\n  ",
+      "variables": {
+        "checklistKey": "7ddf754f-d193-4cc9-b351-99906754a03b"
+      },
+      "operationName": "OccurrenceisSequencedFacet"
+    }
+  },
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "encoding": "utf8",
+  "body": "{\"data\":{\"search\":{\"facet\":{\"field\":[{\"name\":false,\"count\":3796276162},{\"name\":true,\"count\":165181499}]}}}}\n"
+}

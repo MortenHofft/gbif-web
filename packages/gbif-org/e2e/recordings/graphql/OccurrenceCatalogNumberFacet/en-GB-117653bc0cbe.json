@@ -1,0 +1,23 @@
+{
+  "request": {
+    "method": "POST",
+    "target": "https://graphql.gbif.org/graphql",
+    "body": {
+      "query": "\n    query OccurrenceCatalogNumberFacet($q: String, $predicate: Predicate, $size: Int, $include: String){\n      search: occurrenceSearch(q: $q, predicate: $predicate) {\n        cardinality {\n          total: recordedBy\n        }\n        facet {\n          field: recordedBy(size: $size, include: $include) {\n            name: key\n            count\n          }\n        }\n      }\n    }\n  ",
+      "variables": {
+        "size": 25,
+        "include": ".*Smith.*",
+        "predicate": {
+          "type": "like",
+          "key": "recordedBy",
+          "value": "*Smith*"
+        }
+      },
+      "operationName": "OccurrenceCatalogNumberFacet"
+    }
+  },
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "encoding": "utf8",
+  "body": "{\"data\":{\"search\":{\"cardinality\":{\"total\":74461},\"facet\":{\"field\":[{\"name\":\"R.E.N. Smith\",\"count\":226223},{\"name\":\"Richard E. L. Smith\",\"count\":112809},{\"name\":\"Ryan Smith;Lyric Bartholomay;Sucaet Y;Van Hemert J;Tucker B;Bartholomay L.;Dunphy BM;Rowley WA;Bartholomay LC.;Brendan M. Dunphy;Kristofer B. Kovach;Ella J. Gehrke;Eleanor N. Field;Wayne A. Rowley;Lyric C. Bartholomay & Ryan C. Smith\",\"count\":108042},{\"name\":\"R. Smith\",\"count\":101190},{\"name\":\"P.A. Smith\",\"count\":95246},{\"name\":\"Alexander H. Smith\",\"count\":83806},{\"name\":\"Mr B Ward-Smith\",\"count\":70389},{\"name\":\"C.J. Smith\",\"count\":67546},{\"name\":\"Mr RL Smith\",\"count\":62498},{\"name\":\"M. Smith\",\"count\":60004},{\"name\":\"Anthony Warren Smith\",\"count\":54164},{\"name\":\"Alastair Smith\",\"count\":50325},{\"name\":\"A. Smith\",\"count\":50317},{\"name\":\"Don Smith\",\"count\":46111},{\"name\":\"Mr J Smith\",\"count\":45748},{\"name\":\"Mary Smith\",\"count\":42275},{\"name\":\"Claire Smith\",\"count\":41817},{\"name\":\"Julio Alberto Lemos Espinal; Hobart Smith\",\"count\":35890},{\"name\":\"Luke Smith\",\"count\":35354},{\"name\":\"Lydia Smith\",\"count\":34601},{\"name\":\"Phil Smith\",\"count\":32204},{\"name\":\"Harry Smith\",\"count\":29387},{\"name\":\"Shelagh Smith\",\"count\":26770},{\"name\":\"Tim Smith\",\"count\":26065},{\"name\":\"Smith, Welby\",\"count\":25553}]}}}}\n"
+}

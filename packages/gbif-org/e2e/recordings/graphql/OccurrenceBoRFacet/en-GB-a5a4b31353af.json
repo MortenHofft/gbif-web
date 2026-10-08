@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "POST",
+    "target": "https://graphql.gbif.org/graphql",
+    "body": {
+      "query": "\n    query OccurrenceBoRFacet($q: String, $predicate: Predicate) {\n      search: occurrenceSearch(q: $q, predicate: $predicate) {\n        facet {\n          field: basisOfRecord {\n            name: key\n            count\n          }\n        }\n      }\n    }\n  ",
+      "variables": {
+        "checklistKey": "7ddf754f-d193-4cc9-b351-99906754a03b"
+      },
+      "operationName": "OccurrenceBoRFacet"
+    }
+  },
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "encoding": "utf8",
+  "body": "{\"data\":{\"search\":{\"facet\":{\"field\":[{\"name\":\"HUMAN_OBSERVATION\",\"count\":3318263109},{\"name\":\"PRESERVED_SPECIMEN\",\"count\":285444250},{\"name\":\"MATERIAL_SAMPLE\",\"count\":231499382},{\"name\":\"MACHINE_OBSERVATION\",\"count\":49236214},{\"name\":\"OCCURRENCE\",\"count\":29623346},{\"name\":\"OBSERVATION\",\"count\":19532972},{\"name\":\"FOSSIL_SPECIMEN\",\"count\":10254268},{\"name\":\"MATERIAL_CITATION\",\"count\":9675476},{\"name\":\"LIVING_SPECIMEN\",\"count\":7928644}]}}}}\n"
+}
