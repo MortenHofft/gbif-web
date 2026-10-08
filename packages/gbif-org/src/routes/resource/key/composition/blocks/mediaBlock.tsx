@@ -1,3 +1,4 @@
+import { cmsImageSrcSet, cmsImageUrl } from '@/utils/cmsImage';
 import { Link, MediaBlockDetailsFragment } from '@/gql/graphql';
 import { DynamicLink } from '@/reactRouterPlugins';
 import { fragmentManager } from '@/services/fragmentManager';
@@ -72,7 +73,9 @@ function MediaBlockContent({
     >
       {resource.optionalImg && (
         <MediaBlockImage
-          src={resource.optionalImg.file.url}
+          src={cmsImageUrl(resource.optionalImg.file.url, { width: 900 })}
+          srcSet={cmsImageSrcSet(resource.optionalImg.file.url, [450, 900, 1350])}
+          sizes="(max-width: 450px) 100vw, 450px"
           alt={resource.optionalImg.description}
           title={resource.optionalImg.title}
           description={resource.optionalImg.description}

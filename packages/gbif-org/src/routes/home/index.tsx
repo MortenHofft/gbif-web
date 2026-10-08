@@ -3,6 +3,7 @@ import { MapWidget } from '@/components/maps/mapWidget';
 import { HomePageQuery } from '@/gql/graphql';
 import { DynamicLink, LoaderArgs, RouteObjectWithPlugins, useI18n } from '@/reactRouterPlugins';
 import { DynamicLinkProps, useDynamicNavigate } from '@/reactRouterPlugins/dynamicLink';
+import { cmsImageSrcSet, cmsImageUrl } from '@/utils/cmsImage';
 import { cn } from '@/utils/shadcn';
 import React, { useEffect, useState } from 'react';
 import { MdSearch } from 'react-icons/md';
@@ -54,13 +55,27 @@ function HomePage(): React.ReactElement {
       <div className="">
         {/* A background image with title and a search bar */}
         <section className="g-relative">
-          <div
-            className="g-bg-cover g-bg-center g-bg-no-repeat g-py-48"
-            style={{
-              backgroundImage: `linear-gradient(to right, rgba(0, 0, 0, .3), rgba(0, 0, 0, 0)), linear-gradient(to bottom, rgba(0, 0, 0, .2), rgba(0, 0, 0, 0)), url('${primaryImage?.file?.thumbor}')`,
-            }}
-          >
-            <PageContainer>
+          <div className="g-relative g-overflow-hidden g-py-48">
+            {/* An img rather than a CSS background: the preload scanner finds it, it can take a
+                srcset, and it is the LCP element. */}
+            {primaryImage?.file?.url && (
+              <img
+                src={cmsImageUrl(primaryImage.file.url, { width: 1600 })}
+                srcSet={cmsImageSrcSet(primaryImage.file.url, [800, 1600, 2400])}
+                sizes="100vw"
+                alt=""
+                {...{ fetchpriority: 'high' }}
+                className="g-absolute g-inset-0 g-w-full g-h-full g-object-cover"
+              />
+            )}
+            <div
+              className="g-absolute g-inset-0"
+              style={{
+                backgroundImage:
+                  'linear-gradient(to right, rgba(0, 0, 0, .3), rgba(0, 0, 0, 0)), linear-gradient(to bottom, rgba(0, 0, 0, .2), rgba(0, 0, 0, 0))',
+              }}
+            />
+            <PageContainer className="g-relative">
               <ArticleTextContainer className="g-max-w-6xl">
                 <div className="g-max-w-[800px]">
                   <div className="g-text-white">

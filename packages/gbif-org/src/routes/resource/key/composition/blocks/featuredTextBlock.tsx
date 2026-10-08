@@ -1,5 +1,6 @@
 import { FeaturedTextBlockDetailsFragment } from '@/gql/graphql';
 import { fragmentManager } from '@/services/fragmentManager';
+import { cmsImageUrl } from '@/utils/cmsImage';
 import { ArticleBody } from '../../components/articleBody';
 import { ArticleTextContainer } from '../../components/articleTextContainer';
 import { backgroundColorMap, BlockContainer, BlockHeading, getAnchorId } from './_shared';
@@ -31,7 +32,7 @@ export function FeaturedTextBlock({ resource }: Props) {
     <BlockContainer
       id={getAnchorId(resource.title)}
       className={backgroundColor}
-      backgroundImage={resource.primaryImage?.file?.url}
+      backgroundImage={cmsImageUrl(resource.primaryImage?.file?.url, { width: 2000 })}
     >
       {!resource.hideTitle && resource.title && (
         <BlockHeading dangerouslySetHeading={{ __html: resource.title }} />

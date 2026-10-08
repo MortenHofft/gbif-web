@@ -10,7 +10,6 @@ export const HOMEPAGE_QUERY = /* GraphQL */ `
       primaryImage {
         file {
           url
-          thumbor
         }
         title
         description
@@ -154,7 +153,7 @@ export const HOMEPAGE_QUERY = /* GraphQL */ `
 
   fragment ProseCardImg on AssetImage {
     file {
-      mobile: thumbor(width: 500, height: 400)
+      url
     }
     title
     description
@@ -220,7 +219,7 @@ export const HOMEPAGE_QUERY = /* GraphQL */ `
     body
     optionalImg: primaryImage {
       file {
-        mobile: thumbor(width: 500, height: 400)
+        url
       }
       title
       description

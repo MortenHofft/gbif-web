@@ -58,17 +58,36 @@ export function BlockHeading({ className, dangerouslySetHeading }: BlockHeadingP
 
 type MediaBlockImageProps = {
   src: string;
+  srcSet?: string;
+  sizes?: string;
   alt?: string | null;
   title?: string | null;
   description?: string | null;
   className?: string;
 };
 
-export function MediaBlockImage({ src, alt, title, description, className }: MediaBlockImageProps) {
+export function MediaBlockImage({
+  src,
+  srcSet,
+  sizes,
+  alt,
+  title,
+  description,
+  className,
+}: MediaBlockImageProps) {
   return (
     <div className="g-flex-1 g-group">
       <figure className="g-relative">
-        <img src={src} alt={alt ?? ''} title={title ?? ''} className={className} />
+        <img
+          src={src}
+          srcSet={srcSet}
+          sizes={sizes}
+          alt={alt ?? ''}
+          title={title ?? ''}
+          className={className}
+          loading="lazy"
+          decoding="async"
+        />
         {description && (
           <figcaption
             dir="auto"

@@ -2,11 +2,12 @@ import { ConditionalWrapper } from '@/components/conditionalWrapper';
 import { ProseCardImgFragment } from '@/gql/graphql';
 import { DynamicLink } from '@/reactRouterPlugins';
 import { fragmentManager } from '@/services/fragmentManager';
+import { cmsImageSrcSet, cmsImageUrl } from '@/utils/cmsImage';
 
 fragmentManager.register(/* GraphQL */ `
   fragment ProseCardImg on AssetImage {
     file {
-      mobile: thumbor(width: 500, height: 400)
+      url
     }
     title
     description
@@ -30,8 +31,13 @@ export function ProseCard({ title, description, url, image }: Props) {
         >
           <img
             className="g-rounded-t-lg g-aspect-[5/4] g-w-full"
-            src={image.file.mobile}
+            src={cmsImageUrl(image.file.url, { width: 400, height: 320 })}
+            srcSet={cmsImageSrcSet(image.file.url, [400, 800], 5 / 4)}
+            sizes="(max-width: 384px) 100vw, 384px"
             title={image.title ?? ''}
+            alt=""
+            loading="lazy"
+            decoding="async"
           />
         </ConditionalWrapper>
       )}

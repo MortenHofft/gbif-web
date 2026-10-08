@@ -1,6 +1,7 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArticleBannerFragment } from '@/gql/graphql';
 import { fragmentManager } from '@/services/fragmentManager';
+import { cmsImageSrcSet, cmsImageUrl } from '@/utils/cmsImage';
 import { cn } from '@/utils/shadcn';
 
 fragmentManager.register(/* GraphQL */ `
@@ -41,7 +42,7 @@ export function ArticleBanner({ className, image, testId }: Props) {
         <figure className="g-flex g-flex-col g-items-center">
           <img
             data-testid={testId}
-            src={url}
+            src={cmsImageUrl(url, { width: Math.min(width ?? 1600, 1600) })}
             alt={image?.description ?? 'No image description provided'}
             className="g-rounded-md g-bg-slate-200 g-max-h-[400px] md:g-max-h-[500px]"
           />
@@ -60,10 +61,18 @@ export function ArticleBanner({ className, image, testId }: Props) {
     <div className={cn('g-max-w-6xl g-m-auto', className)}>
       <figure className="g-m-auto">
         <picture className="g-rounded-md">
-          <source srcSet={normal} media="(min-width: 800px)" width="1200" height="500" />
+          <source
+            srcSet={cmsImageSrcSet(url, [1200, 2400], 12 / 5) ?? normal}
+            sizes="(min-width: 1152px) 1152px, 100vw"
+            media="(min-width: 800px)"
+            width="1200"
+            height="500"
+          />
           <img
             data-testid={testId}
-            src={mobile}
+            src={cmsImageUrl(url, { width: 800, height: 400 }) ?? mobile}
+            srcSet={cmsImageSrcSet(url, [800, 1600], 2)}
+            sizes="100vw"
             alt={image?.description ?? 'No image description provided'}
             className="g-rounded-md g-bg-slate-200 g-border g-border-solid g-border-slate-100"
             width="800"

@@ -1,3 +1,4 @@
+import { cmsImageSrcSet, cmsImageUrl } from '@/utils/cmsImage';
 import { CountResolver } from '@/components/countResolver';
 import { MediaCountBlockDetailsFragment } from '@/gql/graphql';
 import { DynamicLink } from '@/reactRouterPlugins';
@@ -21,7 +22,7 @@ fragmentManager.register(/* GraphQL */ `
     body
     optionalImg: primaryImage {
       file {
-        mobile: thumbor(width: 500, height: 400)
+        url
       }
       title
       description
@@ -74,7 +75,9 @@ function MediaCountBlockContent({
     >
       {resource.optionalImg && (
         <MediaBlockImage
-          src={resource.optionalImg.file.mobile}
+          src={cmsImageUrl(resource.optionalImg.file.url, { width: 500, height: 400 })}
+          srcSet={cmsImageSrcSet(resource.optionalImg.file.url, [500, 1000], 5 / 4)}
+          sizes="(max-width: 500px) 100vw, 500px"
           alt={resource.optionalImg.description}
           title={resource.optionalImg.title}
           description={resource.optionalImg.description}

@@ -1,4 +1,5 @@
 // import { useCount } from '@/components/count';
+import { cmsImageUrl } from '@/utils/cmsImage';
 import { CountProps, useCount } from '@/components/count';
 import { apiConstants } from '@/config/apiConstants';
 import { HomePageCountIconsFragment } from '@/gql/graphql';
@@ -122,7 +123,13 @@ function CountItem({
 
   return (
     <div data-testid={testId} className="g-flex g-flex-col g-items-center g-flex-1">
-      <img className="g-w-28 g-aspect-square" src={icon} />
+      <img
+        className="g-w-28 g-aspect-square"
+        src={cmsImageUrl(icon, { width: 224 })}
+        alt=""
+        width={112}
+        height={112}
+      />
       <span
         data-testid="count-value"
         className={cn('g-text-3xl g-font-medium g-text-gray-600 dark:g-text-slate-200', {
