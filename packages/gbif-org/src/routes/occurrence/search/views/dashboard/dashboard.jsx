@@ -1,6 +1,6 @@
 import { ClientSideOnly } from '@/components/clientSideOnly';
 import * as charts from '@/components/dashboard';
-import { MapChartsEnabledContext } from '@/components/dashboard/charts/OneDimensionalChart';
+import { MapChartsEnabledContext } from '@/components/dashboard/charts/mapChartsEnabledContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/smallCard';
 import { useParam } from '@/hooks/useParam';

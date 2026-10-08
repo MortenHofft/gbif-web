@@ -16,17 +16,13 @@ import { getColumnOptions } from './column';
 import { FacetResultRow, GroupBy, Pagging, useFacets } from './GroupByTable';
 import Highcharts, { chartPatterns, generateChartsPalette } from './highcharts';
 import { Map } from './map/map';
+import { MapChartsEnabledContext } from './mapChartsEnabledContext';
 import { getPieOptions } from './pie';
 import { getTimeSeriesOptions } from './time';
 
 export const chartsClass = 'g-min-w-full g-h-full g-w-40 g-overflow-hidden';
 
 const enableMapCharts = import.meta.env.PUBLIC_DEFAULT_ENABLE_MAP_CHARTS === 'true';
-
-// MAP view is disabled by default everywhere. Wrap a subtree in
-// <MapChartsEnabledContext.Provider value={true}> to opt in (e.g. the
-// occurrence search dashboard). The env var above acts as a master kill-switch.
-export const MapChartsEnabledContext = React.createContext<boolean>(false);
 
 export type ChartView = 'COLUMN' | 'PIE' | 'TABLE' | 'TIME' | 'MAP';
 
