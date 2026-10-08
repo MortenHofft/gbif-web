@@ -57,8 +57,6 @@ export const helmetConfig = {
         'cdnjs.cloudflare.com/ajax/libs/mapbox-gl/*.css',
         'api.mapbox.com',
         'maxcdn.bootstrapcdn.com',
-        // Used to load Inter font
-        'rsms.me',
       ],
       mediaSrc: ['*'],
       imgSrc: ['*', 'data:'],

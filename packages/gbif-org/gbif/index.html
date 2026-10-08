@@ -2,12 +2,10 @@
 <!-- The html opening tag is replaced by server.js to add attributes from react-helmet-async. Don't change it without changing server.js -->
 <html class="g-m-0 g-p-0 notranslate">
   <head>
-    <!--head-html-->
+    <!-- Must stay within the first 1024 bytes, so before the variable-length helmet output. -->
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--head-html-->
     <meta name="google" value="notranslate" />
 
     <link rel="apple-touch-icon" sizes="57x57" href="/favicons/apple-touch-icon-57x57.png" />
@@ -31,7 +29,6 @@
     <meta name="msapplication-TileImage" content="/favicons/mstile-144x144.png" />
     <meta name="theme-color" content="#4c9e45" />
 
-    <link href="https://rsms.me/inter/inter.css" rel="stylesheet" />
     <link rel="stylesheet" href="/src/index.css" />
     <!-- Used with react devtools locally. The browser extension can't process expensive profiling -->
     <!-- <script src="http://localhost:8097"></script> -->

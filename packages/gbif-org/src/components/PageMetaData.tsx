@@ -33,6 +33,12 @@ const PageMetaData = ({
 
   // Alternative languages are handled globally by the <AlternativeLanguages /> component
 
+  const descriptionText = stripTags(
+    description || intl.formatMessage({ id: 'phrases.defaultPageDescription' })
+  )
+    .replace(/\s+/g, ' ')
+    .trim();
+
   return (
     <Helmet>
       <title>{title || intl.formatMessage({ id: 'phrases.defaultPageTitle' })}</title>
@@ -46,12 +52,8 @@ const PageMetaData = ({
         property="og:title"
         content={title || intl.formatMessage({ id: 'phrases.defaultPageTitle' })}
       />
-      <meta
-        property="og:description"
-        content={stripTags(
-          description || intl.formatMessage({ id: 'phrases.defaultPageDescription' })
-        )}
-      />
+      <meta name="description" content={descriptionText} />
+      <meta property="og:description" content={descriptionText} />
       {imageUrl && <meta property="og:image" content={imageUrl} />}
       {imageUrl && imageAlt && <meta property="og:image:alt" content={imageAlt} />}
       {!!jsonLd && <script type="application/ld+json">{JSON.stringify(jsonLd, null, 2)}</script>}
