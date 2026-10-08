@@ -54,7 +54,7 @@ function createPreloadLinks(manifest, moduleIds, template) {
   moduleIds?.forEach(visit);
   return [...files]
     .filter((file) => !template.includes(`/${file}`))
-    .map((file) => `<link rel="modulepreload" crossorigin href="/${file}">`)
+    .map((file) => `<link rel="modulepreload" fetchpriority="low" crossorigin href="/${file}">`)
     .join('');
 }
 
@@ -261,9 +261,11 @@ async function main() {
           'utf8'
         );
         template = cachedProdTemplate;
-        cachedClientManifest ??= JSON.parse(
-          await fsp.readFile(path.join(DIST_DIR, 'client/.vite/manifest.json'), 'utf8')
-        );
+        // Without it pages still render, only without the route preloads.
+        cachedClientManifest ??= await fsp
+          .readFile(path.join(DIST_DIR, 'client/.vite/manifest.json'), 'utf8')
+          .then(JSON.parse)
+          .catch(() => ({}));
         render = (await import(pathToFileURL(path.join(DIST_DIR, 'server/entry.server.js')).href))
           .render;
       }
