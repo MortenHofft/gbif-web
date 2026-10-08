@@ -1,10 +1,9 @@
-import { RouteObjectWithPlugins } from '@/reactRouterPlugins';
-import { EventSearchPage } from './eventSearchPage';
+import { lazyElement, RouteObjectWithPlugins } from '@/reactRouterPlugins';
 
 export const eventSearchRouteId = 'eventSearch';
 
 export const eventSearchRoute: RouteObjectWithPlugins = {
   id: eventSearchRouteId,
   path: 'event/search',
-  element: <EventSearchPage />,
+  lazy: lazyElement(() => import('./eventSearchPage'), 'EventSearchPage'),
 };

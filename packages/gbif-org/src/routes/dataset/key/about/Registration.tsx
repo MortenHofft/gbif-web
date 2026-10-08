@@ -8,7 +8,7 @@ import React, { useState } from 'react';
 import { MdLink } from 'react-icons/md';
 import { FormattedMessage } from 'react-intl';
 import { LongDate } from '@/components/dateFormats';
-import { DatasetKeyLoaderResult } from '../datasetKey';
+import type { DatasetKeyLoaderResult } from '../datasetKey.loader';
 
 type Props = {
   dataset: DatasetKeyLoaderResult['data']['dataset'];

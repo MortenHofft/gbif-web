@@ -1,8 +1,7 @@
 import { StaticRenderSuspence } from '@/components/staticRenderSuspence';
-import { RouteObjectWithPlugins } from '@/reactRouterPlugins';
+import { lazyElement, RouteObjectWithPlugins } from '@/reactRouterPlugins';
 import React from 'react';
 import { ToolCardSkeleton } from '../_shared/toolCardSkeleton';
-import { createToolLayoutLoader, ToolAboutTab, ToolLayout } from '../_shared/toolLayout';
 import { ApiContent } from './help';
 
 const SpeciesLookupPage = React.lazy(() => import('./SpeciesLookupPage'));
@@ -10,8 +9,12 @@ const SpeciesLookupPage = React.lazy(() => import('./SpeciesLookupPage'));
 export const speciesLookupRoute: RouteObjectWithPlugins = {
   id: 'speciesLookup',
   path: 'tools/species-lookup',
-  loader: createToolLayoutLoader('species_matching'),
-  element: <ToolLayout defaultTitle="Species lookup" apiContent={<ApiContent />} />,
+  loader: (args) =>
+    import('../_shared/toolLayout').then((m) => m.createToolLayoutLoader('species_matching')(args)),
+  lazy: async () => {
+    const { ToolLayout } = await import('../_shared/toolLayout');
+    return { element: <ToolLayout defaultTitle="Species lookup" apiContent={<ApiContent />} /> };
+  },
   children: [
     {
       index: true,
@@ -23,7 +26,7 @@ export const speciesLookupRoute: RouteObjectWithPlugins = {
     },
     {
       path: 'about',
-      element: <ToolAboutTab />,
+      lazy: lazyElement(() => import('../_shared/toolLayout'), 'ToolAboutTab'),
     },
   ],
 };

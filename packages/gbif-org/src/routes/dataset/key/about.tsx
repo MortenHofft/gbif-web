@@ -51,7 +51,7 @@ import { UserAvatarSection } from '@/components/userAvatarSection';
 import { useUser } from '@/contexts/UserContext';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { DatasetKeyLoaderResult } from './datasetKey';
+import type { DatasetKeyLoaderResult } from './datasetKey.loader';
 import { LocalContextCards } from './about/LocalContexts';
 import { DynamicLink } from '@/reactRouterPlugins';
 import TestSiteAlert from '@/components/TestSiteAlert';

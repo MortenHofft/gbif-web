@@ -21,6 +21,11 @@ import {
 import { useNotifyOfPartialDataIfErrors } from '@/routes/rootErrorPage';
 import PageMetaData from '@/components/PageMetaData';
 import { apiConstants } from '@/config/apiConstants';
+// Side-effect imports: register the fragments this module's loader query spreads. Tabs and
+// shared components load lazily, so they cannot be relied on to have registered them first.
+import './projectAboutTab';
+import './projectDatasetsTab';
+import '../components/documents';
 
 export const ProjectPageSkeleton = ArticleSkeleton;
 

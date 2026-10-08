@@ -8,6 +8,9 @@ import { ArticleTextContainer } from '../../resource/key/components/articleTextC
 import { ArticleTitle } from '../../resource/key/components/articleTitle';
 import { PageContainer } from '../../resource/key/components/pageContainer';
 import PageMetaData from '@/components/PageMetaData';
+// Side-effect imports: register the fragments this module's loader query spreads. Tabs and
+// shared components load lazily, so they cannot be relied on to have registered them first.
+import '@/routes/resource/key/components/articleBanner';
 
 const CONTACT_US_QUERY = /* GraphQL */ `
   query ContactUsPage {

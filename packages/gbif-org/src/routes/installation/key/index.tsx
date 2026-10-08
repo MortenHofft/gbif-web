@@ -1,11 +1,11 @@
-import { RouteObjectWithPlugins, useRenderedRouteLoaderData } from '@/reactRouterPlugins';
-import { InstallationKeyAbout } from './about';
+import { ArticleSkeleton } from '@/routes/resource/key/components/articleSkeleton';
 import {
-  InstallationKeyLoaderResult,
-  installationLoader,
-  InstallationPage,
-  InstallationPageSkeleton,
-} from './installationKey';
+  lazyElement,
+  lazyLoader,
+  RouteObjectWithPlugins,
+  useRenderedRouteLoaderData,
+} from '@/reactRouterPlugins';
+import type { InstallationKeyLoaderResult } from './installationKey';
 
 const id = 'installationKey';
 
@@ -18,13 +18,13 @@ export const installationKeyRoute: RouteObjectWithPlugins = {
     return `${import.meta.env.PUBLIC_GBIF_ORG}${gbifOrgLocalePrefix}/installation/${key}`;
   },
   path: 'installation/:key',
-  loader: installationLoader,
-  loadingElement: <InstallationPageSkeleton />,
-  element: <InstallationPage />,
+  loader: lazyLoader(() => import('./installationKey'), 'installationLoader'),
+  loadingElement: <ArticleSkeleton />,
+  lazy: lazyElement(() => import('./installationKey'), 'InstallationPage'),
   children: [
     {
       index: true,
-      element: <InstallationKeyAbout />,
+      lazy: lazyElement(() => import('./about'), 'InstallationKeyAbout'),
     },
   ],
 };

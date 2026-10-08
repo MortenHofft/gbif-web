@@ -1,14 +1,12 @@
-import { RouteObjectWithPlugins } from '@/reactRouterPlugins';
-import { LiteratureSearchPage } from './literature';
-import { LiteratureButton } from './literatureButton';
+import { lazyElement, RouteObjectWithPlugins } from '@/reactRouterPlugins';
 export const literatureSearchWidgetRoute: RouteObjectWithPlugins = {
   id: 'literatureSearchWidget',
   path: 'api/widgets/literature/latest',
-  element: <LiteratureSearchPage />,
+  lazy: lazyElement(() => import('./literature'), 'LiteratureSearchPage'),
 };
 
 export const literatureButtonWidgetRoute: RouteObjectWithPlugins = {
   id: 'literatureButtonWidget',
   path: 'api/widgets/literature/button',
-  element: <LiteratureButton />,
+  lazy: lazyElement(() => import('./literatureButton'), 'LiteratureButton'),
 };

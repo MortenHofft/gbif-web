@@ -1,20 +1,8 @@
-import { LoaderArgs, RouteObjectWithPlugins } from '@/reactRouterPlugins';
-import { AliasHandling, aliasHandlingLoader, AliasHandlingSkeleton } from './aliasHandling';
-import { ArticlePage, articlePageLoader, ArticlePageSkeleton } from './article/article';
-import {
-  CompositionPage,
-  compositionPageLoader,
-  CompositionPageSkeleton,
-} from './composition/composition';
-import { DataUsePage, dataUsePageLoader, DataUsePageSkeleton } from './dataUse/dataUse';
-import { DocumentPage, documentPageLoader, DocumentPageSkeleton } from './document/document';
-import { EventPage, eventPageLoader, EventPageSkeleton } from './event/event';
-import { NewsPage, newsPageLoader, NewsPageSkeleton } from './news/news';
-import { ProgrammePage, programmePageLoader, ProgrammePageSkeleton } from './programme/programme';
-import { projectKeyRoute } from './project';
 import { resourceRedirectLoader } from './resourceRedirect';
+import { ArticleSkeleton } from '@/routes/resource/key/components/articleSkeleton';
+import { lazyElement, lazyLoader, LoaderArgs, RouteObjectWithPlugins } from '@/reactRouterPlugins';
+import { projectKeyRoute } from './project';
 import { redirect } from 'react-router-dom';
-import { ToolPage, toolPageLoader, ToolPageSkeleton } from './tool/tool';
 
 // These routes are all connected by the fact that
 // 1. resource/:key will redirect to the appropriate resource page
@@ -26,33 +14,33 @@ export const resourceKeyRoutes: RouteObjectWithPlugins[] = [
   {
     id: 'article-key',
     path: 'article/:key',
-    loader: articlePageLoader,
-    loadingElement: <ArticlePageSkeleton />,
-    element: <ArticlePage />,
+    loader: lazyLoader(() => import('./article/article'), 'articlePageLoader'),
+    loadingElement: <ArticleSkeleton />,
+    lazy: lazyElement(() => import('./article/article'), 'ArticlePage'),
     isSlugified: true,
   },
   {
     id: 'news-key',
     path: 'news/:key',
-    loader: newsPageLoader,
-    loadingElement: <NewsPageSkeleton />,
-    element: <NewsPage />,
+    loader: lazyLoader(() => import('./news/news'), 'newsPageLoader'),
+    loadingElement: <ArticleSkeleton />,
+    lazy: lazyElement(() => import('./news/news'), 'NewsPage'),
     isSlugified: true,
   },
   {
     id: 'event-key',
     path: 'event/:key',
-    loader: eventPageLoader,
-    loadingElement: <EventPageSkeleton />,
-    element: <EventPage />,
+    loader: lazyLoader(() => import('./event/event'), 'eventPageLoader'),
+    loadingElement: <ArticleSkeleton />,
+    lazy: lazyElement(() => import('./event/event'), 'EventPage'),
     isSlugified: true,
   },
   {
     id: 'tool-key',
     path: 'tool/:key',
-    loader: toolPageLoader,
-    loadingElement: <ToolPageSkeleton />,
-    element: <ToolPage />,
+    loader: lazyLoader(() => import('./tool/tool'), 'toolPageLoader'),
+    loadingElement: <ArticleSkeleton />,
+    lazy: lazyElement(() => import('./tool/tool'), 'ToolPage'),
     isSlugified: true,
   },
   {
@@ -63,46 +51,46 @@ export const resourceKeyRoutes: RouteObjectWithPlugins[] = [
   {
     id: 'data-use-key',
     path: 'data-use/:key',
-    loader: dataUsePageLoader,
-    loadingElement: <DataUsePageSkeleton />,
-    element: <DataUsePage />,
+    loader: lazyLoader(() => import('./dataUse/dataUse'), 'dataUsePageLoader'),
+    loadingElement: <ArticleSkeleton />,
+    lazy: lazyElement(() => import('./dataUse/dataUse'), 'DataUsePage'),
     isSlugified: true,
   },
   {
     id: 'document-key',
     path: 'document/:key',
-    loader: documentPageLoader,
-    loadingElement: <DocumentPageSkeleton />,
-    element: <DocumentPage />,
+    loader: lazyLoader(() => import('./document/document'), 'documentPageLoader'),
+    loadingElement: <ArticleSkeleton />,
+    lazy: lazyElement(() => import('./document/document'), 'DocumentPage'),
     isSlugified: true,
   },
   {
     id: 'programme-key',
     path: 'programme/:key',
-    loader: programmePageLoader,
-    loadingElement: <ProgrammePageSkeleton />,
-    element: <ProgrammePage />,
+    loader: lazyLoader(() => import('./programme/programme'), 'programmePageLoader'),
+    loadingElement: <ArticleSkeleton />,
+    lazy: lazyElement(() => import('./programme/programme'), 'ProgrammePage'),
     isSlugified: true,
   },
   {
     id: 'composition-key',
     path: 'composition/:key',
-    loader: compositionPageLoader,
-    loadingElement: <CompositionPageSkeleton />,
-    element: <CompositionPage />,
+    loader: lazyLoader(() => import('./composition/composition'), 'compositionPageLoader'),
+    loadingElement: <ArticleSkeleton />,
+    lazy: lazyElement(() => import('./composition/composition'), 'CompositionPage'),
     isSlugified: true,
   },
   {
     id: 'resource-redirect-key',
     path: 'resource/:key',
     loader: resourceRedirectLoader,
-    loadingElement: <AliasHandlingSkeleton />,
+    loadingElement: <ArticleSkeleton />,
   },
   {
     id: 'alias-handling',
     path: '*',
-    loader: aliasHandlingLoader,
-    loadingElement: <AliasHandlingSkeleton />,
-    element: <AliasHandling />,
+    loader: lazyLoader(() => import('./aliasHandling'), 'aliasHandlingLoader'),
+    loadingElement: <ArticleSkeleton />,
+    lazy: lazyElement(() => import('./aliasHandling'), 'AliasHandling'),
   },
 ];

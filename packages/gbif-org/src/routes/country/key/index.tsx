@@ -1,16 +1,11 @@
 import { ParticipantQuery } from '@/gql/graphql';
-import { RouteObjectWithPlugins, useRenderedRouteLoaderData } from '@/reactRouterPlugins';
+import {
+  lazyElement,
+  lazyLoader,
+  RouteObjectWithPlugins,
+  useRenderedRouteLoaderData,
+} from '@/reactRouterPlugins';
 import { redirectDocument } from 'react-router-dom';
-import { CountryKeyAbout } from './about';
-import { CountryKeyAlienSpecies } from './alienSpecies';
-import { CountryKeyLayout, countryKeyLoader } from './layout';
-import { CountryKeyNews } from './news';
-import { CountryKeyParticipation } from './participation';
-import { CountryKeyProjects } from './projects';
-import { CountryKeyPublicationsAbout } from './publications/about';
-import { CountryKeyPublicationsFrom } from './publications/from';
-import { CountryKeyPublishing } from './publishing';
-import { CountryKeySummary } from './summary';
 
 const id = 'countryKey';
 
@@ -23,8 +18,8 @@ export const countryKeyRoute: RouteObjectWithPlugins = {
     return `${import.meta.env.PUBLIC_GBIF_ORG}${gbifOrgLocalePrefix}/country/${key}`;
   },
   path: 'country/:countryCode',
-  loader: countryKeyLoader,
-  element: <CountryKeyLayout />,
+  loader: lazyLoader(() => import('./layout'), 'countryKeyLoader'),
+  lazy: lazyElement(() => import('./layout'), 'CountryKeyLayout'),
   children: [
     {
       index: true,
@@ -32,31 +27,31 @@ export const countryKeyRoute: RouteObjectWithPlugins = {
     },
     {
       path: 'summary',
-      element: <CountryKeySummary />,
+      lazy: lazyElement(() => import('./summary'), 'CountryKeySummary'),
     },
     {
       path: 'about',
-      element: <CountryKeyAbout />,
+      lazy: lazyElement(() => import('./about'), 'CountryKeyAbout'),
     },
     {
       path: 'publishing',
-      element: <CountryKeyPublishing />,
+      lazy: lazyElement(() => import('./publishing'), 'CountryKeyPublishing'),
     },
     {
       path: 'participation',
-      element: <CountryKeyParticipation />,
+      lazy: lazyElement(() => import('./participation'), 'CountryKeyParticipation'),
     },
     {
       path: 'alien-species',
-      element: <CountryKeyAlienSpecies />,
+      lazy: lazyElement(() => import('./alienSpecies'), 'CountryKeyAlienSpecies'),
     },
     {
       path: 'projects',
-      element: <CountryKeyProjects />,
+      lazy: lazyElement(() => import('./projects'), 'CountryKeyProjects'),
     },
     {
       path: 'news',
-      element: <CountryKeyNews />,
+      lazy: lazyElement(() => import('./news'), 'CountryKeyNews'),
     },
     {
       path: 'publications',
@@ -67,11 +62,11 @@ export const countryKeyRoute: RouteObjectWithPlugins = {
         },
         {
           path: 'from',
-          element: <CountryKeyPublicationsFrom />,
+          lazy: lazyElement(() => import('./publications/from'), 'CountryKeyPublicationsFrom'),
         },
         {
           path: 'about',
-          element: <CountryKeyPublicationsAbout />,
+          lazy: lazyElement(() => import('./publications/about'), 'CountryKeyPublicationsAbout'),
         },
       ],
     },

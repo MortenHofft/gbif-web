@@ -1,5 +1,5 @@
-import { RouteObjectWithPlugins } from '@/reactRouterPlugins';
-import { DownloadKey, downloadKeyLoader, DownloadKeySkeleton } from './downloadKey';
+import { ArticleSkeleton } from '@/routes/resource/key/components/articleSkeleton';
+import { lazyElement, lazyLoader, RouteObjectWithPlugins } from '@/reactRouterPlugins';
 
 const id = 'downloadKey';
 
@@ -15,7 +15,7 @@ export const downloadKeyRoute: RouteObjectWithPlugins = {
     return `${import.meta.env.PUBLIC_GBIF_ORG}${gbifOrgLocalePrefix}/occurrence/download/${key}`;
   },
   path: 'occurrence/download/:key',
-  loader: downloadKeyLoader,
-  loadingElement: <DownloadKeySkeleton />,
-  element: <DownloadKey />,
+  loader: lazyLoader(() => import('./downloadKey'), 'downloadKeyLoader'),
+  loadingElement: <ArticleSkeleton />,
+  lazy: lazyElement(() => import('./downloadKey'), 'DownloadKey'),
 };

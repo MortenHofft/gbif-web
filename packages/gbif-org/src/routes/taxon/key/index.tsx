@@ -1,9 +1,11 @@
 import { TaxonKeyQuery } from '@/gql/graphql';
-import { RouteObjectWithPlugins, useRenderedRouteLoaderData } from '@/reactRouterPlugins';
+import {
+  lazyElement,
+  lazyLoader,
+  RouteObjectWithPlugins,
+  useRenderedRouteLoaderData,
+} from '@/reactRouterPlugins';
 import { redirectDocument } from 'react-router-dom';
-import TaxonKeyAbout from './About';
-import Metrics from './Metrics';
-import { TaxonKey, taxonLoader } from './taxonKey';
 
 const id = 'taxonKey';
 
@@ -22,20 +24,20 @@ export const taxonKeyRoute: RouteObjectWithPlugins = {
       import.meta.env.PUBLIC_GBIF_ORG
     }${gbifOrgLocalePrefix}/${path}/${encodeURIComponent(key)}`;
   },
-  loader: taxonLoader,
+  loader: lazyLoader(() => import('./taxonKey'), 'taxonLoader'),
   /* shouldRevalidate({ currentUrl, nextUrl, defaultShouldRevalidate }) {
     if (currentUrl.pathname === nextUrl.pathname) return false;
     return defaultShouldRevalidate;
   }, */
-  element: <TaxonKey />,
+  lazy: lazyElement(() => import('./taxonKey'), 'TaxonKey'),
   children: [
     {
       index: true,
-      element: <TaxonKeyAbout />,
+      lazy: lazyElement(() => import('./About'), 'default'),
     },
     {
       path: 'metrics',
-      element: <Metrics />,
+      lazy: lazyElement(() => import('./Metrics'), 'default'),
     },
     {
       path: 'treatments',

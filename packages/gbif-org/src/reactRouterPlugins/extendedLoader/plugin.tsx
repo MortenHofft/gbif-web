@@ -69,14 +69,24 @@ function modifyLoader(
 
   // Add the modified config to the route
   if (route.overrideConfig && route.element) {
-    const originalElement = route.element;
-
-    const Element = () => {
-      return (
-        <OverwriteConfigProvider config={routeConfig}>{originalElement}</OverwriteConfigProvider>
-      );
-    };
-
-    route.element = <Element />;
+    route.element = withConfig(route.element, routeConfig);
   }
+
+  if (route.overrideConfig && typeof route.lazy === 'function') {
+    const originalLazy = route.lazy;
+    route.lazy = async () => {
+      const resolved = await originalLazy();
+      return resolved.element
+        ? { ...resolved, element: withConfig(resolved.element, routeConfig) }
+        : resolved;
+    };
+  }
+}
+
+function withConfig(element: React.ReactNode, config: Config) {
+  const Element = () => {
+    return <OverwriteConfigProvider config={config}>{element}</OverwriteConfigProvider>;
+  };
+
+  return <Element />;
 }

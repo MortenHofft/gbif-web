@@ -1,8 +1,7 @@
 import { StaticRenderSuspence } from '@/components/staticRenderSuspence';
-import { RouteObjectWithPlugins } from '@/reactRouterPlugins';
+import { lazyElement, RouteObjectWithPlugins } from '@/reactRouterPlugins';
 import React from 'react';
 import { ToolCardSkeleton } from '../_shared/toolCardSkeleton';
-import { createToolLayoutLoader, ToolAboutTab, ToolLayout } from '../_shared/toolLayout';
 import { ApiContent } from './help';
 
 const SequenceIdPage = React.lazy(() => import('./SequenceIdPage'));
@@ -10,8 +9,12 @@ const SequenceIdPage = React.lazy(() => import('./SequenceIdPage'));
 export const sequenceIdRoute: RouteObjectWithPlugins = {
   id: 'sequenceId',
   path: 'tools/sequence-id',
-  loader: createToolLayoutLoader('sequence_id'),
-  element: <ToolLayout defaultTitle="Sequence ID" apiContent={<ApiContent />} />,
+  loader: (args) =>
+    import('../_shared/toolLayout').then((m) => m.createToolLayoutLoader('sequence_id')(args)),
+  lazy: async () => {
+    const { ToolLayout } = await import('../_shared/toolLayout');
+    return { element: <ToolLayout defaultTitle="Sequence ID" apiContent={<ApiContent />} /> };
+  },
   children: [
     {
       index: true,
@@ -23,7 +26,7 @@ export const sequenceIdRoute: RouteObjectWithPlugins = {
     },
     {
       path: 'about',
-      element: <ToolAboutTab />,
+      lazy: lazyElement(() => import('../_shared/toolLayout'), 'ToolAboutTab'),
     },
   ],
 };

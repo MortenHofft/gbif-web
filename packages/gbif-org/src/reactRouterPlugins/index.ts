@@ -63,3 +63,4 @@ export function applyReactRouterPlugins(
 
   return withExtendedLoader as RouteObject[];
 }
+export { lazyElement, lazyLoader } from './lazyElement';

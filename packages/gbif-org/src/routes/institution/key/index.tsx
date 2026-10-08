@@ -1,11 +1,15 @@
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { RouteObjectWithPlugins, useRenderedRouteLoaderData } from '@/reactRouterPlugins';
-import InstitutionKeyAbout from './About';
-import InstitutionKeyCollection from './Collection';
-import { InstitutionKey, InstitutionKeyLoaderResult, institutionLoader } from './institutionKey';
-import InstitutionKeySpecimens from './Specimen';
+import {
+  lazyElement,
+  lazyLoader,
+  RouteObjectWithPlugins,
+  useRenderedRouteLoaderData,
+} from '@/reactRouterPlugins';
+import type { InstitutionKeyLoaderResult } from './institutionKey';
 
 const id = 'institutionKey';
+
+const withErrorBoundary = (element: JSX.Element) => <ErrorBoundary>{element}</ErrorBoundary>;
 
 export const institutionKeyRoute: RouteObjectWithPlugins = {
   id,
@@ -16,32 +20,20 @@ export const institutionKeyRoute: RouteObjectWithPlugins = {
     return `${import.meta.env.PUBLIC_GRSCICOLL}${grSciCollLocalePrefix}/institution/${key}`;
   },
   path: 'institution/:key',
-  loader: institutionLoader,
-  element: <InstitutionKey />,
+  loader: lazyLoader(() => import('./institutionKey'), 'institutionLoader'),
+  lazy: lazyElement(() => import('./institutionKey'), 'InstitutionKey'),
   children: [
     {
       index: true,
-      element: (
-        <ErrorBoundary>
-          <InstitutionKeyAbout />
-        </ErrorBoundary>
-      ),
+      lazy: lazyElement(() => import('./About'), 'default', withErrorBoundary),
     },
     {
       path: 'specimens',
-      element: (
-        <ErrorBoundary>
-          <InstitutionKeySpecimens />
-        </ErrorBoundary>
-      ),
+      lazy: lazyElement(() => import('./Specimen'), 'default', withErrorBoundary),
     },
     {
       path: 'collections',
-      element: (
-        <ErrorBoundary>
-          <InstitutionKeyCollection />
-        </ErrorBoundary>
-      ),
+      lazy: lazyElement(() => import('./Collection'), 'default', withErrorBoundary),
     },
   ],
 };

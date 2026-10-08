@@ -1,8 +1,10 @@
-import { RouteObjectWithPlugins, useRenderedRouteLoaderData } from '@/reactRouterPlugins';
-import CollectionKeyAbout from './About';
-import { CollectionKey, CollectionKeyLoaderResult, collectionLoader } from './collectionKey';
-import CollectionKeyDashboard from './Dashboard';
-import CollectionKeySpecimens from './Specimen';
+import {
+  lazyElement,
+  lazyLoader,
+  RouteObjectWithPlugins,
+  useRenderedRouteLoaderData,
+} from '@/reactRouterPlugins';
+import type { CollectionKeyLoaderResult } from './collectionKey';
 
 const id = 'collectionKey';
 
@@ -15,24 +17,24 @@ export const collectionKeyRoute: RouteObjectWithPlugins = {
     if (key === 'search') return null;
     return `${import.meta.env.PUBLIC_GRSCICOLL}${grSciCollLocalePrefix}/collection/${key}`;
   },
-  loader: collectionLoader,
+  loader: lazyLoader(() => import('./collectionKey'), 'collectionLoader'),
   shouldRevalidate({ currentUrl, nextUrl, defaultShouldRevalidate }) {
     if (currentUrl.pathname === nextUrl.pathname) return false;
     return defaultShouldRevalidate;
   },
-  element: <CollectionKey />,
+  lazy: lazyElement(() => import('./collectionKey'), 'CollectionKey'),
   children: [
     {
       index: true,
-      element: <CollectionKeyAbout />,
+      lazy: lazyElement(() => import('./About'), 'default'),
     },
     {
       path: 'specimens',
-      element: <CollectionKeySpecimens />,
+      lazy: lazyElement(() => import('./Specimen'), 'default'),
     },
     {
       path: 'dashboard',
-      element: <CollectionKeyDashboard />,
+      lazy: lazyElement(() => import('./Dashboard'), 'default'),
     },
   ],
 };

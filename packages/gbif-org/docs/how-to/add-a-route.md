@@ -38,8 +38,11 @@ The loader also redirects direct hits, but that is a safety net.
    `useNotifyOfPartialDataIfErrors(errors)`, `<Helmet>` title, text via `<FormattedMessage>`
    ([add-a-translation.md](./add-a-translation.md)).
 5. Skeleton for `loadingElement` (shadcn `Skeleton`, `src/components/ui`).
-6. Route object: stable `id`, `path`, `loader`, `loadingElement`, `element`, children for tabs, and
-   `gbifRedirect` for shared routes.
+6. Route object: stable `id`, `path`, `loader`, `loadingElement`, children for tabs, and
+   `gbifRedirect` for shared routes. Page and tab components through
+   `lazy: lazyElement(() => import('./page'), 'Page')`, never a static `element` import: the route
+   tables are eager, so a static import ships the page on every page. The loader in its own module
+   ([code-splitting-and-lazy-loading.md](./code-splitting-and-lazy-loading.md)).
 7. Register once, in the file chosen above. In `dataRoutes`, search routes precede detail routes and
    `resourceKeyRoutes` stays last. `src/hp/routes.tsx` is not touched for data pages.
 8. `npm run codegen`; commit `src/gql/`.
@@ -60,6 +63,6 @@ The loader also redirects direct hits, but that is a safety net.
 - **Non-critical data** (slow metrics) goes in the component via `useQuery` with `lazyLoad: true`.
 - **Client-only routes** have no established pattern: omit `loader` and `loadingElement`, fetch with
   `useQuery`. Prefer a loader when SEO matters.
-- **Large pages:** see [code-splitting-and-lazy-loading.md](./code-splitting-and-lazy-loading.md);
-  `React.lazy` disables SSR for the page.
+- **`React.lazy` around a whole page** disables SSR for it; use route `lazy` instead
+  ([code-splitting-and-lazy-loading.md](./code-splitting-and-lazy-loading.md)).
 - **Loading screens** show only between routes, not on initial render or same-route param changes.

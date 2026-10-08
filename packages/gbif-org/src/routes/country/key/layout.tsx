@@ -25,6 +25,11 @@ import { Outlet, redirect, useLoaderData, useParams } from 'react-router-dom';
 import { isParticipant } from '.';
 import PageMetaData from '@/components/PageMetaData';
 import { ParsedQueryResult } from '@/services/graphQLService';
+// Side-effect imports: register the fragments this module's loader query spreads. Tabs and
+// shared components load lazily, so they cannot be relied on to have registered them first.
+import './participation';
+import './components/contacts';
+import './components/participantSummary';
 
 export async function countryKeyLoader({ params, request, graphql }: LoaderArgs) {
   const countryCode = required(params.countryCode, 'No countryCode was provided in the URL');

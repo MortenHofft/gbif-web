@@ -1,8 +1,7 @@
-import { RouteObjectWithPlugins } from '@/reactRouterPlugins';
-import { ResourceSearchPage } from './resourceSearch';
+import { lazyElement, RouteObjectWithPlugins } from '@/reactRouterPlugins';
 
 export const resourceSearchRoute: RouteObjectWithPlugins = {
   id: 'resourceSearch',
   path: 'resource/search',
-  element: <ResourceSearchPage />,
+  lazy: lazyElement(() => import('./resourceSearch'), 'ResourceSearchPage'),
 };

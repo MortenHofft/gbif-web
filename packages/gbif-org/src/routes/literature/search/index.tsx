@@ -1,5 +1,4 @@
-import { RouteObjectWithPlugins } from '@/reactRouterPlugins';
-import { LiteratureSearchPage } from './literatureSearch';
+import { lazyElement, RouteObjectWithPlugins } from '@/reactRouterPlugins';
 
 export const literatureSearchRoute: RouteObjectWithPlugins = {
   id: 'literatureSearch',
@@ -11,5 +10,5 @@ export const literatureSearchRoute: RouteObjectWithPlugins = {
     }${gbifOrgLocalePrefix}/resource/search?${queryString}`;
   },
   path: 'literature/search',
-  element: <LiteratureSearchPage />,
+  lazy: lazyElement(() => import('./literatureSearch'), 'LiteratureSearchPage'),
 };

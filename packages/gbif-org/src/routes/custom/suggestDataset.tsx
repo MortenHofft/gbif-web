@@ -1,48 +1,9 @@
-import { RouteObjectWithPlugins } from '@/reactRouterPlugins';
-import { FormattedMessage, useIntl } from 'react-intl';
-import { ArticleIntro } from '../resource/key/components/articleIntro';
-import { ArticleSkeleton } from '../resource/key/components/articleSkeleton';
-import { ArticleTextContainer } from '../resource/key/components/articleTextContainer';
-import { ArticleTitle } from '../resource/key/components/articleTitle';
-import { PageContainer } from '../resource/key/components/pageContainer';
-import { SuggestDatasetForm } from '../resource/key/composition/blocks/customComponents/suggestDatasetForm';
-import { ArticlePreTitle } from '../resource/key/components/articlePreTitle';
-import PageMetaData from '@/components/PageMetaData';
-
-function SuggestDatasetPage() {
-  const { formatMessage } = useIntl();
-
-  return (
-    <PageContainer className="g-bg-white" topPadded bottomPadded>
-      <PageMetaData
-        title={formatMessage({ id: 'suggestDataset.pageTitle' })}
-        path="/suggest-dataset"
-      />
-
-      <ArticleTextContainer>
-        <ArticlePreTitle>
-          <FormattedMessage id="cms.contentType.tool" />
-        </ArticlePreTitle>
-
-        <ArticleTitle>
-          <FormattedMessage id="suggestDataset.pageTitle" />
-        </ArticleTitle>
-
-        <ArticleIntro>
-          <FormattedMessage id="suggestDataset.pageDescription" />
-        </ArticleIntro>
-
-        <hr className="g-my-4" />
-
-        <SuggestDatasetForm />
-      </ArticleTextContainer>
-    </PageContainer>
-  );
-}
+import { lazyElement, RouteObjectWithPlugins } from '@/reactRouterPlugins';
+import { ArticleSkeleton } from '@/routes/resource/key/components/articleSkeleton';
 
 export const suggestDatasetRoute: RouteObjectWithPlugins = {
   id: 'suggest-dataset',
-  element: <SuggestDatasetPage />,
+  lazy: lazyElement(() => import('./suggestDatasetPage'), 'SuggestDatasetPage'),
   loadingElement: <ArticleSkeleton />,
   path: 'suggest-dataset',
 };

@@ -1,11 +1,11 @@
+import { ArticleSkeleton } from '@/routes/resource/key/components/articleSkeleton';
 import { DerivedDatasetQuery } from '@/gql/graphql';
-import { RouteObjectWithPlugins, useRenderedRouteLoaderData } from '@/reactRouterPlugins';
-
 import {
-  derivedDatasetLoader,
-  DerivedDatasetPage,
-  DerivedDatasetSkeleton,
-} from './derivedDatasetKey';
+  lazyElement,
+  lazyLoader,
+  RouteObjectWithPlugins,
+  useRenderedRouteLoaderData,
+} from '@/reactRouterPlugins';
 
 const id = 'derivedDatasetKey';
 
@@ -19,9 +19,9 @@ export const derivedDatasetKeyRoute: RouteObjectWithPlugins = {
     }${gbifOrgLocalePrefix}/derivedDataset/${doiPrefix}/${doiSuffix}`;
   },
   path: 'derivedDataset/:doiPrefix/:doiSuffix',
-  loader: derivedDatasetLoader,
-  loadingElement: <DerivedDatasetSkeleton />,
-  element: <DerivedDatasetPage />,
+  loader: lazyLoader(() => import('./derivedDatasetKey'), 'derivedDatasetLoader'),
+  loadingElement: <ArticleSkeleton />,
+  lazy: lazyElement(() => import('./derivedDatasetKey'), 'DerivedDatasetPage'),
 };
 
 export function useDatasetKeyLoaderData() {

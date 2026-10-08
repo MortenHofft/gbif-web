@@ -1,5 +1,4 @@
-import { RouteObjectWithPlugins } from '@/reactRouterPlugins';
-import { TaxonSearchPage } from './taxonSearch';
+import { lazyElement, RouteObjectWithPlugins } from '@/reactRouterPlugins';
 
 export const taxonSearchRoute: RouteObjectWithPlugins = {
   id: 'taxonSearch',
@@ -7,5 +6,5 @@ export const taxonSearchRoute: RouteObjectWithPlugins = {
   gbifRedirect: (_, { gbifOrgLocalePrefix = '' }) => {
     return `${import.meta.env.PUBLIC_GBIF_ORG}${gbifOrgLocalePrefix}/species/search`;
   },
-  element: <TaxonSearchPage />,
+  lazy: lazyElement(() => import('./taxonSearch'), 'TaxonSearchPage'),
 };

@@ -23,6 +23,9 @@ import { required } from '@/utils/required';
 import { FormattedMessage } from 'react-intl';
 import { Outlet, useLoaderData, useLocation } from 'react-router-dom';
 import { AboutContent, ApiContent } from './help';
+// Side-effect imports: register the fragments this module's loader query spreads. Tabs and
+// shared components load lazily, so they cannot be relied on to have registered them first.
+import './about';
 
 const NETWORK_QUERY = /* GraphQL */ `
   query Network($key: ID!, $predicate: Predicate) {

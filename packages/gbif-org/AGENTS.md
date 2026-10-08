@@ -20,7 +20,7 @@ single quotes. Nothing runs on commit.
 ## Task guides (`docs/how-to/`)
 
 - `add-a-route.md`: page or tab, loader, registration, hosted-portal fallback.
-- `code-splitting-and-lazy-loading.md`: before using `React.lazy` on a page.
+- `code-splitting-and-lazy-loading.md`: route `lazy` for every page (`lazyElement`); `React.lazy`.
 - `add-a-translation.md`: any user-facing text.
 - `add-an-occurrence-filter.md`: search parameter or facet; spans es-api and graphql-api.
 - `add-a-filter-type.md`: new filter widget kind (rare).

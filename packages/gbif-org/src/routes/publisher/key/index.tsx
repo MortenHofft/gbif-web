@@ -1,12 +1,11 @@
-import { RouteObjectWithPlugins, useRenderedRouteLoaderData } from '@/reactRouterPlugins';
-import { PublisherKeyAbout } from './about';
-import { PublisherKeyMetrics } from './metrics';
+import { ArticleSkeleton } from '@/routes/resource/key/components/articleSkeleton';
 import {
-  PublisherKeyLoaderResult,
-  publisherLoader,
-  PublisherPage,
-  PublisherPageSkeleton,
-} from './publisherKey';
+  lazyElement,
+  lazyLoader,
+  RouteObjectWithPlugins,
+  useRenderedRouteLoaderData,
+} from '@/reactRouterPlugins';
+import type { PublisherKeyLoaderResult } from './publisherKey';
 
 const id = 'publisherKey';
 
@@ -19,17 +18,17 @@ export const publisherKeyRoute: RouteObjectWithPlugins = {
     return `${import.meta.env.PUBLIC_GBIF_ORG}${gbifOrgLocalePrefix}/publisher/${key}`;
   },
   path: 'publisher/:key',
-  loader: publisherLoader,
-  loadingElement: <PublisherPageSkeleton />,
-  element: <PublisherPage />,
+  loader: lazyLoader(() => import('./publisherKey'), 'publisherLoader'),
+  loadingElement: <ArticleSkeleton />,
+  lazy: lazyElement(() => import('./publisherKey'), 'PublisherPage'),
   children: [
     {
       index: true,
-      element: <PublisherKeyAbout />,
+      lazy: lazyElement(() => import('./about'), 'PublisherKeyAbout'),
     },
     {
       path: 'metrics',
-      element: <PublisherKeyMetrics />,
+      lazy: lazyElement(() => import('./metrics'), 'PublisherKeyMetrics'),
     },
     // {
     //   path: 'citations',

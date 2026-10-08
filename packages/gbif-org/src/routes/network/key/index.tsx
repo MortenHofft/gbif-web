@@ -1,10 +1,11 @@
+import { ArticleSkeleton } from '@/routes/resource/key/components/articleSkeleton';
 import { NetworkQuery } from '@/gql/graphql';
-import { RouteObjectWithPlugins, useRenderedRouteLoaderData } from '@/reactRouterPlugins';
-import { NetworkKeyAbout } from './about';
-import { NetworkKeyDataset } from './dataset';
-import { NetworkKeyMetrics } from './metrics';
-import { networkLoader, NetworkPage, NetworkPageSkeleton } from './networkKey';
-import { NetworkKeyPublisher } from './publisher';
+import {
+  lazyElement,
+  lazyLoader,
+  RouteObjectWithPlugins,
+  useRenderedRouteLoaderData,
+} from '@/reactRouterPlugins';
 
 const id = 'networkKey';
 
@@ -17,25 +18,25 @@ export const networkKeyRoute: RouteObjectWithPlugins = {
     return `${import.meta.env.PUBLIC_GBIF_ORG}${gbifOrgLocalePrefix}/network/${key}`;
   },
   path: 'network/:key',
-  loader: networkLoader,
-  loadingElement: <NetworkPageSkeleton />,
-  element: <NetworkPage />,
+  loader: lazyLoader(() => import('./networkKey'), 'networkLoader'),
+  loadingElement: <ArticleSkeleton />,
+  lazy: lazyElement(() => import('./networkKey'), 'NetworkPage'),
   children: [
     {
       index: true,
-      element: <NetworkKeyAbout />,
+      lazy: lazyElement(() => import('./about'), 'NetworkKeyAbout'),
     },
     {
       path: 'metrics',
-      element: <NetworkKeyMetrics />,
+      lazy: lazyElement(() => import('./metrics'), 'NetworkKeyMetrics'),
     },
     {
       path: 'dataset',
-      element: <NetworkKeyDataset />,
+      lazy: lazyElement(() => import('./dataset'), 'NetworkKeyDataset'),
     },
     {
       path: 'publisher',
-      element: <NetworkKeyPublisher />,
+      lazy: lazyElement(() => import('./publisher'), 'NetworkKeyPublisher'),
     },
   ],
 };

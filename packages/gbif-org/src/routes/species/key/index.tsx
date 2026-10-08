@@ -1,6 +1,10 @@
 import { DeprecatedTaxonTombstoneQuery } from '@/gql/graphql';
-import { RouteObjectWithPlugins, useRenderedRouteLoaderData } from '@/reactRouterPlugins';
-import { SpeciesKey, speciesLoader } from './speciesKey';
+import {
+  lazyElement,
+  lazyLoader,
+  RouteObjectWithPlugins,
+  useRenderedRouteLoaderData,
+} from '@/reactRouterPlugins';
 
 const id = 'speciesKey';
 
@@ -14,8 +18,8 @@ export const speciesKeyRoute: RouteObjectWithPlugins = {
     if (key === 'search') return null;
     return `${import.meta.env.PUBLIC_GBIF_ORG}${gbifOrgLocalePrefix}/species/${key}`;
   },
-  loader: speciesLoader,
-  element: <SpeciesKey />,
+  loader: lazyLoader(() => import('./speciesKey'), 'speciesLoader'),
+  lazy: lazyElement(() => import('./speciesKey'), 'SpeciesKey'),
   children: [
     {
       // Only here to ensure that parent key is tested. Else just a 404

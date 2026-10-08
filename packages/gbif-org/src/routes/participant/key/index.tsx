@@ -1,7 +1,11 @@
+import { ArticleSkeleton } from '@/routes/resource/key/components/articleSkeleton';
 import { ParticipantDetailsQuery } from '@/gql/graphql';
-import { RouteObjectWithPlugins, useRenderedRouteLoaderData } from '@/reactRouterPlugins';
-import { ParticipantKeyAbout } from './about';
-import { ParticipantPage, ParticipantPageSkeleton, participantLoader } from './participantKey';
+import {
+  lazyElement,
+  lazyLoader,
+  RouteObjectWithPlugins,
+  useRenderedRouteLoaderData,
+} from '@/reactRouterPlugins';
 
 const id = 'participantKey';
 
@@ -16,13 +20,13 @@ export function createParticipantKeyRoute(): RouteObjectWithPlugins {
       return `${import.meta.env.PUBLIC_GBIF_ORG}${gbifOrgLocalePrefix}/participant/${key}`;
     },
     path: 'participant/:key',
-    loader: participantLoader,
-    loadingElement: <ParticipantPageSkeleton />,
-    element: <ParticipantPage />,
+    loader: lazyLoader(() => import('./participantKey'), 'participantLoader'),
+    loadingElement: <ArticleSkeleton />,
+    lazy: lazyElement(() => import('./participantKey'), 'ParticipantPage'),
     children: [
       {
         index: true,
-        element: <ParticipantKeyAbout />,
+        lazy: lazyElement(() => import('./about'), 'ParticipantKeyAbout'),
       },
     ],
   };

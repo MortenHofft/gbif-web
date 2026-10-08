@@ -1,59 +1,44 @@
-import { RouteObjectWithPlugins } from '@/reactRouterPlugins';
+import { lazyElement, lazyLoader, RouteObjectWithPlugins } from '@/reactRouterPlugins';
 import { Navigate } from 'react-router-dom';
 import { ArticleSkeleton } from '../resource/key/components/articleSkeleton';
-import { ConfirmPage, confirmLoader } from './confirm/confirm';
-import { DerivedDatasets } from './derivedDatasets/derivedDatasets';
-import { Downloads } from './downloads/downloads';
-import { LoginPage, RegistrationPage } from './login/login';
-import Profile from './profile/profile';
-import { UserProfileLayoutWrapper } from './profile/profileLayout';
 import { ProtectedRoute } from './shared/ProtectedRoute';
-import { UpdateEmailPage } from './updateEmail/updateEmail';
-import { UpdatePasswordPage, updatePasswordLoader } from './updatePassword/updatePassword';
-import { Validations } from './validations/validations';
+
+const protect = (element: JSX.Element) => <ProtectedRoute>{element}</ProtectedRoute>;
 
 export const userRoutes: RouteObjectWithPlugins[] = [
   {
     id: 'user-login',
     path: 'user/login',
-    element: <LoginPage />,
+    lazy: lazyElement(() => import('./login/login'), 'LoginPage'),
   },
   {
     id: 'user-register',
     path: 'user/register',
-    element: <RegistrationPage />,
+    lazy: lazyElement(() => import('./login/login'), 'RegistrationPage'),
   },
   {
     id: 'user-updatePassword',
     path: 'user/update-password',
-    loader: updatePasswordLoader,
+    loader: lazyLoader(() => import('./updatePassword/updatePassword'), 'updatePasswordLoader'),
     loadingElement: <span>loading</span>,
-    element: <UpdatePasswordPage />,
+    lazy: lazyElement(() => import('./updatePassword/updatePassword'), 'UpdatePasswordPage'),
   },
   {
     id: 'user-changeEmail',
     path: 'user/change-email',
-    element: (
-      <ProtectedRoute>
-        <UpdateEmailPage />
-      </ProtectedRoute>
-    ),
+    lazy: lazyElement(() => import('./updateEmail/updateEmail'), 'UpdateEmailPage', protect),
   },
   {
     id: 'user-confirm',
     path: 'user/confirm',
-    loader: confirmLoader,
+    loader: lazyLoader(() => import('./confirm/confirm'), 'confirmLoader'),
     loadingElement: <ArticleSkeleton />,
-    element: <ConfirmPage />,
+    lazy: lazyElement(() => import('./confirm/confirm'), 'ConfirmPage'),
   },
   {
     id: 'user-profile',
     path: 'user',
-    element: (
-      <ProtectedRoute>
-        <UserProfileLayoutWrapper />
-      </ProtectedRoute>
-    ),
+    lazy: lazyElement(() => import('./profile/profileLayout'), 'UserProfileLayoutWrapper', protect),
     children: [
       {
         index: true,
@@ -63,19 +48,19 @@ export const userRoutes: RouteObjectWithPlugins[] = [
       },
       {
         path: 'profile',
-        element: <Profile />,
+        lazy: lazyElement(() => import('./profile/profile'), 'default'),
       },
       {
         path: 'download',
-        element: <Downloads />,
+        lazy: lazyElement(() => import('./downloads/downloads'), 'Downloads'),
       },
       {
         path: 'derived-datasets',
-        element: <DerivedDatasets />,
+        lazy: lazyElement(() => import('./derivedDatasets/derivedDatasets'), 'DerivedDatasets'),
       },
       {
         path: 'validations',
-        element: <Validations />,
+        lazy: lazyElement(() => import('./validations/validations'), 'Validations'),
       },
     ],
   },

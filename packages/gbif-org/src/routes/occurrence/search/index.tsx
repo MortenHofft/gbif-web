@@ -1,5 +1,4 @@
-import { RouteObjectWithPlugins } from '@/reactRouterPlugins';
-import { OccurrenceSearchPage } from './occurrenceSearchPage';
+import { lazyElement, RouteObjectWithPlugins } from '@/reactRouterPlugins';
 
 export const occurrenceSearchRouteId = 'occurrenceSearch';
 
@@ -9,5 +8,5 @@ export const occurrenceSearchRoute: RouteObjectWithPlugins = {
     return `${import.meta.env.PUBLIC_GBIF_ORG}${gbifOrgLocalePrefix}/occurrence/search`;
   },
   path: 'occurrence/search',
-  element: <OccurrenceSearchPage />,
+  lazy: lazyElement(() => import('./occurrenceSearchPage'), 'OccurrenceSearchPage'),
 };

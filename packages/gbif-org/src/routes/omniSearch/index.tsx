@@ -1,15 +1,14 @@
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { RouteObjectWithPlugins } from '@/reactRouterPlugins';
-import { SearchPage } from './search';
+import { lazyElement, RouteObjectWithPlugins } from '@/reactRouterPlugins';
 
 export const omniSearchRoute: RouteObjectWithPlugins = {
   id: 'omniSearch',
   gbifRedirect: (_, { gbifOrgLocalePrefix = '' }) =>
     `${import.meta.env.PUBLIC_GBIF_ORG}${gbifOrgLocalePrefix}/search`,
   path: 'search',
-  element: (
-    <ErrorBoundary>
-      <SearchPage />
-    </ErrorBoundary>
+  lazy: lazyElement(
+    () => import('./search'),
+    'SearchPage',
+    (element) => <ErrorBoundary>{element}</ErrorBoundary>
   ),
 };

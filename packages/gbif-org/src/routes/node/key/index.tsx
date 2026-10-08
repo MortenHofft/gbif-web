@@ -1,6 +1,11 @@
-import { RouteObjectWithPlugins, useRenderedRouteLoaderData } from '@/reactRouterPlugins';
-import { NodeKeyAbout } from './about';
-import { NodeKeyLoaderResult, NodePage, NodePageSkeleton, nodeLoader } from './nodeKey';
+import { ArticleSkeleton } from '@/routes/resource/key/components/articleSkeleton';
+import {
+  lazyElement,
+  lazyLoader,
+  RouteObjectWithPlugins,
+  useRenderedRouteLoaderData,
+} from '@/reactRouterPlugins';
+import type { NodeKeyLoaderResult } from './nodeKey';
 
 const id = 'nodeKey';
 
@@ -13,13 +18,13 @@ export const nodeKeyRoute: RouteObjectWithPlugins = {
     return `${import.meta.env.PUBLIC_GBIF_ORG}${gbifOrgLocalePrefix}/node/${key}`;
   },
   path: 'node/:key',
-  loader: nodeLoader,
-  loadingElement: <NodePageSkeleton />,
-  element: <NodePage />,
+  loader: lazyLoader(() => import('./nodeKey'), 'nodeLoader'),
+  loadingElement: <ArticleSkeleton />,
+  lazy: lazyElement(() => import('./nodeKey'), 'NodePage'),
   children: [
     {
       index: true,
-      element: <NodeKeyAbout />,
+      lazy: lazyElement(() => import('./about'), 'NodeKeyAbout'),
     },
   ],
 };

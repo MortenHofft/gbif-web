@@ -46,23 +46,44 @@ server-rendered content matters for SEO or first paint (dataset, species, occurr
 
 ## A whole page, keeping SSR
 
-Use react-router's route-level `lazy`. The server resolves it before rendering
-(`createStaticHandler`, `src/gbif/entry.server.tsx`); the client pre-resolves in `loadLazyRoutes`
-before `hydrateRoot` (`src/gbif/entry.client.tsx`).
+The default for every page and tab. Every route module is imported by the route tables, so anything
+a route's `element` imports statically ships on every page.
+
+Use react-router's route-level `lazy` through `lazyElement` (`src/reactRouterPlugins/lazyElement.tsx`).
+The server resolves it before rendering (`createStaticHandler`, `src/gbif/entry.server.tsx`); the
+client pre-resolves in `loadLazyRoutes` before `hydrateRoot` (`src/gbif/entry.client.tsx`).
 
 ```tsx
+import { lazyElement, lazyLoader } from '@/reactRouterPlugins';
+import { datasetLoader } from './datasetKey.loader';
+
 {
-  id: 'occurrenceSearch',
-  path: 'occurrence/search',
-  lazy: async () => {
-    const { OccurrenceSearchPage } = await import('@/routes/occurrence/search/Page');
-    return { element: <OccurrenceSearchPage /> };
-  },
-  loader: occurrenceSearchLoader,
-  loadingElement: <OccurrenceSearchPageLoading />,
+  id: 'datasetKey',
+  path: 'dataset/:key',
+  loader: datasetLoader,
+  lazy: lazyElement(() => import('./datasetKey'), 'DatasetPage'),
+  children: [
+    // Optional third argument wraps the element, e.g. in an ErrorBoundary or ProtectedRoute.
+    { index: true, lazy: lazyElement(() => import('./about'), 'DatasetKeyAbout') },
+    {
+      path: 'event/:eventID',
+      lazy: lazyElement(() => import('./event/eventID'), 'DatasetEventID'),
+      loader: lazyLoader(() => import('./event/eventID'), 'eventLoader'),
+    },
+  ],
 }
 ```
 
-**Caveat: `loader` stays on the route object.** The plugins wrap it at build time to inject
-`config`, `locale`, `graphql`, `isPreview`; a loader returned from `lazy()` bypasses that. Static
-also lets it fetch in parallel with the element chunk.
+- **`loader` stays on the route object.** The plugins wrap it to inject `config`, `locale`,
+  `graphql`, `isPreview`; a loader returned from `lazy()` bypasses that.
+- **Entry pages get a loader module** (`datasetKey.loader.ts`) that does not import the page, so the
+  query starts while the chunk downloads. `lazyLoader` is for loaders still living in a page
+  module: the query waits for the chunk on the first client-side visit.
+- **Import nothing else from the page module** in the route file, or the module is eager again.
+  Types with `import type`; skeletons from `ArticleSkeleton` or another light module.
+- **Fragments are registered on import** (`fragmentManager.register`). A loader whose query spreads
+  a fragment from a tab or component must import that module itself (side-effect import). Nothing
+  else loads it first any more; the symptom is "Fragment X has not been registered".
+
+`node scripts/eager-graph.mjs <module>` prints what the initial bundle contains and the import
+chain that pulls a module in.

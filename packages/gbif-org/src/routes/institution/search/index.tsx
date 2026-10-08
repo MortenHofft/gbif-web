@@ -1,5 +1,4 @@
-import { RouteObjectWithPlugins } from '@/reactRouterPlugins';
-import { InstitutionSearchPage } from './institutionSearch';
+import { lazyElement, RouteObjectWithPlugins } from '@/reactRouterPlugins';
 
 export const institutionSearchRoute: RouteObjectWithPlugins = {
   id: 'institutionSearch',
@@ -7,5 +6,5 @@ export const institutionSearchRoute: RouteObjectWithPlugins = {
   gbifRedirect: (_, { grSciCollLocalePrefix = '' }) => {
     return `${import.meta.env.PUBLIC_GRSCICOLL}${grSciCollLocalePrefix}/institution/search`;
   },
-  element: <InstitutionSearchPage />,
+  lazy: lazyElement(() => import('./institutionSearch'), 'InstitutionSearchPage'),
 };

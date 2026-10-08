@@ -1,8 +1,7 @@
 import { StaticRenderSuspence } from '@/components/staticRenderSuspence';
-import { RouteObjectWithPlugins } from '@/reactRouterPlugins';
+import { lazyElement, RouteObjectWithPlugins } from '@/reactRouterPlugins';
 import React from 'react';
 import { ToolCardSkeleton } from '../_shared/toolCardSkeleton';
-import { createToolLayoutLoader, ToolAboutTab, ToolLayout } from '../_shared/toolLayout';
 import { ApiContent } from './help';
 
 const NameParserPage = React.lazy(() => import('./NameParserPage'));
@@ -10,8 +9,12 @@ const NameParserPage = React.lazy(() => import('./NameParserPage'));
 export const nameParserRoute: RouteObjectWithPlugins = {
   id: 'nameParser',
   path: 'tools/name-parser',
-  loader: createToolLayoutLoader('name_parser'),
-  element: <ToolLayout defaultTitle="Name parser" apiContent={<ApiContent />} />,
+  loader: (args) =>
+    import('../_shared/toolLayout').then((m) => m.createToolLayoutLoader('name_parser')(args)),
+  lazy: async () => {
+    const { ToolLayout } = await import('../_shared/toolLayout');
+    return { element: <ToolLayout defaultTitle="Name parser" apiContent={<ApiContent />} /> };
+  },
   children: [
     {
       index: true,
@@ -23,7 +26,7 @@ export const nameParserRoute: RouteObjectWithPlugins = {
     },
     {
       path: 'about',
-      element: <ToolAboutTab />,
+      lazy: lazyElement(() => import('../_shared/toolLayout'), 'ToolAboutTab'),
     },
   ],
 };

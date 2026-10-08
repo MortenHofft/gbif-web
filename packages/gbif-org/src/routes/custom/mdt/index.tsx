@@ -1,7 +1,4 @@
-import { RouteObjectWithPlugins } from '@/reactRouterPlugins';
-import MdtData from './MdtData';
-import { MdtInstallations } from './MdtInstallations';
-import { MdtOccurrences } from './MdtOccurrences';
+import { lazyElement, RouteObjectWithPlugins } from '@/reactRouterPlugins';
 
 export const mdtRoute: RouteObjectWithPlugins = {
   id: 'mdt',
@@ -9,18 +6,18 @@ export const mdtRoute: RouteObjectWithPlugins = {
   gbifRedirect: (_, { gbifOrgLocalePrefix = '' }) => {
     return `${import.meta.env.PUBLIC_GBIF_ORG}${gbifOrgLocalePrefix}/mdt`;
   },
-  element: <MdtData />,
+  lazy: lazyElement(() => import('./MdtData'), 'default'),
   children: [
     {
       index: true,
       id: 'mdtOccurrences',
       path: 'occurrences',
-      element: <MdtOccurrences />,
+      lazy: lazyElement(() => import('./MdtOccurrences'), 'MdtOccurrences'),
     },
     {
       id: 'mdtInstallations',
       path: 'installations',
-      element: <MdtInstallations />,
+      lazy: lazyElement(() => import('./MdtInstallations'), 'MdtInstallations'),
     },
   ],
 };

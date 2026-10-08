@@ -1,25 +1,13 @@
 import {
+  lazyElement,
+  lazyLoader,
   LoaderArgs,
   RouteObjectWithPlugins,
   useRenderedRouteLoaderData,
 } from '@/reactRouterPlugins';
-import { datasetTaxonLoader } from '@/routes/taxon/key/taxonKey';
-import { DatasetKeyAbout } from './about';
-import { DatasetKeyDashboard } from './dashboard';
-import {
-  DatasetKeyLoaderResult,
-  datasetLoader,
-  DatasetPage,
-  DatasetPageSkeleton,
-} from './datasetKey';
-import { DatasetKeyDownload } from './download';
-import DatasetEvents from './event/datasetEvents';
-import { DatasetEventID, eventLoader } from './event/eventID';
-import { DatasetKeyPhylo } from './phylogenies';
-import { DatasetKeyProject } from './project';
-import { DatasetKeyTaxonSearch } from './taxonSearch';
+import { ArticleSkeleton } from '@/routes/resource/key/components/articleSkeleton';
 import { redirectDocument } from 'react-router-dom';
-import { DatasetTaxonKey } from './taxonKey';
+import { DatasetKeyLoaderResult, datasetLoader } from './datasetKey.loader';
 const id = 'datasetKey';
 
 export const datasetKeyRoute: RouteObjectWithPlugins = {
@@ -32,12 +20,12 @@ export const datasetKeyRoute: RouteObjectWithPlugins = {
   },
   path: 'dataset/:key',
   loader: datasetLoader,
-  loadingElement: <DatasetPageSkeleton />,
-  element: <DatasetPage />,
+  loadingElement: <ArticleSkeleton />,
+  lazy: lazyElement(() => import('./datasetKey'), 'DatasetPage'),
   children: [
     {
       index: true,
-      element: <DatasetKeyAbout />,
+      lazy: lazyElement(() => import('./about'), 'DatasetKeyAbout'),
     },
     {
       path: 'activity',
@@ -45,43 +33,42 @@ export const datasetKeyRoute: RouteObjectWithPlugins = {
     },
     {
       path: 'metrics',
-      element: <DatasetKeyDashboard />,
+      lazy: lazyElement(() => import('./dashboard'), 'DatasetKeyDashboard'),
     },
     {
       path: 'project',
-      element: <DatasetKeyProject />,
+      lazy: lazyElement(() => import('./project'), 'DatasetKeyProject'),
     },
     {
       path: 'phylogenies',
-      element: <DatasetKeyPhylo />,
+      lazy: lazyElement(() => import('./phylogenies'), 'DatasetKeyPhylo'),
     },
     {
       path: 'taxon',
-      element: <DatasetKeyTaxonSearch />,
+      lazy: lazyElement(() => import('./taxonSearch'), 'DatasetKeyTaxonSearch'),
     },
     {
       path: 'taxon/:taxonKey',
-      element: <DatasetTaxonKey />,
-      loader: datasetTaxonLoader,
+      lazy: lazyElement(() => import('./taxonKey'), 'DatasetTaxonKey'),
+      loader: lazyLoader(() => import('@/routes/taxon/key/taxonKey'), 'datasetTaxonLoader'),
     },
     {
       path: 'event',
-      element: <DatasetEvents />,
+      lazy: lazyElement(() => import('./event/datasetEvents'), 'default'),
       loader: datasetLoader,
     },
     {
       path: 'event/:eventID',
-      element: <DatasetEventID />,
-      loader: eventLoader,
+      lazy: lazyElement(() => import('./event/eventID'), 'DatasetEventID'),
+      loader: lazyLoader(() => import('./event/eventID'), 'eventLoader'),
     },
     {
       path: 'parentevent/:parentEventID',
-      element: <DatasetEventID />,
       loader: ({ params }: LoaderArgs) => redirectDocument(`../event/${params.parentEventID}`),
     },
     {
       path: 'download',
-      element: <DatasetKeyDownload />,
+      lazy: lazyElement(() => import('./download'), 'DatasetKeyDownload'),
     },
   ],
 };

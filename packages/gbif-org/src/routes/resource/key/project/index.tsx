@@ -1,42 +1,40 @@
+import { ArticleSkeleton } from '@/routes/resource/key/components/articleSkeleton';
 import { ProjectDatasetsTabFragment, ProjectPageFragment } from '@/gql/graphql';
-import { RouteObjectWithPlugins, useRenderedRouteLoaderData } from '@/reactRouterPlugins';
-import { ProjectPage, projectPageLoader, ProjectPageSkeleton } from './project';
-import { ProjectAboutTab } from './projectAboutTab';
-import { ProjectDatasetsTab } from './projectDatasetsTab';
 import {
-  projectNewsAndEventsLoader,
-  ProjectNewsAndEventsTab,
-  ProjectNewsAndEventsTabSkeleton,
-} from './projectNewsAndEventsTab';
+  lazyElement,
+  lazyLoader,
+  RouteObjectWithPlugins,
+  useRenderedRouteLoaderData,
+} from '@/reactRouterPlugins';
+import { ProjectNewsAndEventsTabSkeleton } from './projectNewsAndEventsTab';
 
 const id = 'projectKey';
 
 export const projectKeyRoute: RouteObjectWithPlugins = {
   id,
   gbifRedirect: ({ key } = {}, { gbifOrgLocalePrefix = '' }) => {
-    if (typeof key !== 'string' && typeof key !== 'number')
-      throw new Error('Invalid key');
+    if (typeof key !== 'string' && typeof key !== 'number') throw new Error('Invalid key');
     return `${import.meta.env.PUBLIC_GBIF_ORG}${gbifOrgLocalePrefix}/project/${key}`;
   },
   path: 'project/:key',
-  loader: projectPageLoader,
-  loadingElement: <ProjectPageSkeleton />,
-  element: <ProjectPage />,
+  loader: lazyLoader(() => import('./project'), 'projectPageLoader'),
+  loadingElement: <ArticleSkeleton />,
+  lazy: lazyElement(() => import('./project'), 'ProjectPage'),
   isSlugified: true,
   children: [
     {
       index: true,
-      element: <ProjectAboutTab />,
+      lazy: lazyElement(() => import('./projectAboutTab'), 'ProjectAboutTab'),
     },
     {
       path: 'news',
-      element: <ProjectNewsAndEventsTab />,
+      lazy: lazyElement(() => import('./projectNewsAndEventsTab'), 'ProjectNewsAndEventsTab'),
       loadingElement: <ProjectNewsAndEventsTabSkeleton />,
-      loader: projectNewsAndEventsLoader,
+      loader: lazyLoader(() => import('./projectNewsAndEventsTab'), 'projectNewsAndEventsLoader'),
     },
     {
       path: 'datasets',
-      element: <ProjectDatasetsTab />,
+      lazy: lazyElement(() => import('./projectDatasetsTab'), 'ProjectDatasetsTab'),
     },
   ],
 };

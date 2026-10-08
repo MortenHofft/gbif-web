@@ -1,9 +1,8 @@
 import { StaticRenderSuspence } from '@/components/staticRenderSuspence';
 import { NotFoundLoaderResponse } from '@/errors';
-import { LoaderArgs, RouteObjectWithPlugins } from '@/reactRouterPlugins';
+import { lazyElement, LoaderArgs, RouteObjectWithPlugins } from '@/reactRouterPlugins';
 import React from 'react';
 import { json } from 'react-router-dom';
-import { BackstageLayout } from './BackstageLayout';
 
 // The dashboard is loaded lazily so its code is split into its own chunk and is
 // never part of the main site bundle — only fetched when an authorised user
@@ -39,7 +38,7 @@ export const backstageRoute: RouteObjectWithPlugins = {
   id: 'backstage',
   path: 'backstage',
   loader: backstageLoader,
-  element: <BackstageLayout />,
+  lazy: lazyElement(() => import('./BackstageLayout'), 'BackstageLayout'),
   children: [
     {
       index: true,

@@ -1,7 +1,5 @@
-import { RouteObjectWithPlugins } from '@/reactRouterPlugins';
+import { lazyElement, lazyLoader, RouteObjectWithPlugins } from '@/reactRouterPlugins';
 import { redirectDocument } from 'react-router-dom';
-import { GlobalAnalyticsPage } from './global';
-import { RegionAnalyticsPage, regionLoader } from './region';
 
 export const analyticsRoute: RouteObjectWithPlugins = {
   id: 'analytics',
@@ -13,12 +11,12 @@ export const analyticsRoute: RouteObjectWithPlugins = {
     },
     {
       path: 'global',
-      element: <GlobalAnalyticsPage />,
+      lazy: lazyElement(() => import('./global'), 'GlobalAnalyticsPage'),
     },
     {
       path: 'region/:regionKey',
-      loader: regionLoader,
-      element: <RegionAnalyticsPage />,
+      loader: lazyLoader(() => import('./region'), 'regionLoader'),
+      lazy: lazyElement(() => import('./region'), 'RegionAnalyticsPage'),
     },
   ],
 };
