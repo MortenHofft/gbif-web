@@ -161,16 +161,19 @@ test('gbifUrlChange carries a localizeLink that switches the portal language', a
       () => (window as unknown as { __urlChanges: Array<{ url: string; es: string }> }).__urlChanges
     );
 
-  await page.goto('/dataset/search?q=bird');
+  await page.goto('/dataset/search?q=bird#anchor');
   await waitForIdle();
   const first = (await changes()).at(-1);
-  expect(first).toEqual({ url: '/dataset/search?q=bird', es: '/es/dataset/search?q=bird' });
+  expect(first).toEqual({
+    url: '/dataset/search?q=bird#anchor',
+    es: '/es/dataset/search?q=bird#anchor',
+  });
   await expect(page.getByText(/^[\d,]+ datasets$/).first()).toBeVisible();
 
   await page.goto(first!.es);
   await waitForIdle();
-  await expect(page).toHaveURL(/\/es\/dataset\/search\?q=bird$/);
+  await expect(page).toHaveURL(/\/es\/dataset\/search\?q=bird#anchor$/);
   await expect(page.getByText(/^[\d.]+ conjuntos de datos publicados$/).first()).toBeVisible();
   const second = (await changes()).at(-1);
-  expect(second?.url).toBe('/es/dataset/search?q=bird');
+  expect(second?.url).toBe('/es/dataset/search?q=bird#anchor');
 });

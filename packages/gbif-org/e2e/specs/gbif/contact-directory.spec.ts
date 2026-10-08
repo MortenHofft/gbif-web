@@ -92,9 +92,9 @@ test.describe('group filter', () => {
       .split(/\s+/)
       .pop()!;
     await search(page).fill(surname);
-    await expect.poll(() => bodyRows(page).count()).toBeLessThanOrEqual(inGroup);
-    expect(await bodyRows(page).count()).toBeGreaterThan(0);
     await expect(bodyRows(page).filter({ hasNotText: surname })).toHaveCount(0);
+    expect(await bodyRows(page).count()).toBeGreaterThan(0);
+    expect(await bodyRows(page).count()).toBeLessThanOrEqual(inGroup);
     await expect(page.getByRole('heading', { level: 3 })).toHaveCount(1);
 
     await search(page).fill('zzzqqqxxx');

@@ -147,7 +147,7 @@ test.describe('More filters', () => {
   });
 });
 
-// One URL per filter: 0 < filtered < unfiltered, and a chip. `chip` is the filter's name.
+// One URL per filter: 0 < filtered < unfiltered, and a chip. `name` is the filter's chip label.
 const URL_ROWS: Array<{ handle: string; value: string; name: string; exactly?: number }> = [
   { handle: 'q', value: 'sparrow', name: 'Full text search' },
   { handle: 'year', value: '2020', name: 'Year of publication' },
@@ -175,9 +175,12 @@ const URL_ROWS: Array<{ handle: string; value: string; name: string; exactly?: n
 ];
 
 test.describe('one URL per filter', () => {
+  // The unfiltered total is the same for every row, so each worker loads it once.
+  let unfiltered: number | undefined;
+
   for (const row of URL_ROWS) {
     test(`${row.handle}=${row.value}`, async ({ page, waitForIdle }) => {
-      const total = await unfilteredTotal(page, waitForIdle);
+      const total = (unfiltered ??= await unfilteredTotal(page, waitForIdle));
       await page.goto(`${PATH}?${row.handle}=${encodeURIComponent(row.value)}`);
       await waitForIdle();
       if (row.handle === 'q') {

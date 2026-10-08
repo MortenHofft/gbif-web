@@ -26,7 +26,7 @@ function UrlChangeNotifier() {
   const { localizeLink } = useI18n();
 
   useEffect(() => {
-    const url = location.pathname + (location.search ?? '');
+    const url = location.pathname + (location.search ?? '') + (location.hash ?? '');
 
     window.dispatchEvent(
       new CustomEvent('gbifUrlChange', {

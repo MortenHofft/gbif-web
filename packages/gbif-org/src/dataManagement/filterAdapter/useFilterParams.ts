@@ -28,7 +28,8 @@ export function useFilterParams({
   defaultChecklistKey?: string;
   paramsToRemove: string[];
 }): [FilterType, (filter: FilterType) => void] {
-  const [remove] = useState(paramsToRemove ?? []);
+  // offset belongs to usePaginationState; a changed filter must never keep it.
+  const [remove] = useState(() => [...new Set(['offset', ...(paramsToRemove ?? [])])]);
   const [emptyQuery, setEmptyQuery] = useState({});
   const [observedParams, setObservedParams] = useState<string[]>([]);
   const [query, setQuery] = useQueryParams({ observedParams });

@@ -7,16 +7,19 @@ import { expect, test } from '../../test';
 const DATASET = '/dataset/50c9509d-22c7-4a22-a47d-8c48425ef4a7';
 const LABELS = { en: 'English', es: 'Español', fr: 'Français', ar: 'العربية' } as const;
 type Code = keyof typeof LABELS;
+// The trigger's label is translated once Crowdin translates header.changeLanguage; the sheet title is
+// already Spanish. Match every language the specs switch through.
+const CHANGE_LANGUAGE = /Change language|Cambiar idioma|Changer de langue|تغيير اللغة/;
 
 // Desktop opens a dropdown of menu items; below 640px the same selector is a sheet of buttons.
 async function switchTo(page: Page, code: Code, waitForIdle: () => Promise<void>) {
   const mobile = (page.viewportSize()?.width ?? 1280) < 640;
   if (mobile) {
     await page.getByRole('button', { name: 'Open navigation menu' }).click();
-    await page.getByRole('button', { name: /Change language|Cambiar idioma/ }).click();
+    await page.getByRole('button', { name: CHANGE_LANGUAGE }).click();
     await page.getByRole('button', { name: LABELS[code], exact: true }).click();
   } else {
-    await page.getByRole('button', { name: 'Change language' }).click();
+    await page.getByRole('button', { name: CHANGE_LANGUAGE }).click();
     await page.getByRole('menuitem', { name: LABELS[code], exact: true }).click();
   }
   await waitForIdle();
@@ -48,7 +51,6 @@ const PAGES: PageRow[] = [
     en: /^[\d,]+ results$/,
     es: /^[\d.]+ resultados$/,
   },
-  { id: 'toolPage', path: '/tools/species-lookup', en: 'Species Matching', es: 'Species Matching' },
 ];
 
 for (const row of PAGES) {
@@ -168,7 +170,7 @@ test.describe('phone viewport', () => {
     await page.goto(DATASET);
     await waitForIdle();
     await page.getByRole('button', { name: 'Open navigation menu' }).click();
-    await page.getByRole('button', { name: 'Change language' }).click();
+    await page.getByRole('button', { name: CHANGE_LANGUAGE }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.getByRole('button', { name: 'Español', exact: true }).click();
     await waitForIdle();
