@@ -50,6 +50,8 @@ function OccurrenceMediaGalleryContent({ taxon }: Props) {
       </DynamicLink>
     ),
     thumbnail: (
+      // The full rendition on purpose: picking a thumbnail shows an already loaded image, and
+      // Thumbor serves one cached size per image. Costs ~100-200 KB per strip image instead of ~6 KB.
       <img
         src={item.thumbor ?? item.identifier ?? ''}
         alt=""

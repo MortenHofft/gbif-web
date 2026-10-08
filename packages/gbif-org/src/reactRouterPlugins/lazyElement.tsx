@@ -7,14 +7,22 @@ import type { LoaderArgs } from '.';
  * See docs/how-to/code-splitting-and-lazy-loading.md.
  */
 export function lazyElement<M, K extends keyof M>(
-  load: () => Promise<M>,
+  // moduleId is added at build time by tagLazyRouteModules (gbif/vite.config.ts).
+  load: (() => Promise<M>) & { moduleId?: string },
   exportName: K,
   wrap: (element: JSX.Element) => JSX.Element = (element) => element
 ) {
   return async () => {
     const Component = (await load())[exportName] as ComponentType;
-    return { element: wrap(<Component />) };
+    // Assigned onto the route by react-router; the server modulepreloads it (preloadModuleIds).
+    return { element: wrap(<Component />), preloadModuleId: load.moduleId };
   };
+}
+
+export function getPreloadModuleId(route: object): string | undefined {
+  return 'preloadModuleId' in route && typeof route.preloadModuleId === 'string'
+    ? route.preloadModuleId
+    : undefined;
 }
 
 /**

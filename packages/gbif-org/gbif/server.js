@@ -38,6 +38,25 @@ const getPreRenderRedirect = createGetPreRenderRedirect(env);
 // so read it once instead of on every SSR request. Dev re-reads per request so
 // template edits show up on reload.
 let cachedProdTemplate;
+let cachedClientManifest;
+
+// modulepreload links for the chunks of the lazy routes that were rendered, plus their static
+// imports. Without them the browser finds those chunks only after main.js and its dependencies
+// have run, and hydration waits a round trip longer.
+function createPreloadLinks(manifest, moduleIds, template) {
+  const files = new Set();
+  const visit = (key) => {
+    const chunk = manifest?.[key];
+    if (!chunk || files.has(chunk.file)) return;
+    files.add(chunk.file);
+    chunk.imports?.forEach(visit);
+  };
+  moduleIds?.forEach(visit);
+  return [...files]
+    .filter((file) => !template.includes(`/${file}`))
+    .map((file) => `<link rel="modulepreload" crossorigin href="/${file}">`)
+    .join('');
+}
 
 async function main() {
   const app = express();
@@ -242,6 +261,9 @@ async function main() {
           'utf8'
         );
         template = cachedProdTemplate;
+        cachedClientManifest ??= JSON.parse(
+          await fsp.readFile(path.join(DIST_DIR, 'client/.vite/manifest.json'), 'utf8')
+        );
         render = (await import(pathToFileURL(path.join(DIST_DIR, 'server/entry.server.js')).href))
           .render;
       }
@@ -257,6 +279,7 @@ async function main() {
           rootDir,
           messagesPath,
           messagesClientUrl,
+          preloadModuleIds,
         } = await render(req);
         if (cacheControl) {
           res.set('Cache-Control', cacheControl);
@@ -305,6 +328,11 @@ async function main() {
             `<div id="app" class="gbif" dir="${rootDir ?? 'ltr'}">`
           )
           .replace('<!--head-html-->', headHtml + i18nScript + predicateScript)
+          // After the entry's own preloads, which main.js needs first.
+          .replace(
+            '</head>',
+            createPreloadLinks(cachedClientManifest, preloadModuleIds, template) + '</head>'
+          )
           .replace('<!--app-html-->', appHtml);
 
         res.setHeader('Content-Type', 'text/html');

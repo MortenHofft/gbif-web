@@ -4,6 +4,7 @@ import { createGbifRoutes } from '@/gbif/routes';
 import { extractLocaleFromPathname } from '@/reactRouterPlugins/i18n/extractLocaleFromURL';
 import { getMessagesForLocale, resolveMessagesPath } from '@/reactRouterPlugins/i18n/loadMessages';
 import { MessagesProvider } from '@/reactRouterPlugins/i18n/messagesContext';
+import { getPreloadModuleId } from '@/reactRouterPlugins/lazyElement';
 import type { Request as ExpressRequest } from 'express';
 import ReactDOMServer from 'react-dom/server';
 import { FilledContext, HelmetServerState } from 'react-helmet-async';
@@ -31,6 +32,9 @@ export async function render(req: ExpressRequest) {
   }
 
   const router = createStaticRouter(dataRoutes, context);
+  const preloadModuleIds = context.matches
+    .map((match) => getPreloadModuleId(match.route))
+    .filter((id): id is string => !!id);
 
   // Resolve the locale before rendering so we can load the matching translation messages
   // out-of-band (rather than via react-router loaderData, which would serialize the whole
@@ -87,6 +91,7 @@ export async function render(req: ExpressRequest) {
     rootDir,
     messagesPath,
     messagesClientUrl,
+    preloadModuleIds,
   };
 }
 

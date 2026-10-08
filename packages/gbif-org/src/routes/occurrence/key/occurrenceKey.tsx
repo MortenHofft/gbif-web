@@ -301,6 +301,9 @@ const SLOW_OCCURRENCE_QUERY = /* GraphQL */ `
   }
 `;
 
+// smallThumbnail is the full rendition on purpose: the gallery strip then preloads what is shown
+// when a thumbnail is picked, and Thumbor serves one cached size per image instead of two. Costs
+// the browser ~100-200 KB per strip image instead of ~6 KB at height 160.
 fragmentManager.register(/* GraphQL */ `
   fragment OccurrenceMediaDetails on MultimediaItem {
     title

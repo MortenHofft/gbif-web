@@ -2,8 +2,9 @@
 import type { GetModuleInfo } from 'rollup';
 import react from '@vitejs/plugin-react-swc';
 import { createRequire } from 'module';
+import path from 'path';
 import { fileURLToPath, URL } from 'url';
-import { defineConfig, UserConfig } from 'vite';
+import { defineConfig, Plugin, UserConfig } from 'vite';
 
 // `queue-promise` does `require('events')`, which the browser doesn't have. We resolve `events`
 // to the npm `events` polyfill (a transitive dep, API-compatible with Node's built-in) via a
@@ -11,6 +12,35 @@ import { defineConfig, UserConfig } from 'vite';
 // that prepended a 75 KB shim to every transformed file's output during dev — adding ~9s to the
 // SSR cold start (~895 source files × banner injection).
 const eventsPolyfill = createRequire(import.meta.url).resolve('events/');
+
+// Tags `lazyElement(() => import('x'), ...)` with x's path (a key of the client manifest), so the
+// server can modulepreload the chunks of the routes it rendered instead of the browser finding them
+// only after main.js has run. Same line count, so existing sourcemaps stay valid (map: null).
+function tagLazyRouteModules(): Plugin {
+  let root = process.cwd();
+  const pattern = /lazyElement\(\s*\(\)\s*=>\s*import\(\s*(['"])([^'"]+)\1\s*\)/g;
+  return {
+    name: 'tag-lazy-route-modules',
+    enforce: 'pre',
+    configResolved(config) {
+      root = config.root;
+    },
+    async transform(code, id) {
+      if (!code.includes('lazyElement(') || id.includes('node_modules')) return;
+      let result = '';
+      let last = 0;
+      for (const match of code.matchAll(pattern)) {
+        const resolved = await this.resolve(match[2], id);
+        if (!resolved) continue;
+        const moduleId = path.relative(root, resolved.id);
+        result += code.slice(last, match.index);
+        result += `lazyElement(Object.assign(() => import(${match[1]}${match[2]}${match[1]}), { moduleId: ${JSON.stringify(moduleId)} })`;
+        last = match.index! + match[0].length;
+      }
+      return last ? { code: result + code.slice(last), map: null } : undefined;
+    },
+  };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command, isSsrBuild }) => {
@@ -40,10 +70,15 @@ export default defineConfig(({ command, isSsrBuild }) => {
 
   const config: UserConfig = {
     envPrefix: 'PUBLIC_',
-    plugins: [react()],
+    plugins: [react(), tagLazyRouteModules()],
     build: {
       emptyOutDir: true,
       sourcemap: true,
+      // Pages are lazy route chunks but server-rendered: CSS split per chunk would arrive after the
+      // HTML has painted. Their CSS is a few KB, so it all goes in the render-blocking stylesheet.
+      cssCodeSplit: false,
+      // Read by gbif/server.js to modulepreload rendered routes' chunks.
+      manifest: true,
       outDir: './dist/gbif/client',
       rollupOptions: {
         input: {
