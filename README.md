@@ -13,7 +13,7 @@ This is a monorepo to group GBIF web components and API wrappers that serve UI s
 ## Packages
 
 - [React Components library - soon to be deprecated](./packages/react-components/README.md)
-- [Vector tile server](./packages/es2vt/README.md)
+- [Elasticsearch API wrapper](./packages/es-api/README.md)
 - [GBIF.org and hosted portal code base](./packages/gbif-org/README.md)
 - [GraphQL on top of public GBIF API](./packages/graphql-api/README.md)
 
